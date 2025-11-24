@@ -1,0 +1,27 @@
+
+name: agent-slo
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - transformers>=4.43
+      - accelerate>=0.33
+      - trl>=0.9
+      - bitsandbytes>=0.43
+      - peft>=0.11
+      - datasets>=2.19
+      - jsonschema>=4.21
+      - pandas>=2.2
+      - pyyaml>=6.0.2
+      - hydra-core>=1.3
+      - matplotlib>=3.8
+      - openai>=1.40
+      - ollama>=0.3.0
+      - wandb>=0.16
+      - weave>=0.50.0
+# NOTE: We intentionally omit torch from YAML due to OS/GPU differences.
+# After activation, install torch explicitly:
+# - macOS (CPU/MPS): pip install torch==2.4.1
+# - Ubuntu + CUDA 12.1: pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio

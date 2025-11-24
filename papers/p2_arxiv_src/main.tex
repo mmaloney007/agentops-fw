@@ -1,0 +1,35 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\title{Rewarding Stability: Multi-Objective RL for Answer Consistency and SLOs}
+\author{Mike Maloney \\ Neuralift \\ University of New Hampshire}
+\date{2025-11-20}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We encode stability and SLO constraints directly into a reinforcement-learning objective for open-weight models on a single GPU. A composite reward penalizes latency, token cost, and answer disagreement across repeated runs. Sweeping the weighting coefficients traces Pareto frontiers between stability, latency, and success across Mac (LM Studio) and Ubuntu (Ollama/HF) environments.
+\end{abstract}
+
+\section{Composite Reward}
+We adopt
+\begin{equation}
+R = R_{\text{schema}} + R_{\text{succ}} - \lambda L - \mu C - \gamma D,
+\end{equation}
+with $L$ latency (seconds), $C$ token cost (thousands), and $D$ disagreement rate. $(\\lambda,\\mu,\\gamma)$ define a family of operating points.
+
+\section{Sweeps and Frontiers}
+We sweep $(\\lambda,\\mu,\\gamma)$ on Ubuntu to build Pareto curves of success vs p95 vs stability (1-$D$). An operating point is selected by fixing minimum success@SLO and maximum disagreement, then minimizing p95.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figs/pareto.png}
+  \caption{Example Pareto frontier (placeholder).}
+\end{figure}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}

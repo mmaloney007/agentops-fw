@@ -1,0 +1,22 @@
+
+# direnv: auto-activate (micro)mamba env on cd
+if has micromamba; then
+  eval "$(micromamba shell hook -s bash)"
+  if micromamba env list | grep -E '^[^#]*agent-slo' >/dev/null 2>&1; then
+    micromamba activate agent-slo
+  else
+    micromamba activate base || true
+  fi
+elif has mamba; then
+  eval "$(conda shell.bash hook)"
+  mamba activate agent-slo || mamba activate base || true
+fi
+
+export AOFW_PROVIDER=lmstudio
+export OPENAI_API_BASE=http://10.0.0.72:1234/v1
+export OPENAI_API_KEY=lm-studio
+export LMSTUDIO_MODEL=qwen2.5-7b-instruct
+export MAX_THOUGHT_TOKENS=196
+export WANDB_PROJECT=agent-stable-slo
+export WANDB_DIR=$(pwd)/wandb_logs
+# export WEAVE_PROJECT=agent-stable-slo
