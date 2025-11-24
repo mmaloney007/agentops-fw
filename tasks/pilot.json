@@ -1,0 +1,52 @@
+{
+  "tasks": [
+    {
+      "id": "summ_001",
+      "family": "summarize",
+      "input": "AlphaWidget Pro launched with improved battery life and dust resistance.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "bullets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 5
+          }
+        },
+        "required": [
+          "title",
+          "bullets"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "extract_001",
+      "family": "extract",
+      "input": "Contact: Jane Q. Doe \u2014 jane.q.doe@example.org for technical questions.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

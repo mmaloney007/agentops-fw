@@ -1,0 +1,16 @@
+{
+  "entity": "mike007",
+  "projects": [
+    "agentops-fw",
+    "agentops-evals"
+  ],
+  "artifacts": {
+    "datasets": [
+      "dataset/oasis_pilot:v0"
+    ],
+    "results": [
+      "results/pilot/2025-11-03"
+    ],
+    "models": []
+  }
+}

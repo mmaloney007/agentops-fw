@@ -1,0 +1,8 @@
+- [ ] README with quickstart & scope
+- [ ] MIT License
+- [ ] `paper.md` + `paper.bib`
+- [ ] Tests passing in CI
+- [ ] Clear Statement of Need
+- [ ] Version tag >= v0.1.0
+- [ ] Installation instructions
+- [ ] Example usage

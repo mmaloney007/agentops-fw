@@ -1,0 +1,2 @@
+recursive-include tasks *.json
+include LICENSE README.md CITATION.cff

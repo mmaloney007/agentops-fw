@@ -1,0 +1,3 @@
+task_id,mode,valid,error,latency_ms,prediction
+summ_001,posthoc,True,,0.089,"{""title"": ""AlphaWidget Pro Launch"", ""bullets"": [""Improved battery life"", ""Dust resistance""]}"
+extract_001,posthoc,True,,0.104,"{""name"": ""Jane Q. Doe"", ""email"": ""jane.q.doe@example.org""}"
