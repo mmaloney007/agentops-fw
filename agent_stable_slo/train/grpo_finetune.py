@@ -4,18 +4,21 @@ Stub for short GRPO-style finetune: samples tasks, computes rewards, and (placeh
 would update the model. Currently logs rewards to W&B and writes eval.jsonl so we can
 compare before/after; real optimizer integration can be added later.
 """
-import os, json, argparse, statistics
+import os, json, argparse, statistics, time
 from agent_stable_slo.train.grpo_trl import load_tasks
 from agent_stable_slo.rollout.engine import provider_generate
 from agent_stable_slo.rewards.composite import composite_reward
 from agent_stable_slo.logging import wandb_utils as WL
 from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
 
+def _timestamp() -> str:
+    return time.strftime("%Y%m%d_%H%M%S")
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--base-model", default="Qwen/Qwen2.5-7B-Instruct")
     ap.add_argument("--tasks", default="tasks/robust_eval_gold.jsonl")
-    ap.add_argument("--out", default="out/finetune_stub")
+    ap.add_argument("--out", default=f"out/finetune_stub_{_timestamp()}")
     ap.add_argument("--steps", type=int, default=200)
     ap.add_argument("--samples", type=int, default=1)
     args=ap.parse_args()

@@ -25,6 +25,9 @@ from agent_stable_slo.rewards.schema_reward import schema_valid
 from agent_stable_slo.logging import wandb_utils as WL
 from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
 
+def _timestamp() -> str:
+    return time.strftime("%Y%m%d_%H%M%S")
+
 
 def _maybe_int(val, default=None):
     try:
@@ -302,7 +305,7 @@ def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-model", default="Qwen/Qwen2.5-7B-Instruct")
     ap.add_argument("--tasks", default="tasks/robust_eval_gold.jsonl")
-    ap.add_argument("--out", default="out/train_grpo_lora")
+    ap.add_argument("--out", default=f"out/train_grpo_lora_{_timestamp()}")
     ap.add_argument("--steps", type=int, default=500)
     ap.add_argument("--max-prompt-len", type=int, default=1024)
     ap.add_argument("--max-new-tokens", type=int, default=128)

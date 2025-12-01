@@ -1,10 +1,13 @@
 
-import os, json, argparse, statistics
+import os, json, argparse, statistics, time
 from datasets import Dataset
 from agent_stable_slo.rollout.engine import provider_generate
 from agent_stable_slo.rewards.composite import composite_reward
 from agent_stable_slo.logging import wandb_utils as WL
 from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
+
+def _timestamp() -> str:
+    return time.strftime("%Y%m%d_%H%M%S")
 def load_tasks(path: str) -> Dataset:
     rows=[json.loads(x) for x in open(path,"r",encoding="utf-8")]
     return Dataset.from_list(rows)
@@ -12,7 +15,7 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--base-model", default="Qwen/Qwen2.5-7B-Instruct")
     ap.add_argument("--tasks", default="tasks/fc_tasks.jsonl")
-    ap.add_argument("--out", default="out/P1_run")
+    ap.add_argument("--out", default=f"out/P1_run_{_timestamp()}")
     ap.add_argument("--steps", type=int, default=800)
     ap.add_argument("--max-new-tokens", type=int, default=196)
     args=ap.parse_args()

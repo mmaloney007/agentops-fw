@@ -8,6 +8,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAMP=${STAMP:-$(date +%Y%m%d_%H%M%S)}
 
 usage() {
   cat <<'EOF'
@@ -42,7 +43,7 @@ case "$MODE" in
     # - GRAD_ACC: increase to simulate larger batch on 4090
     # - LOAD_IN_4BIT: set true if you want to try bigger bases (e.g., 7B/14B)
     MODEL_DIR=${MODEL_DIR:-./models/qwen3-4b-thinking-2507}
-    OUT=${OUT:-out/grpo_qwen3_4090}
+    OUT=${OUT:-out/grpo_qwen3_4090_${STAMP}}
     STEPS=${STEPS:-2500}
     MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-192}
     GRAD_ACC=${GRAD_ACC:-2}
@@ -62,7 +63,7 @@ case "$MODE" in
     # GPT-OSS-20B requires local HF weights at ./models/gpt-oss-20b (not tracked).
     # Keep 4-bit on; lower MAX_NEW_TOKENS if OOM; increase STEPS for better convergence.
     MODEL_DIR=${MODEL_DIR:-./models/gpt-oss-20b}
-    OUT=${OUT:-out/grpo_gptoss20b_4090}
+    OUT=${OUT:-out/grpo_gptoss20b_4090_${STAMP}}
     STEPS=${STEPS:-1500}
     MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-160}
     GRAD_ACC=${GRAD_ACC:-2}
@@ -82,7 +83,7 @@ case "$MODE" in
     # Mac/MPS constraints: no bitsandbytes; keep batch=1; short sequences to avoid OOM.
     # You can raise MAX_NEW_TOKENS modestly (e.g., 112-128) if memory allows.
     MODEL_DIR=${MODEL_DIR:-Qwen/Qwen3-4B-Thinking-2507}
-    OUT=${OUT:-out/grpo_qwen3_mac}
+    OUT=${OUT:-out/grpo_qwen3_mac_${STAMP}}
     STEPS=${STEPS:-1200}
     MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-96}
     python -m agent_stable_slo.train.grpo_train_loop \
