@@ -15,7 +15,6 @@ from typing import Dict, Any, List
 
 import torch
 import torch.nn.functional as F
-from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import BitsAndBytesConfig  # type: ignore
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -59,8 +58,8 @@ def _parse_json(text: str, schema: dict) -> Dict[str, Any]:
     return {}
 
 
-def _load_dataset(tasks_path: str) -> Dataset:
-    rows = []
+def _load_dataset(tasks_path: str) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
     for raw in open(tasks_path, "r", encoding="utf-8"):
         if not raw.strip():
             continue
@@ -69,7 +68,7 @@ def _load_dataset(tasks_path: str) -> Dataset:
         schema = json.load(open(schema_path, "r", encoding="utf-8"))
         rec["schema"] = schema
         rows.append(rec)
-    return Dataset.from_list(rows)
+    return rows
 
 
 def _default_targets(model_name: str) -> List[str]:

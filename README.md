@@ -22,6 +22,39 @@ python -m agentops_fw.cli --tasks tasks/pilot.json --mode posthoc --out results/
 python -m agentops_fw.cli --tasks tasks/pilot.json --mode constrained --out results/constrained.csv --project agentops-fw
 ```
 
+## GRPO/LoRA training presets (4090 + Mac)
+Preset script: `scripts/run_grpo_presets.sh` (defaults timestamp outputs and uses W&B if configured).
+
+1) Activate env + LM Studio defaults (optional):
+```bash
+source activate_mamba.sh base
+source scripts/env_lm_remote.sh   # sets OPENAI_API_BASE/KEY/LMSTUDIO_MODEL, etc.
+```
+2) Enable W&B (skip for no logging):
+```bash
+export WANDB_PROJECT=agent-stable-slo
+export WANDB_ENTITY=mike007
+export WANDB_DIR=$(pwd)/wandb_logs          # optional local dir
+# offline logging: export WANDB_MODE=offline
+```
+3) Make sure models are local (skip if already downloaded):
+```bash
+huggingface-cli download Qwen/Qwen3-4B-Thinking-2507 \
+  --local-dir ./models/qwen3-4b-thinking-2507 --local-dir-use-symlinks False
+# GPT-OSS-20B requires local weights at ./models/gpt-oss-20b
+```
+4) Run a preset on 4090:
+```bash
+bash scripts/run_grpo_presets.sh 4090-qwen3
+# or: bash scripts/run_grpo_presets.sh 4090-gptoss
+```
+5) Run the Mac/MPS preset:
+```bash
+bash scripts/run_grpo_presets.sh mac-qwen3
+```
+
+Useful overrides (set env before the script): `MODEL_DIR`, `OUT` (defaults to timestamped names), `STEPS`, `MAX_NEW_TOKENS`, `GRAD_ACC`, `LOAD_IN_4BIT`, `WANDB_MODE`. Keep `HF_HUB_OFFLINE=1` if you want to stay offline after weights are present.
+
 ## Configure W&B
 ```bash
 pip install wandb pandas
