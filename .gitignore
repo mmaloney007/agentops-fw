@@ -180,3 +180,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 /wandb
+/out
+papers/.DS_Store
+papers/P1_stable_slo/.DS_Store
+papers/P2_reward_stability/.DS_Store
+/wandb_logs
+.DS_Store

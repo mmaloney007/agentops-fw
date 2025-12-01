@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "maxItems": 6
+    }
+  },
+  "required": ["steps"],
+  "additionalProperties": false
+}

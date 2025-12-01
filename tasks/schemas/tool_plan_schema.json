@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "tool": {"type": "string"},
+    "inputs": {"type": "object"},
+    "expected_output": {"type": "string"},
+    "deadline_minutes": {"type": "integer", "minimum": 1, "maximum": 240}
+  },
+  "required": ["tool", "inputs", "expected_output"],
+  "additionalProperties": false
+}

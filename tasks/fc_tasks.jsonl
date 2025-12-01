@@ -1,0 +1,3 @@
+
+{"prompt": "Return JSON {title, bullets[]} summarizing the main risks in the Risk Factors section of a large bank's 10-K.", "schema_path": "tasks/schemas/fc_schema.json"}
+{"prompt": "Return JSON {title, bullets[]} summarizing key obligations in a typical SaaS MSA (master service agreement).", "schema_path": "tasks/schemas/fc_schema.json"}

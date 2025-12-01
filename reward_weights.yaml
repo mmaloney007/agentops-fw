@@ -1,0 +1,14 @@
+weights:
+  w_task: 1.2      # correctness first
+  w_valid: 1.0     # schema adherence
+  w_f1: 1.2        # field-level accuracy
+  w_faith: 1.2     # truthfulness / support
+  w_tool: 0.6      # correct tool arguments/selection
+  w_slo: 0.1       # latency as constraint, not objective
+penalties:
+  l_p95: 0.02   # small latency penalty; tighten only for real-time profiles
+  l_disc: 0.05  # disagreement/stability penalty
+notes: |
+  Prioritize accuracy + faithfulness; keep latency as a constraint. For
+  latency-critical cases, increase w_slo and l_p95, but do not lower the
+  accuracy/faithfulness floors below criteria.yaml.

@@ -1,0 +1,17 @@
+
+# Include or copy these targets into your existing Makefile
+p1-remote:
+	python3 -m agent_stable_slo.train.grpo_trl --base-model Qwen/Qwen2.5-7B-Instruct --tasks tasks/fc_tasks.jsonl --out out/remote_P1 --steps 400 --max-new-tokens 196
+bench-remote:
+	for q in 1 4 8; do python3 -m agent_stable_slo.bench.concurrency --qps $$q --duration 30 --schema tasks/schemas/fc_schema.json | tee out/remote_bench_q$$q.txt; done
+stability-remote:
+	python3 -m agent_stable_slo.eval.stability_harness --tasks tasks/fc_tasks.jsonl --schema tasks/schemas/fc_schema.json --runs 20 --out out/remote_stability/fc.jsonl
+agg:
+	python3 tools/aggregate_eval.py --glob "out/**/eval.jsonl" --out out/aggregate/eval_summary.csv
+	python3 tools/slo_metrics.py --glob "out/**/eval.jsonl" --out out/aggregate/slo_curves.csv
+figs:
+	python3 figures/generate_all.py
+sweeps:
+	python3 scripts/run_sweeps.py
+	python3 tools/aggregate_eval.py --glob "out/sweeps/**/eval.jsonl" --out out/aggregate/p2_sweeps_eval.csv
+	python3 figures/generate_all.py

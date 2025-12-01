@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "function": {"type": "string"},
+    "signature": {"type": "string"},
+    "docstring": {"type": "string"},
+    "tests": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "maxItems": 5
+    }
+  },
+  "required": ["function", "signature", "docstring"],
+  "additionalProperties": false
+}

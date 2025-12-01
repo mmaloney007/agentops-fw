@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "answer": {"type": "number"},
+    "steps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 2,
+      "maxItems": 10
+    }
+  },
+  "required": ["answer", "steps"],
+  "additionalProperties": false
+}

@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "decision": {"type": "string", "enum": ["allow", "flag", "block"]},
+    "reason": {"type": "string"},
+    "policy": {"type": "string"},
+    "risk_score": {"type": "integer", "minimum": 1, "maximum": 5}
+  },
+  "required": ["decision", "reason"],
+  "additionalProperties": false
+}

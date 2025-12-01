@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "answer": {"type": "string"},
+    "justification": {"type": "string"}
+  },
+  "required": ["answer"],
+  "additionalProperties": false
+}

@@ -1,3 +1,3 @@
 task_id,mode,valid,error,latency_ms,prediction
-summ_001,constrained,True,,0.081,"{""title"": ""AlphaWidget Pro Launch"", ""bullets"": [""Improved battery life"", ""Dust resistance""]}"
-extract_001,constrained,True,,0.101,"{""name"": ""Jane Q. Doe"", ""email"": ""jane.q.doe@example.org""}"
+summ_001,constrained,True,,0.052,"{""title"": ""AlphaWidget Pro Launch"", ""bullets"": [""Improved battery life"", ""Dust resistance""]}"
+extract_001,constrained,True,,0.086,"{""name"": ""Jane Q. Doe"", ""email"": ""jane.q.doe@example.org""}"

@@ -11,7 +11,7 @@ or a dedicated env (recommended: `agent-slo`).
    bash -lc "source scripts/codex_profile.sh && <your command>"
    ```
    `scripts/codex_profile.sh` activates `agent-slo` if it exists, otherwise `base`, and exports
-   LM Studio + W&B env variables (10.0.0.72 + Qwen).
+   LM Studio + W&B env variables (10.0.0.63 + Qwen) and defaults `WANDB_ENTITY=mike007`.
 
 ## Option B — Use a dedicated env (`agent-slo`) [recommended]
 1. Create env from YAML (once):
@@ -33,7 +33,7 @@ or a dedicated env (recommended: `agent-slo`).
 ## Quick smoke tests
 - Check LM Studio model list:
   ```bash
-  curl -s http://10.0.0.72:1234/v1/models | jq -r '.data[].id' | head
+  curl -s http://10.0.0.63:1234/v1/models | jq -r '.data[].id' | head
   ```
 - Baseline one‑liner:
   ```bash

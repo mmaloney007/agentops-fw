@@ -1,0 +1,20 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\title{Rewarding Stability: Multi-Objective RL for SLOs (LM Studio, Single GPU)}
+\author{Mike Maloney \\ Neuralift \\ University of New Hampshire}
+\date{\today}
+\begin{document}\maketitle
+\begin{abstract}
+We shape a composite reward for schema adherence, latency, and token cost, then sweep weightings on LM Studio (OpenAI-compatible) serving \textbf{Qwen3-4B-Thinking} at \texttt{10.0.0.63:1234}. Each sweep run uses schema-constrained decoding on \texttt{tasks/fc\_tasks.jsonl} with \texttt{MAX\_THOUGHT\_TOKENS=196}, W\&B offline logging, and 20 steps per setting for quick iteration. A second endpoint at \texttt{10.0.0.72:1234} (\texttt{openai/gpt-oss-20b}) is available for higher-quality comparisons.
+\end{abstract}
+\section{Composite Reward}
+$R = R_{\text{schema}} + R_{\text{succ}} - \lambda L - \mu C - \gamma D$, with $L$ (latency ms), $C$ (completion tokens), and $D$ (disagreement). Here $\gamma=0$; we vary $(\lambda,\mu)$.
+\section{Sweep Findings}
+All nine settings kept JSON validity at 100\%. Latency improved as we increased $\lambda$ and $\mu$: the baseline $(\lambda{=}0,\mu{=}0)$ delivered p95 $=5.85$\,s and avg TTFT $=4.74$\,s, while $(\lambda{=}0.2,\mu{=}0.05)$ delivered the best p95 $=3.69$\,s (avg TTFT $=3.44$\,s). Costs tracked completion length (mean $\approx 162$ tokens) and were stable across sweeps.
+\section{Operating Point}
+Choose $(\lambda{=}0.2,\mu{=}0.05,\gamma{=}0)$ as the current operating point: it minimizes p95 while keeping 100\% schema success. Future work: enable $\gamma>0$ to penalize disagreement, stream to reduce TTFT, and rerun on \texttt{openai/gpt-oss-20b} for quality/stability trade-offs.
+\begin{figure}[h]\centering\includegraphics[width=0.9\linewidth]{figs/pareto.png}\caption{Pareto view from sweeps (p95 latency vs.\ success).}\end{figure}
+\end{document}

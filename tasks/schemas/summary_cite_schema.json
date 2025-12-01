@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {"type": "string"},
+    "bullets": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 3,
+      "maxItems": 6
+    },
+    "citations": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "maxItems": 6
+    }
+  },
+  "required": ["title", "bullets"],
+  "additionalProperties": false
+}
