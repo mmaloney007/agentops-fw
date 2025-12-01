@@ -181,6 +181,8 @@ cython_debug/
 .cursorindexingignore
 /wandb
 /out
+/models
+!/models/.keep
 papers/.DS_Store
 papers/P1_stable_slo/.DS_Store
 papers/P2_reward_stability/.DS_Store

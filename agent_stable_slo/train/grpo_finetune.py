@@ -9,6 +9,7 @@ from agent_stable_slo.train.grpo_trl import load_tasks
 from agent_stable_slo.rollout.engine import provider_generate
 from agent_stable_slo.rewards.composite import composite_reward
 from agent_stable_slo.logging import wandb_utils as WL
+from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
 
 def main():
     ap=argparse.ArgumentParser()
@@ -18,6 +19,9 @@ def main():
     ap.add_argument("--steps", type=int, default=200)
     ap.add_argument("--samples", type=int, default=1)
     args=ap.parse_args()
+    hw=detect_hardware()
+    hw_cfg=hw.as_dict(); hw_cfg["recommended"]=recommended_defaults(hw)
+    print(f"[hardware] {hw.summary()}")
     ds=load_tasks(args.tasks)
     os.makedirs(args.out, exist_ok=True)
     eval_path=os.path.join(args.out,"eval.jsonl")
@@ -26,7 +30,7 @@ def main():
     gamma=float(os.getenv("GAMMA_STABILITY","0.0"))
     provider=os.getenv("AOFW_PROVIDER","lmstudio")
     with WL.maybe_run(name=os.path.basename(args.out),
-                      config={"provider":provider,"steps":args.steps,"samples":args.samples,"tasks":args.tasks}) as run:
+                      config={"provider":provider,"steps":args.steps,"samples":args.samples,"tasks":args.tasks,"hardware":hw_cfg}) as run:
         latencies=[]
         with open(eval_path,"w",encoding="utf-8") as fo:
             for i in range(args.steps):

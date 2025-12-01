@@ -3,6 +3,7 @@ import os, json, argparse, statistics
 from agent_stable_slo.rollout.engine import provider_generate
 from agent_stable_slo.rewards.composite import composite_reward
 from agent_stable_slo.logging import wandb_utils as WL
+from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
 def load_tasks(path: str):
     return [json.loads(x) for x in open(path,"r",encoding="utf-8") if x.strip()]
 def main():
@@ -15,6 +16,9 @@ def main():
     ap.add_argument("--max-new-tokens", type=int, default=196)
     ap.add_argument("--samples", type=int, default=1, help="Number of samples per task; take best reward.")
     args=ap.parse_args()
+    hw=detect_hardware()
+    hw_cfg=hw.as_dict(); hw_cfg["recommended"]=recommended_defaults(hw)
+    print(f"[hardware] {hw.summary()}")
     ds=load_tasks(args.tasks)
     lam=float(os.getenv("LAMBDA_LATENCY","0.0"))
     mu=float(os.getenv("MU_COST","0.0"))
@@ -25,7 +29,7 @@ def main():
     with WL.maybe_run(name=os.path.basename(args.out),
                       config={"provider":provider,"lambda":lam,"mu":mu,"gamma":gamma,
                               "max_new_tokens":args.max_new_tokens,"tasks_file":args.tasks,
-                              "start":args.start,"steps":args.steps}) as run:
+                              "start":args.start,"steps":args.steps,"hardware":hw_cfg}) as run:
         latencies, ttfts=[], []
         mode="a" if args.start>0 else "w"
         with open(eval_path,mode,encoding="utf-8") as fo:
