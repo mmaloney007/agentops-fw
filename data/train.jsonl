@@ -1,0 +1,2 @@
+{"prompt": "Sources:\n[s1]: metric improved\n[s2]: risk noted\nWrite 2 bullets citing sources.\nAssistant:", "completion": "Bullets: metric improved [s1]; risk noted [s2]"}
+{"prompt": "Return JSON exactly {\"a\":1}.\nAssistant:", "completion": "{\"a\": 1}"}

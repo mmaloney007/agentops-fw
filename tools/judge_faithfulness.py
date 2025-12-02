@@ -60,10 +60,16 @@ def main():
     ap.add_argument("--model", default=os.getenv("JUDGE_MODEL","openai/gpt-oss-20b"))
     ap.add_argument("--base", default=os.getenv("JUDGE_BASE", os.getenv("OPENAI_API_BASE","http://10.0.0.72:1234/v1")))
     ap.add_argument("--key", default=os.getenv("OPENAI_API_KEY","lm-studio"))
+    ap.add_argument("--limit", type=int, default=0)
     args=ap.parse_args()
     tasks=[json.loads(x) for x in open(args.tasks,"r",encoding="utf-8") if x.strip()]
     evals=[json.loads(x) for x in open(args.eval,"r",encoding="utf-8") if x.strip()]
+    if args.limit and args.limit>0:
+        tasks=tasks[:args.limit]
+        evals=evals[:args.limit]
     df=pd.read_csv(args.scored)
+    if args.limit and args.limit>0:
+        df=df.head(len(tasks))
     faith=[]
     for t,r in zip(tasks, evals):
         ctx=t.get("prompt","")

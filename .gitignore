@@ -188,3 +188,6 @@ papers/P1_stable_slo/.DS_Store
 papers/P2_reward_stability/.DS_Store
 /wandb_logs
 .DS_Store
+/.venv-mlx
+/mlx
+/adapters
