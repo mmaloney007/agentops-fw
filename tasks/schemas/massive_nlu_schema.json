@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "intent": { "type": "string" },
+    "slots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "slot": { "type": "string" },
+          "value": { "type": "string" }
+        },
+        "required": ["slot", "value"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["intent", "slots"],
+  "additionalProperties": false
+}

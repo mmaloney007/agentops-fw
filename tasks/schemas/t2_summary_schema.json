@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "short_summary": {"type": "string"},
+    "key_points": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 3,
+      "maxItems": 8
+    },
+    "primary_risk": {"type": "string"},
+    "recommended_action": {"type": "string"}
+  },
+  "required": ["short_summary", "key_points", "primary_risk", "recommended_action"],
+  "additionalProperties": false
+}

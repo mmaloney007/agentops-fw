@@ -1,7 +1,11 @@
 
 # Include or copy these targets into your existing Makefile
+
+P1_BASE_MODEL ?= qwen/qwen3-4b-thinking-2507
+SWEEP_BASE_MODEL ?= qwen/qwen3-4b-thinking-2507
+
 p1-remote:
-	python3 -m agent_stable_slo.train.grpo_trl --base-model Qwen/Qwen2.5-7B-Instruct --tasks tasks/fc_tasks.jsonl --out out/remote_P1 --steps 400 --max-new-tokens 196
+	python3 -m agent_stable_slo.train.grpo_trl --base-model $(P1_BASE_MODEL) --tasks tasks/fc_tasks.jsonl --out out/remote_P1 --steps 400 --max-new-tokens 196
 bench-remote:
 	for q in 1 4 8; do python3 -m agent_stable_slo.bench.concurrency --qps $$q --duration 30 --schema tasks/schemas/fc_schema.json | tee out/remote_bench_q$$q.txt; done
 stability-remote:
@@ -12,6 +16,6 @@ agg:
 figs:
 	python3 figures/generate_all.py
 sweeps:
-	python3 scripts/run_sweeps.py
+	SWEEP_BASE_MODEL=$(SWEEP_BASE_MODEL) python3 scripts/run_sweeps.py
 	python3 tools/aggregate_eval.py --glob "out/sweeps/**/eval.jsonl" --out out/aggregate/p2_sweeps_eval.csv
 	python3 figures/generate_all.py

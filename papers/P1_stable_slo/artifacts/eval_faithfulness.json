@@ -1,0 +1,92 @@
+{
+  "run_dir": "out/p1_paper1_content_2000_wb",
+  "base_model": "./models/qwen3-4b-thinking-2507",
+  "tasks": "tasks/faithfulness_mini.jsonl",
+  "hardware": {
+    "kind": "nvidia_4090",
+    "device": "cuda:0",
+    "backend": "cuda",
+    "name": "NVIDIA GeForce RTX 4090",
+    "total_mem_gb": 23.5,
+    "capability": "8.9",
+    "supports_bf16": true,
+    "notes": "prefer bf16; use bitsandbytes if memory bound",
+    "recommended": {
+      "device": "cuda:0",
+      "backend": "cuda",
+      "torch_dtype": "bfloat16",
+      "load_in_4bit": false
+    }
+  },
+  "env": {
+    "python": "3.12.12",
+    "platform": "Linux-5.15.0-1065-intel-iotg-x86_64-with-glibc2.39",
+    "git_rev": "9d28089cbf21d2e029305019617317eeb56e3872",
+    "git_status": "## feature/rl-hardening\n M Makefile\n M README.md\n M agent_stable_slo/rewards/composite.py\n M agent_stable_slo/train/grpo_train_loop.py\n M agent_stable_slo/train/grpo_trl.py\n M pytest.ini\n M requirements-dev.txt\n M requirements.txt\n M scripts/run_grpo_presets.sh\n M train/grpo_trl.py\n?? .github/\n?? agent_stable_slo/logging/structured.py\n?? agent_stable_slo/utils/checkpoint.py\n?? agent_stable_slo/utils/config.py\n?? agent_stable_slo/utils/data.py\n?? agent_stable_slo/utils/dist.py\n?? agent_stable_slo/utils/repro.py\n?? configs/\n?? docs/grpo_loop.md\n?? notebooks/\n?? papers/Outline.md\n?? papers/P1_stable_slo/artifacts/\n?? scripts/ci.sh\n?? scripts/eval_checkpoints.py\n?? scripts/generate_tables.py\n?? scripts/package_artifacts.py\n?? scripts/summarize_logs.py\n?? tasks/faithfulness_mini.jsonl\n?? tasks/tiny_smoke.jsonl\n?? tasks/tiny_smoke_schema.json\n?? tests/test_checkpoint_resume.py\n?? tests/test_grad_accum.py\n?? tests/test_grpo_train_loop_smoke.py",
+    "time_utc": "2025-12-08T15:37:01Z",
+    "torch": "2.9.1+cu130",
+    "jax": null,
+    "cuda": {
+      "cuda_available": true,
+      "device_count": 1,
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "capability": "8.9",
+      "version": "13.0"
+    },
+    "hf_cache": {
+      "HF_HOME": null,
+      "TRANSFORMERS_CACHE": null,
+      "HF_DATASETS_CACHE": null
+    }
+  },
+  "summaries": [
+    {
+      "ckpt": "step_001999",
+      "p95_ms": 24861.838,
+      "p99_ms": 24861.838,
+      "reward_mean": 2.8020663650075415,
+      "records": [
+        {
+          "step": 0,
+          "reward": 2.4705882352941178,
+          "json_valid": 1,
+          "latency_ms": 23232.36,
+          "tokens_out": 82,
+          "ckpt": "step_001999"
+        },
+        {
+          "step": 1,
+          "reward": 2.9,
+          "json_valid": 1,
+          "latency_ms": 28635.993,
+          "tokens_out": 109,
+          "ckpt": "step_001999"
+        },
+        {
+          "step": 2,
+          "reward": 2.9166666666666665,
+          "json_valid": 1,
+          "latency_ms": 24861.838,
+          "tokens_out": 91,
+          "ckpt": "step_001999"
+        },
+        {
+          "step": 3,
+          "reward": 2.8,
+          "json_valid": 1,
+          "latency_ms": 23388.627,
+          "tokens_out": 85,
+          "ckpt": "step_001999"
+        },
+        {
+          "step": 4,
+          "reward": 2.9230769230769234,
+          "json_valid": 1,
+          "latency_ms": 24277.08,
+          "tokens_out": 86,
+          "ckpt": "step_001999"
+        }
+      ]
+    }
+  ]
+}

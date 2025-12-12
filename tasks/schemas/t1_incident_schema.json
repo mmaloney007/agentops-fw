@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "category": {
+      "type": "string",
+      "enum": ["incident", "outage", "degradation", "maintenance", "security"]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "source": {"type": "string"},
+    "time_window": {
+      "type": "string",
+      "enum": ["last_15m", "last_hour", "last_day", "multi_day"]
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "maxItems": 5
+    }
+  },
+  "required": ["category", "severity", "source", "time_window", "tags"],
+  "additionalProperties": false
+}

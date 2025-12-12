@@ -1,0 +1,136 @@
+\begin{thebibliography}{21}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[out(2024)]{outlinesDocs}
+Outlines: Structured generation with {LLMs}.
+\newblock \url{https://dottxt-ai.github.io/outlines/}, 2024.
+
+\bibitem[Achiam et~al.(2017)]{achiam2017cpo}
+Joshua Achiam et~al.
+\newblock Constrained policy optimization.
+\newblock In \emph{Proceedings of the 34th International Conference on Machine
+  Learning}, 2017.
+\newblock URL \url{https://proceedings.mlr.press/v70/achiam17a.html}.
+
+\bibitem[Agrawal et~al.(2024)]{agrawal2024sarathi}
+A.~Agrawal et~al.
+\newblock Sarathi-serve: High throughput inference for large language models.
+\newblock \url{https://www.usenix.org/system/files/osdi24-agrawal.pdf}, 2024.
+\newblock OSDI'24.
+
+\bibitem[Altman(1999)]{altman1999cmdp}
+Eitan Altman.
+\newblock \emph{Constrained Markov Decision Processes}.
+\newblock Chapman and Hall/CRC, 1999.
+
+\bibitem[Anonymous(2022)]{grpo}
+Anonymous.
+\newblock {GRPO}: Generalized reinforcement policy optimization.
+\newblock 2022.
+\newblock URL \url{https://arxiv.org/abs/2203.02155}.
+
+\bibitem[Anonymous(2023)]{llmjudgebias}
+Anonymous.
+\newblock Are large language models fair evaluators?
+\newblock 2023.
+\newblock URL \url{https://arxiv.org/abs/2305.17926}.
+
+\bibitem[Anonymous(2024{\natexlab{a}})]{atomicFacts2024}
+Anonymous.
+\newblock Evaluating atomic facts in llm outputs.
+\newblock 2024{\natexlab{a}}.
+\newblock URL \url{https://arxiv.org/abs/2408.15171}.
+
+\bibitem[Anonymous(2024{\natexlab{b}})]{letmespeakfreely}
+Anonymous.
+\newblock Let me speak freely: Lessons from free-form generation with
+  structure.
+\newblock 2024{\natexlab{b}}.
+\newblock URL \url{https://arxiv.org/abs/2408.02442}.
+
+\bibitem[Anonymous(2024{\natexlab{c}})]{llmStability}
+Anonymous.
+\newblock On stability and variance in llm evaluations.
+\newblock 2024{\natexlab{c}}.
+\newblock URL \url{https://arxiv.org/abs/2408.04667}.
+
+\bibitem[Anonymous(2024{\natexlab{d}})]{structuredRAG}
+Anonymous.
+\newblock Structured {RAG}: Structured outputs for retrieval-augmented
+  generation.
+\newblock 2024{\natexlab{d}}.
+\newblock URL \url{https://arxiv.org/abs/2408.11061}.
+
+\bibitem[Dao et~al.(2023)]{dao2023flashattention2}
+Tri Dao et~al.
+\newblock Flashattention-2: Faster attention with better parallelism and work
+  partitioning.
+\newblock 2023.
+\newblock URL \url{https://arxiv.org/abs/2307.08691}.
+
+\bibitem[Dean and Barroso(2013)]{dean2013tail}
+Jeffrey Dean and Luiz Barroso.
+\newblock The tail at scale.
+\newblock \emph{Communications of the ACM}, 2013.
+\newblock URL \url{https://cacm.acm.org/research/the-tail-at-scale/}.
+
+\bibitem[Dettmers et~al.(2023)]{dettmers2023qlora}
+Tim Dettmers et~al.
+\newblock {QLoRA}: Efficient finetuning of quantized {LLMs}.
+\newblock 2023.
+\newblock URL \url{https://arxiv.org/abs/2305.14314}.
+
+\bibitem[Es et~al.(2023)]{es2023ragas}
+Tanay Es et~al.
+\newblock {RAGAS}: Automated evaluation of retrieval-augmented generation.
+\newblock 2023.
+\newblock URL \url{https://arxiv.org/abs/2309.15217}.
+
+\bibitem[Geng et~al.(2025)]{geng2025jsonschemabench}
+Xi~Geng et~al.
+\newblock Jsonschemabench: Evaluating structured output for {LLMs}.
+\newblock 2025.
+\newblock URL \url{https://arxiv.org/abs/2501.10868}.
+
+\bibitem[Kwon et~al.(2023)]{kwon2023vllm}
+Youngmin Kwon et~al.
+\newblock Efficient memory management for large language model serving with
+  {vLLM}.
+\newblock 2023.
+\newblock URL \url{https://arxiv.org/abs/2309.06180}.
+
+\bibitem[Leviathan et~al.(2023)]{leviathan2023speculative}
+Yaniv Leviathan et~al.
+\newblock Fast inference from transformers via speculative decoding.
+\newblock 2023.
+\newblock URL \url{https://arxiv.org/abs/2211.17192}.
+
+\bibitem[Prabhu et~al.(2024)]{prabhu2024vattention}
+Ameya Prabhu et~al.
+\newblock v{A}ttention: Dynamic sparse attention with low-rank projections.
+\newblock 2024.
+\newblock URL \url{https://arxiv.org/abs/2405.04437}.
+
+\bibitem[Schulman et~al.(2017)]{schulman2017ppo}
+John Schulman et~al.
+\newblock Proximal policy optimization algorithms.
+\newblock 2017.
+\newblock URL \url{https://arxiv.org/abs/1707.06347}.
+
+\bibitem[Team(2024)]{deepspeedFastGen}
+Microsoft~DeepSpeed Team.
+\newblock {DeepSpeed-FastGen}: High throughput text generation for {LLMs}.
+\newblock 2024.
+\newblock URL \url{https://arxiv.org/abs/2401.08671}.
+
+\bibitem[Zheng et~al.(2023)]{zheng2023sglang}
+Lianmin Zheng et~al.
+\newblock {SGLang}: Efficient serving of {LLM} applications.
+\newblock 2023.
+\newblock URL \url{https://arxiv.org/abs/2312.07104}.
+
+\end{thebibliography}

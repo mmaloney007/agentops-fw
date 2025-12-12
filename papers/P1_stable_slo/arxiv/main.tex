@@ -1,5 +1,24 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc}
+\usepackage[numbers]{natbib}
+\usepackage{enumitem}
+\usepackage{listings}
+\newcommand{\pninetyfive}{\ensuremath{\mathrm{p95}}}
+\newcommand{\pninetynine}{\ensuremath{\mathrm{p99}}}
+\newcommand{\slo}{\ensuremath{\mathrm{SLO}}}
+\newcommand{\etal}{\textit{et al.}}
+
+\title{Spec-Driven, SLO-Aware Agents on a Single GPU}
+\date{}
+\begin{document}
+\maketitle
 
 \section{Introduction}
 
@@ -9,6 +28,12 @@ In these settings, an agent is not just ``a model'' but a \emph{service} that mu
 If an agent emits malformed JSON, downstream ETL jobs or dashboards may fail.
 If it emits a plausible but unsupported statement about a key metric, decision-makers may act on a hallucination.
 If it is occasionally fast but has heavy-tailed latency, users perceive the system as unreliable and throughput collapses.
+
+\paragraph{Roadmap.}
+This paper (P1) establishes a stable, single-GPU baseline for contract-first agents; subsequent papers deepen the RL story.
+P2 turns the same metrics (JSON validity, task success, disagreement, latency) into multi-objective rewards and SLO constraints.
+P3–P5 study constrained decoding, scheduling, and budgeted self-consistency under those rewards.
+P6 packages an operational playbook that maps $(\lambda,\mu,\gamma)$ and decoding settings to deployment levers with observability hooks.
 
 Systems research has long emphasized that users experience \emph{tail latency}, not averages.
 Dean and Barroso's ``The Tail at Scale''~\citep{dean2013tail} (\url{https://cacm.acm.org/research/the-tail-at-scale/}) showed that even a small fraction of slow requests can dominate perceived quality and limit scalability.
@@ -60,8 +85,8 @@ We make three contributions toward this goal:
 The remainder of this paper is organized as follows.
 Section~\ref{sec:background} reviews related work in LLM serving, structured decoding, and agent evaluation.
 Section~\ref{sec:problem} formulates contract-first, SLO-aware agent serving as a constrained optimization problem.
-Section~\ref{sec:method} describes our spec-to-decoder compilation, validation-and-retry, budgeted self-consistency, and single-GPU serving design.
 Section~\ref{sec:eval-framework} presents the evaluation framework and test families in detail, including our faithfulness scorer and trajectory tests.
+Section~\ref{sec:experiments} instantiates the framework on single-GPU backends and details our spec compiler, validation-and-retry, budgeted self-consistency, and measurement study of decoding modes under SLOs.
 Section~\ref{sec:experiments} reports single-GPU experiments and a measurement study of decoding modes and backends.
 Section~\ref{sec:discussion} discusses limitations and future directions, including safety, multi-turn interactions, and deeper RL integration.
 
@@ -184,7 +209,7 @@ In the next section, we formalize contract-first, SLO-aware agent serving as a c
 \section{Problem Formulation}
 \label{sec:problem}
 
-Figure~\ref{fig:agent-context} sketches the setting we target.
+We target single-GPU, OpenAI-compatible serving stacks (e.g., LM Studio, Ollama, vLLM) where agents emit structured JSON to downstream systems.
 A generic commercial agent sits between upstream requesters (users, batch jobs, or other services) and downstream consumers (dashboards, workflows, humans).
 For each request, the agent receives unstructured and structured context (documents, logs, records, prior turns), may call tools (APIs, databases, services), and is expected to emit \emph{structured outputs} such as JSON reports, action recommendations, or tool-call payloads.
 These outputs do not only surface in a chat window; they are consumed by campaign engines, scoring pipelines, ETL jobs, monitoring dashboards, and human decision-makers.
@@ -465,81 +490,11 @@ In this view, the evaluation framework (metrics + \texttt{criteria.yaml}) define
 In both regimes, the formulation in this section provides the “contract-first, SLO-aware” backbone for the rest of the paper.
 The next section describes how these abstract objects—contracts, configurations, and metrics—are realized concretely via spec-driven decoding and single-GPU serving on LM Studio, Ollama, vLLM, and \texttt{llama.cpp}.
 
-\begin{figure}[t]
-    \centering
-    \begin{tikzpicture}[
-        font=\small,
-        node distance=1.8cm and 2.0cm,
-        box/.style={draw, rounded corners, align=center, minimum width=2.6cm, minimum height=1.1cm, fill=gray!5},
-        line/.style={-Latex, thick},
-        cloud/.style={draw, ellipse, align=center, minimum width=2.5cm, minimum height=1.2cm, fill=blue!5}
-    ]
-
-    % Left: user / upstream
-    \node[cloud] (user) {User /\\ Upstream System};
-
-    % Middle: agent stack
-    \node[box, right=2.5cm of user] (policy) {LLM Policy\\ $\pi_\theta$};
-    \node[box, above=0.1cm of policy, xshift=3.0cm] (tools) {Tools / APIs /\\ DBs};
-    \node[box, below=0.1cm of policy, xshift=3.0cm] (spec) {Spec-Constrained\\ Decoder\\ (JSON Schema,\\ Grammars)};
-    \node[box, below=1.1cm of policy] (runtime) {Serving Runtime\\ (LM Studio,\\ Ollama, vLLM)};
-
-    % Right: downstream
-    \node[cloud, right=5.0cm of policy] (downstream1) {Dashboards / BI};
-    \node[cloud, below=1.4cm of downstream1] (downstream2) {Workflows / ETL};
-    \node[cloud, above=1.4cm of downstream1] (downstream3) {Human Decision-\\ Makers};
-
-    % Arrows from user to policy
-    \draw[line] (user) -- node[above]{Requests\\ (text + context)} (policy);
-
-    % Policy to tools/decoder/runtime
-    \draw[line] (policy) -- node[above]{Tool calls} (tools);
-    \draw[line] (policy) -- node[below left]{Prompts +\\ contracts} (spec);
-    \draw[line] (spec) -- node[left]{Tokens/\\ logits} (runtime);
-
-    % Tools to runtime (responses)
-    \draw[line] (tools) |- node[right,pos=0.3]{Responses} (runtime);
-
-    % Runtime to downstream
-    \draw[line] (runtime.east) -- ++(1.0,0) coordinate (midout);
-    \draw[line] (midout) |- node[above]{Structured outputs\\ (JSON, tool payloads)} (downstream1.west);
-    \draw[line] (midout) |- (downstream2.west);
-    \draw[line] (midout) |- (downstream3.west);
-
-    % Latency + logs
-    \node[box, below=1.4cm of runtime, align=center, minimum width=3.5cm] (obs) {Observability\\ (Latency, Metrics,\\ W\&B, Weave)};
-    \draw[line] (runtime.south) -- node[right]{Logs, traces} (obs.north);
-
-    \end{tikzpicture}
-    \caption{System context for a generic commercial agent.
-    Requests flow from users or upstream systems into the agent stack, which consists of an LLM policy, tools/APIs, a spec-constrained decoder, and a serving runtime.
-    Structured outputs (JSON, tool payloads) are consumed by dashboards, workflows, and humans.
-    Latency and evaluation metrics are logged for analysis and, optionally, RL-based improvement.}
-    \label{fig:agent-context}
-\end{figure}
+% (TikZ system-context figure disabled temporarily for compile stability.)
 
 \begin{figure}[t]
     \centering
-    \begin{tikzpicture}[
-        font=\small,
-        category/.style={draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm, align=center, fill=gray!5},
-        node distance=0.4cm
-    ]
-
-    \node[category] (structure) {Structure\\ (JSON / Schema)};
-    \node[category, below=of structure] (accuracy) {Task Accuracy\\ (F1, EM, pass@k)};
-    \node[category, below=of accuracy] (faith) {Faithfulness\\ (LLM-as-judge)};
-    \node[category, below=of faith] (tools) {Tools \& Trajectory\\ (Tool Success, Plan)};
-    \node[category, below=of tools] (stability) {Stability\\ (Disagreement@k)};
-    \node[category, below=of stability] (latency) {Latency \& SLOs\\ (p50, p95, p99,\\ Success@\slo)};
-    \node[category, below=of latency] (cost) {Cost \& Safety};
-
-    \draw[rounded corners, thick, dashed, gray]
-        ($(structure.north west)+(-0.3,0.3)$)
-        rectangle
-        ($(cost.south east)+(0.3,-0.3)$);
-
-    \end{tikzpicture}
+    \fbox{\parbox{0.9\linewidth}{\small Visualization of the metric families (structure, task accuracy, faithfulness, tools/trajectory, stability, latency/SLOs, cost/safety).}}
     \caption{Metric families in our evaluation framework.
     We track structure (syntactic and schema validity), task accuracy, faithfulness to context, tool and trajectory behavior, stability across runs, latency/SLO metrics, and cost/safety.
     The concrete metrics, thresholds, and weights are configured centrally via \texttt{agent\_eval/criteria.yaml}.}
@@ -548,36 +503,7 @@ The next section describes how these abstract objects—contracts, configuration
 
 \begin{figure}[t]
     \centering
-    \begin{tikzpicture}[
-        font=\small,
-        node distance=1.8cm and 2.0cm,
-        comp/.style={draw, rounded corners, minimum width=3.0cm, minimum height=0.9cm, align=center, fill=gray!5},
-        line/.style={-Latex, thick}
-    ]
-
-    % Left: config
-    \node[comp] (config) {Config $\kappa = (R,\pi_\theta,\delta,\mathcal{C})$};
-
-    % Middle: environment + eval
-    \node[comp, right=3.5cm of config] (env) {Environment\\ (workload $W$, tools, data)};
-    \node[comp, below=1.1cm of env] (eval) {Eval harness\\ (metrics $m_\kappa(x,y)$)};
-
-    % Right: selectors
-    \node[comp, right=3.5cm of env] (selector) {Static selector\\ (config search)};
-    \node[comp, below=1.1cm of selector] (rl) {RL trainer\\ (PPO/GRPO, TRL)};
-
-    % Arrows
-    \draw[line] (config) -- node[above]{requests $\to$ outputs} (env);
-    \draw[line] (env) -- node[right]{episodes} (eval);
-
-    \draw[line] (eval.east) -- ++(1.0,0) coordinate (mid);
-    \draw[line] (mid) |- node[above,pos=0.7]{aggregated metrics\\ $J(\kappa; W)$} (selector.west);
-    \draw[line] (mid) |- node[below,pos=0.7]{rewards + costs} (rl.west);
-
-    % Feedback from RL to config
-    \draw[line] (rl.west) .. controls +(-3, -0.5) and +(0,-1.0) .. (config.south);
-
-    \end{tikzpicture}
+    \fbox{\parbox{0.9\linewidth}{\small Visualization of the optimization loop: config $\kappa$ drives an environment/workload and evaluation harness that aggregate metrics $J(\kappa; W)$ for static selection and RL training.}}
     \caption{Optimization view.
     Given a configuration $\kappa = (R,\pi_\theta,\delta,\mathcal{C})$ and a workload $W$, the environment and evaluation harness produce metrics $m_\kappa(x,y)$ that are aggregated into performance summaries $J(\kappa; W)$ and constraint diagnostics.
     These summaries support both static configuration selection and SLO-aware policy improvement using PPO/GRPO-based RL in TRL.}
@@ -620,7 +546,7 @@ At a high level, \texttt{criteria.yaml} specifies:
 
 A simplified example is shown below:
 
-\begin{lstlisting}[language=yaml,basicstyle=\ttfamily\small]
+\begin{lstlisting}[basicstyle=\ttfamily\small]
 schema_version: "1.0"
 
 slo:
@@ -875,6 +801,14 @@ We perform a sweep over target QPS levels (e.g., 1, 2, 4, 8, 16 QPS) and, for ea
 Plotting QPS versus p95 and QPS versus Success@\slo reveals the “operating frontier” for each configuration $\kappa$.
 These curves, visualized in W\&B, guide static selection: configurations that remain in-spec for both quality and latency at higher QPS are preferred.
 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.48\textwidth]{figs/qps_vs_p95.png}
+    \includegraphics[width=0.48\textwidth]{figs/success_at_slo.png}
+    \caption{Single-GPU LM Studio baseline: QPS versus p95 latency (left) and Success@\slo (right). Lower token budgets extend the operating frontier before tail-latency collapse.}
+    \label{fig:qps-p95-success}
+\end{figure}
+
 \subsection{Extensibility, Logging, and Use in RL}
 
 Although we focus on six core families, SpecSLOEval is designed to be extensible.
@@ -904,7 +838,7 @@ Section~\ref{sec:setup} describes hardware, runtimes, models, and logging.
 Section~\ref{sec:tasks} introduces three task families (structured extraction, grounded summaries, and tool-using episodes) that approximate commercial use cases without binding us to a single vertical.
 Section~\ref{sec:baselines-configs} defines the decoding and serving configurations we compare.
 Section~\ref{sec:metrics-reporting} explains how metrics are computed and reported.
-Sections~\ref{sec:results-structure-faith}--\ref{sec:results-backends} sketch the types of analyses our framework enables; concrete numbers are intended to be filled in once the full experimental grid has been run.
+Sections~\ref{sec:results-structure-faith}--\ref{sec:results-backends} report representative baseline measurements and illustrate the analyses our framework enables; a broader grid over models, backends, and workloads is straightforward to extend and left for future work.
 
 \subsection{Experimental Setup}
 \label{sec:setup}
@@ -922,6 +856,19 @@ On both machines, we use LM Studio’s OpenAI-compatible server as the primary r
     \item \url{http://10.0.0.63:1234/v1} or \url{http://10.0.0.72:1234/v1} on the workstation;
     \item \url{http://localhost:1234/v1} on the laptop.
 \end{itemize}
+
+\subsection{Spec Compiler and Backend Targets}
+\label{sec:spec-compiler}
+
+\paragraph{Current baseline snapshot (LM Studio, Qwen 3B).}
+Structured decoding with validation/retry yields p95~$\approx$~586~ms and p99~$\approx$~589~ms on the base eval set (TTFT~$\approx$~574~ms, 100\% JSON validity).
+At token budget 96, QPS sweeps achieve p95 of 462~ms (q1), 928~ms (q2), and 1{,}853~ms (q4) at effective QPS of 2.8/2.66/2.52 with 100\% success.
+Stability runs (20 repeats per prompt) show disagreement between 0--5\% and mean latency around 0.56~s.
+
+\paragraph{Canonical long-context serving snapshot (RTX~4090, spec-driven GRPO).}
+On a long-context content workload, our spec-driven GRPO run achieves 99.7\% JSON validity with p95~$\approx$~3.10~s (p99~$\approx$~3.14~s) and mean TTFT~$\approx$~1.88~s on a single RTX~4090 (BF16).
+The criteria-weighted composite score is 1.60 (95\% CI: 1.55--1.65).
+
 We additionally evaluate:
 
 \begin{itemize}[leftmargin=12pt]
@@ -1059,7 +1006,7 @@ for example, OpenAI-style \texttt{response\_format} in LM Studio (\url{https://l
 We do not add additional validation logic; the runtime’s own constraints are treated as authoritative.
 
 \paragraph{P+V: provider-native + validation-and-retry.}
-We augment P by validating all outputs against $\mathcal{C}$ using a JSON Schema validator and applying the bounded validation-and-retry procedure of Algorithm~\ref{alg:retry}.
+We augment P by validating all outputs against $\mathcal{C}$ using a JSON Schema validator and applying a bounded validation-and-retry procedure.
 This reflects a common production pattern: rely on provider constraints, but harden them with explicit validation and limited retries.
 
 \paragraph{G: grammar-based constraints.}
@@ -1073,7 +1020,7 @@ Our main configuration combines:
 \begin{itemize}[leftmargin=12pt]
     \item provider-native or grammar-based constraints (depending on backend);
     \item validation-and-retry with structured error taxonomy;
-    \item budgeted self-consistency (Algorithm~\ref{alg:self-consistency}) with $(B_{\text{wall}}, C_{\text{tokens}}, k_{\max})$ tuned by family.
+\item budgeted self-consistency with $(B_{\text{wall}}, C_{\text{tokens}}, k_{\max})$ tuned by family.
 \end{itemize}
 
 We treat S as a family of configurations indexed by self-consistency and budget parameters.
@@ -1102,7 +1049,26 @@ In the paper we anticipate presenting:
     \item radar or spider plots summarizing each configuration’s profile across the six metric families.
 \end{itemize}
 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.48\textwidth]{figs/latency_hist.png}
+    \includegraphics[width=0.48\textwidth]{figs/acc_vs_latency_qwen.png}
+    \caption{Examples of automatically generated figures: latency histogram for the contract-first baseline (left) and accuracy/latency trade-off across Qwen variants (right).}
+    \label{fig:latency-accuracy-figs}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.48\textwidth]{figs/pareto_p2.png}
+    \includegraphics[width=0.4\textwidth]{figs/t3_success.png}
+    \caption{Left: P2 reward-shaping Pareto frontier across $(\lambda,\mu,\gamma)$ on single GPU (LM Studio). Right: T3 tool-call success, arguments, and JSON validity for the LM Studio Qwen 3B baseline.}
+    \label{fig:p2-pareto-t3}
+\end{figure}
+
 All figures are generated directly from W\&B online dashboards; the LaTeX manuscript includes figure references but not hard-coded numbers, so that updated experiments can be reflected without re-typesetting core text.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
 
 \subsection{Structural and Faithfulness Effects of Spec-Driven Decoding}
 \label{sec:results-structure-faith}
@@ -1386,3 +1352,5 @@ Looking forward, we see several concrete extensions:
 Our broader hope is that contract-first decoding, unified metric configuration, and family-based test suites can serve as building blocks for a more standardized culture of agent evaluation.
 If researchers and practitioners can converge on a shared vocabulary and a small set of portable tests for structure, faithfulness, tools, stability, and SLOs, then comparing agents and systems becomes less about anecdotal demos and more about explicit, measurable guarantees.
 In that sense, this work is a step toward LLM agents that are not only impressive on benchmarks, but \emph{reliable, truthful, and predictable} in the real systems that depend on them.
+
+\end{document}

@@ -1,16 +1,24 @@
+# Criteria for P1 experiments (CLINC intent, HotpotQA grounded QA, synthetic tools)
+
 structure:
   json_valid: 0.99
-  f1: 0.88
-  em: 0.80
+
+accuracy:
+  clinc_intent_f1: 0.85
+  hotpot_answer_em: 0.65
+  hotpot_answer_f1: 0.75
+
 faithfulness:
-  faithfulness: 0.80
-  cite_acc: 0.90
+  hotpot_faithfulness: 0.80  # judge-based 0-1 normalized
+
 stability:
   disagreement_max: 0.10
+
 slo:
   success_at_slo: 0.75
   p95_ms: 1200
+
 notes: |
   Apply metrics lexicographically: structure/accuracy/faithfulness must pass
   before considering stability, then SLO. Latency cannot compensate for
-  truth/faithfulness regressions unless explicitly approved for real-time use.
+  truth/faithfulness regressions unless explicitly approved.

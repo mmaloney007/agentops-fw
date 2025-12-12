@@ -1,0 +1,7 @@
+suites:
+  t1_clinc:
+    tasks: tasks/clinc_en.jsonl
+    schema: tasks/schemas/clinc_nlu_schema.json
+  t2_hotpot:
+    tasks: tasks/hotpot_dev.jsonl
+    schema: tasks/schemas/hotpot_explainer_schema.json

@@ -1,0 +1,2 @@
+file,json_valid_rate,latency_p95_ms,latency_p99_ms,reward_ci_lower,reward_ci_upper,reward_mean,ttft_avg_ms
+out/p1_paper1_content_2000_wb/train_log.jsonl,0.997,3099.231,3135.971,1.5500759920634921,1.6509527958152959,1.6047974025974026,1881.9003845

@@ -1,15 +1,15 @@
-# PLAN.md — RL/SLO Portfolio & Weekly Focus (LM Studio @ 10.0.0.63)
+# PLAN.md — RL/SLO Portfolio & Weekly Focus (LM Studio @ localhost:1234 default; 10.0.0.72/63 fallback)
 
 **Owner:** Mike Maloney (Neuralift • UNH)  
-**Repo:** `agent-stable-slo` (mono-repo) • **Runtime:** LM Studio (OpenAI API) @ `http://10.0.0.63:1234` (Qwen3-4B-Thinking)  
+**Repo:** `agent-stable-slo` (mono-repo) • **Runtime:** LM Studio (OpenAI API) @ `http://localhost:1234` (Qwen3-4B-Thinking; fallback: 10.0.0.72/10.0.0.63)  
 **Logging:** W&B required; Weave optional
 
 ---
 
 ## 0) This Week (keep at top)
 
-- **P1**: rerun baseline → QPS sweep → stability harness on **10.0.0.63**; regenerate figs; add a short **“where we’re going” intro** that previews the RL-heavy roadmap (P2–P6).  
-- **P2**: run **λ/μ sweeps (γ optional)** on 10.0.0.63, refresh Pareto, pick operating point.  
+- **P1**: rerun baseline → QPS sweep → stability harness on **localhost LM Studio**; regenerate figs; add a short **“where we’re going” intro** that previews the RL-heavy roadmap (P2–P6).  
+- **P2 (RL)**: run **λ/μ sweeps (γ optional)** on localhost LM Studio, refresh Pareto, pick operating point.  
 - **Writing**: update P1/P2 LaTeX with fresh numbers/figs and forward-looking framing; ensure RL emphasis is clear for academic + industry readers.  
 - **Packaging**: rebuild arXiv bundles for P1/P2; tag W&B runs (`p1-remote-qwen`, `p2-remote-qwen`).  
 - **Sanity**: keep everything reproducible from the **mamba base/agent-slo** env; no virtualenvs.
@@ -22,12 +22,13 @@
 # Activate (prefers agent-slo; base is fine if already provisioned)
 source activate_mamba.sh base   # or: source activate_mamba.sh agent-slo
 
-# Remote LM Studio @ 10.0.0.63 (default); optional 10.0.0.72 with \`openai/gpt-oss-20b\`
+# Local LM Studio @ localhost:1234 (fallback: 10.0.0.72 / 10.0.0.63)
 export AOFW_PROVIDER=lmstudio
-export OPENAI_API_BASE=http://10.0.0.63:1234/v1
+export OPENAI_API_BASE=http://localhost:1234/v1
 export OPENAI_API_KEY=lm-studio
 export LMSTUDIO_MODEL="qwen/qwen3-4b-thinking-2507"
 export MAX_THOUGHT_TOKENS=196
+export OPENAI_TIMEOUT=120  # allow slower LM Studio responses
 
 # Observability
 wandb login
@@ -37,7 +38,7 @@ export WANDB_DIR=$(pwd)/wandb_logs
 # optional: export WEAVE_PROJECT=agent-stable-slo
 
 # Connectivity check
-curl -s http://10.0.0.63:1234/v1/models | jq -r '.data[].id' | head
+curl -s http://localhost:1234/v1/models | jq -r '.data[].id' | head
 ```
 
 > Shortcuts: `source scripts/env_lm_remote.sh` or `source scripts/codex_profile.sh` set the same defaults for automation. Use **mamba**; avoid ad-hoc venvs.
@@ -66,18 +67,33 @@ curl -s http://10.0.0.63:1234/v1/models | jq -r '.data[].id' | head
 ## 3) P1 — Immediate Execution
 
 **Definition of Done**
-- Fresh runs on **10.0.0.63 (Qwen)**: latency hist, QPS→p95, success@SLO, stability (N=20).  
+- Fresh runs on **localhost LM Studio (Qwen; fallback 10.0.0.72/63)**: latency hist, QPS→p95, success@SLO, stability (N=20).  
 - Figures refreshed in `papers/p1_arxiv_src/figs/`; LaTeX updated with p95/p99/TTFT, QPS numbers, stability stats.  
 - Add **“Where we’re going”** intro paragraph linking to P2–P6 RL path and why stability baseline is the anchor.
 
 **Commands**
 ```bash
-make p1-mac
-make bench-mac
-make stability-mac
-make agg figs
+# LM Studio localhost:1234
+OPENAI_API_BASE=http://localhost:1234/v1 \
+P1_BASE_MODEL=qwen/qwen3-4b-thinking-2507 \
+make -f Makefile.addon p1-remote
+make -f Makefile.addon bench-remote
+make -f Makefile.addon stability-remote
+make -f Makefile.addon agg figs
 python tools/build_arxiv_sources.py  # optional mid-week; mandatory Fri
 ```
+
+**Status (Wed update)**  
+- Run: ✅ complete on localhost LM Studio.  
+- Baseline: `out/remote_P1/eval.jsonl` p95=585.84 ms, p99=589.29 ms, avg TTFT=574.14 ms, 100% JSON (W&B `remote_P1`).  
+- Bench (token ablations):  
+  - Tok=196 backups: `out/remote_bench_q{1,4,8}_tok196.txt` (p95s: 563.9 / 2433.9 / 4714.9 ms).  
+  - Tok=128: `out/remote_bench_q{1,4,8}_tok128.txt` (p95s: 562.5 / 2299.8 / 4610.0 ms).  
+  - Tok=96: `out/remote_bench_q{1,2,4}_tok96.txt` (p95s: 462.5 / 928.2 / 1852.5 ms; 100% success, qps_eff ~2.8/2.66/2.52).  
+- Stability: `out/remote_stability/fc.jsonl` (runs=20; disagreement 0–5%; mean latency ≈544–582 ms).  
+- Aggregates/figs: `out/aggregate/eval_summary.csv`, `out/aggregate/slo_curves.csv`, `figures/*`; synced to `papers/P1_stable_slo/arxiv/figs/` (includes `t3_success.png`, `pareto_p2.png`).  
+- T-suite eval (T1/T2/T3): `out/evals/t_eval_20251211_141758/lmstudio_qwen-qwen3-4b-thinking-2507/summary.json` → json_valid=1.0; T3 tool_match=1.0, T3_success=1.0; avg latency/TTFT ≈270 ms after tool-call normalization in `agent_stable_slo/rollout/providers/lmstudio_openai.py`.  
+- Follow-ups: run `bibtex` + `pdflatex` twice to clear citation warnings; rebuild arXiv bundle with `python tools/build_arxiv_sources.py` after final text polish.
 
 **Text updates**
 - p95/p99/avg TTFT from `out/aggregate/eval_summary.csv`.  
@@ -90,14 +106,17 @@ python tools/build_arxiv_sources.py  # optional mid-week; mandatory Fri
 ## 4) P2 — Immediate Execution
 
 **Definition of Done**
-- λ/μ sweeps (γ=0 baseline; optional γ∈{0.0,0.1,0.2}) on 10.0.0.63 with Pareto plot.  
+- λ/μ sweeps (γ=0 baseline; optional γ∈{0.0,0.1,0.2}) on localhost LM Studio (fallback 10.0.0.72/63) with Pareto plot.  
 - Operating point (λ*, μ*, γ*) chosen for success@SLO target with minimal p95 and low disagreement.  
 - LaTeX updated; `papers/p2_arxiv_src/figs/pareto.png` refreshed; arXiv bundle rebuilt.
 
 **Commands**
 ```bash
-SWEEP_STEPS=40 make sweeps   # override if you want shorter runs (default 400)
-make agg figs
+# LM Studio localhost:1234
+OPENAI_API_BASE=http://localhost:1234/v1 \
+SWEEP_STEPS=400 SWEEP_BASE_MODEL=qwen/qwen3-4b-thinking-2507 \
+make -f Makefile.addon sweeps   # default 400
+make -f Makefile.addon agg figs
 # Optional γ sweep
 # edit scripts/run_sweeps.py -> GAMMAS = [0.0, 0.1, 0.2]
 python scripts/run_sweeps.py
@@ -105,6 +124,11 @@ python tools/aggregate_eval.py --glob "out/sweeps/**/eval.jsonl" --out out/aggre
 python figures/generate_all.py
 python tools/build_arxiv_sources.py  # when ready to package
 ```
+
+**Status (Tue RL sweeps)**  
+- Run: ✅ complete (SWEEP_STEPS=400, base model qwen/qwen3-4b-thinking-2507) with γ∈{0,0.1,0.2}. Best p95 ≈582.16 ms @ (λ=0.2, μ=0.1, γ=0.1), avg TTFT ≈571.77 ms, 100% JSON. Pareto still shallow but γ helps tails slightly.  
+- Outputs: `out/sweeps/**/eval.jsonl`, `out/aggregate/p2_sweeps_eval.csv`, `figures/*`, W&B runs `lam{λ}_mu{μ}_gam{γ}`.
+- Follow-ups: if more separation needed, consider stronger λ/μ grid or longer steps.
 
 **Text updates**
 - Insert Pareto; discuss tradeoff as λ/μ rise.  
@@ -115,16 +139,18 @@ python tools/build_arxiv_sources.py  # when ready to package
 
 ## 5) Bibliography Seeds (extend per paper)
 
+- P1 refs in `papers/P1_stable_slo/arxiv/refs.bib` (raw links folded in; T-suite citations aligned).  
+- P2 refs in `papers/P2_reward_stability/arxiv/refs.bib` (RL + eval datasets/tools).  
 `tail_at_scale`, `jsonschema`, `trl`, `qlora`, `lmstudio`, `ollama`, `wandb`, `schulman2017ppo`, `williams1992reinforce` (see refs.bib for full entries; expand with constrained decoding, KV scheduling, self-consistency, and LLMOps case studies).
 
 ---
 
 ## 6) Weekly Schedule (Mon–Fri)
 
-- **Mon**: Env check (curl 10.0.0.63), run `make p1-mac && make bench-mac && make stability-mac && make agg figs`, update P1 text + roadmap paragraph.  
-- **Tue**: `make sweeps && make agg figs`; insert Pareto + operating point in P2.  
-- **Wed**: Optional γ sweep; tighten P2 text; second pass on P1 figures/wording.  
-- **Thu**: Optional ablation (MAX_THOUGHT_TOKENS {128,196,256}); doc polish.  
+- **Mon**: Env check (curl localhost:1234), run `make -f Makefile.addon p1-remote bench-remote stability-remote agg figs`, update P1 text + roadmap paragraph. *(Done; added T-suite eval.)*  
+- **Tue (RL sweeps)**: `SWEEP_STEPS=400 SWEEP_BASE_MODEL=qwen/qwen3-4b-thinking-2507 make -f Makefile.addon sweeps && make -f Makefile.addon agg figs`; insert Pareto + operating point in P2. *(Done.)*  
+- **Wed**: Improve T3 prompt/tool hints and rerun T-suite; optional γ sweep; tighten P2 text; second pass on P1 figures/wording. *(Done; T3_success=1.0 @ `out/evals/t_eval_20251211_141758/.../summary.json`.)*  
+- **Thu**: Optional ablation (MAX_THOUGHT_TOKENS {96,128,196}); doc polish; rebench q=1/2/4 if tails stay high.  
 - **Fri**: `python tools/build_arxiv_sources.py`; check figs/zips; stage commits/tags.
 
 ---
@@ -149,5 +175,5 @@ python tools/build_arxiv_sources.py  # when ready to package
 
 ## 9) Ownership & Tags
 
-- W&B project: `agent-stable-slo`; tags: `p1`, `p2`, `remote-10-0-0-63`, `qwen`, `lambda-mu-sweep`, `gamma-sweep`, `max-tok-196`.  
+- W&B project: `agent-stable-slo`; tags: `p1`, `p2`, `remote-10-0-0-72`, `remote-10-0-0-63`, `qwen`, `lambda-mu-sweep`, `gamma-sweep`, `max-tok-196`.  
 - Git: tag when P1/P2 bundles ready (e.g., `v0.4.1` after this week’s refresh).

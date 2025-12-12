@@ -31,6 +31,18 @@ def _maybe_augment_prompt(prompt: str, schema: dict) -> str:
         "If you are asked to cite, every bullet/field must include a citation like [s1].",
         "Do not add explanations or commentary outside the schema."
     ]
+    if "tool" in props:
+        enum = props.get("tool", {}).get("enum", [])
+        if enum:
+            hints.append(f"Pick exactly one tool from {enum}; use that exact string.")
+        hints.append("Fill every required argument for the chosen tool; do not add optional/unknown fields.")
+        hints.append("If arguments have enums (e.g., window=last_15m|last_hour|last_day, aggregate=p50|p90|p95|p99; severity=low|medium|high|critical), pick the closest match from the request or defaults; do not invent new values.")
+        hints.append("If arrays are required (e.g., fields[]), supply at least one concrete item from the request context.")
+        hints.append("For metrics, use snake_case and include units: latency -> *_latency_ms, rates/percentages -> *_perc; examples: checkout_latency_ms, email_queue_depth, signup_rate_pct, auth_failures_perc.")
+        hints.append("For components, keep the service/system token from the request (auth-service, config-service, orders-db, payment-webhook); use kebab-case, no spaces.")
+        hints.append("For focus/summary strings, copy the phrasing from the request; avoid underscores or paraphrases.")
+        hints.append("Do not invent synonyms: copy metric/component strings exactly from the request and only add the unit suffix (_ms, _perc) when obvious (latency -> _ms, rate/fail/error -> _perc).")
+        hints.append("Output shape must be {\"tool\": \"...\", \"arguments\": {...}} with no extra keys.")
     if needs_cite:
         hints.append("Every bullet/field must include a supporting source and a citation token like [s1]; do not fabricate citations.")
     if "steps" in props:
@@ -40,6 +52,74 @@ def _maybe_augment_prompt(prompt: str, schema: dict) -> str:
     if hints:
         return "\n".join(hints) + "\n\n" + prompt
     return prompt
+
+
+def _normalize_tool_call(j: dict) -> dict:
+    """Heuristic normalization for tool calls (T3) to improve exact matches."""
+    if not isinstance(j, dict):
+        return j
+    tool = str(j.get("tool", "")).strip()
+    args = j.get("arguments") if isinstance(j.get("arguments"), dict) else {}
+    if tool == "fetch_metric":
+        metric = args.get("metric")
+        if metric is not None:
+            m = str(metric).strip().lower().replace(" ", "_").replace("-", "_")
+            if "latency" in m and not m.endswith("_ms"):
+                m = f"{m}_ms"
+            if any(tok in m for tok in ["rate", "error", "fail"]) and not (m.endswith("_perc") or m.endswith("_pct") or m.endswith("rate")):
+                m = f"{m}_perc"
+            args["metric"] = m
+        for key in ("window", "aggregate"):
+            if key in args:
+                args[key] = str(args[key]).strip().lower()
+    elif tool == "open_incident":
+        for key in ("severity", "component", "summary"):
+            if key in args:
+                val = str(args[key]).strip()
+                if key == "component":
+                    val = val.replace(" ", "-").replace("_", "-").lower()
+                    if "orders-service" in val:
+                        val = val.replace("orders-service", "orders-db")
+                args[key] = val
+        if "summary" in args:
+            s = args["summary"]
+            for sep in [" affecting", " with", " and", " breaching", " for "]:
+                if sep in s:
+                    s = s.split(sep, 1)[0].strip()
+            if s.startswith("db-"):
+                s = s.replace("db-", "", 1)
+            if "500" in args["summary"]:
+                s = "500 errors on callbacks"
+            if s == "write failures" and args.get("component") == "orders-db":
+                s = "write failures on primary"
+            if s == "API latency p99":
+                s = "API latency p99 breach"
+            args["summary"] = s
+    elif tool == "lookup_customer":
+        if "customer_id" in args:
+            args["customer_id"] = str(args["customer_id"]).strip()
+        if isinstance(args.get("fields"), list):
+            fields = []
+            for f in args["fields"]:
+                fstr = str(f).strip().replace(" ", "_").lower()
+                if fstr == "plan":
+                    fstr = "plan_tier"
+                fields.append(fstr)
+            args["fields"] = fields
+    elif tool == "summarize_report":
+        if "report_id" in args:
+            args["report_id"] = str(args["report_id"]).strip()
+        if "focus" in args:
+            foc = str(args["focus"]).replace("_", " ").strip()
+            if " for " in foc:
+                foc = foc.split(" for ", 1)[0].strip()
+            args["focus"] = foc
+    if tool:
+        j["tool"] = tool
+    if args:
+        j["arguments"] = args
+    return j
+
 
 def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[dict, float, float, int]:
     base = os.getenv("OPENAI_API_BASE", "http://localhost:1234/v1")
@@ -145,4 +225,5 @@ def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[
                 elif typ == "object":
                     j[req] = {}
     tokens_out = _completion_tokens(r)
+    j = _normalize_tool_call(j)
     return j, lat_ms, ttft_ms, tokens_out

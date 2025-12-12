@@ -1,0 +1,58 @@
+{
+  "type": "object",
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["lookup_customer", "fetch_metric", "open_incident", "summarize_report"]
+    },
+    "arguments": {
+      "type": "object",
+      "oneOf": [
+        {
+          "properties": {
+            "customer_id": {"type": "string"},
+            "fields": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "maxItems": 5
+            }
+          },
+          "required": ["customer_id", "fields"],
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "metric": {"type": "string"},
+            "window": {
+              "type": "string",
+              "enum": ["last_15m", "last_hour", "last_day"]
+            },
+            "aggregate": {"type": "string", "enum": ["p50", "p90", "p95", "p99"]}
+          },
+          "required": ["metric", "window", "aggregate"],
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+            "component": {"type": "string"},
+            "summary": {"type": "string"}
+          },
+          "required": ["severity", "component", "summary"],
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "report_id": {"type": "string"},
+            "focus": {"type": "string"}
+          },
+          "required": ["report_id", "focus"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": ["tool", "arguments"],
+  "additionalProperties": false
+}

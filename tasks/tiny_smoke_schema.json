@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "properties": {
+    "answer": { "type": "string" },
+    "bullets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "maxItems": 2
+    }
+  },
+  "required": ["answer"]
+}

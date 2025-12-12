@@ -1,0 +1,1 @@
+{"prompt": "Return valid JSON with keys answer and bullets.", "schema_path": "tasks/tiny_smoke_schema.json", "gold": {"answer": "ok"}}

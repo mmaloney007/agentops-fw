@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+    branches: [ main, feature/** ]
+  pull_request:
+    branches: [ main, feature/** ]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: CI script
+        run: bash scripts/ci.sh
+
+  torchrun-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.4.1 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Torchrun tiny smoke
+        run: |
+          torchrun --nproc_per_node=1 -m agent_stable_slo.train.grpo_train_loop \
+            --config-file configs/grpo/tiny_smoke.yaml \
+            --tasks tasks/tiny_smoke.jsonl \
+            --steps 5 --eval-interval 5 --max-new-tokens 16 --cache-dataset \
+            --out out/ci_ddp_smoke
+      - name: Cleanup
+        run: rm -rf out/ci_ddp_smoke

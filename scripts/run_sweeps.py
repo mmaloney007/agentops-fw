@@ -1,7 +1,7 @@
 
 #!/usr/bin/env python3
 import os, sys, subprocess, itertools, pathlib
-LAMBDAS=[0.0,0.1,0.2]; MUS=[0.0,0.05,0.1]; GAMMAS=[0.0]
+LAMBDAS=[0.0,0.1,0.2]; MUS=[0.0,0.05,0.1]; GAMMAS=[0.0,0.1,0.2]
 STEPS=int(os.getenv("SWEEP_STEPS","400"))
 PREFIX=os.getenv("SWEEP_PREFIX","out/sweeps")
 BASE_MODEL=os.getenv("SWEEP_BASE_MODEL","Qwen/Qwen2.5-7B-Instruct")

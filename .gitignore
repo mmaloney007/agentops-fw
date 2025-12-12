@@ -191,3 +191,23 @@ papers/P2_reward_stability/.DS_Store
 /.venv-mlx
 /mlx
 /adapters
+
+# Node (generated)
+/node_modules/
+
+# Local model downloads / weights (generated)
+/Llama-*/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.gguf
+
+# LaTeX build artifacts (generated)
+papers/**/arxiv/*.aux
+papers/**/arxiv/*.blg
+papers/**/arxiv/*.fdb_latexmk
+papers/**/arxiv/*.fls
+papers/**/arxiv/*.log
+papers/**/arxiv/*.out
+papers/**/arxiv/*.synctex.gz
