@@ -3,8 +3,11 @@ import os, json, time
 from typing import Tuple
 from ollama import chat
 def _max_tokens():
-    try: return int(os.getenv("MAX_THOUGHT_TOKENS","0")) or None
-    except Exception: return None
+    try:
+        val = int(os.getenv("MAX_THOUGHT_TOKENS", "512"))
+        return val if val > 0 else None
+    except Exception:
+        return 512
 def generate_json(prompt: str, schema: dict) -> Tuple[dict, float, float, int]:
     model=os.getenv("OLLAMA_MODEL","llama3.1:8b")
     t0=time.time()

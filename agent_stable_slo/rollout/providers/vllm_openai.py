@@ -1,6 +1,6 @@
 
 import os, json, time, re
-from typing import Tuple
+from typing import Optional, Tuple
 from openai import OpenAI
 
 from .lmstudio_openai import _max_tokens, _maybe_augment_prompt, TOOLSEQ_DEFAULTS
@@ -13,16 +13,30 @@ def _completion_tokens(resp) -> int:
         return -1
 
 
+def _prompt_tokens(resp) -> int:
+    try:
+        return int(getattr(resp, "usage").prompt_tokens)
+    except Exception:
+        return -1
+
+
 def _default_base():
     return os.getenv("VLLM_API_BASE") or os.getenv("OPENAI_API_BASE", "http://localhost:8000/v1")
 
 
-def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[dict, float, float, int]:
+def generate_raw(
+    prompt: str,
+    schema: dict,
+    mode: str = "structured",
+    temperature: float = 0.0,
+    max_tokens: Optional[int] = None,
+) -> Tuple[str, dict, float, float, int, int]:
     base = _default_base()
     key = os.getenv("VLLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
     model = os.getenv("VLLM_MODEL") or os.getenv("LMSTUDIO_MODEL", "")
     client = OpenAI(base_url=base, api_key=key)
 
+    max_new = max_tokens if max_tokens is not None else _max_tokens()
     t0 = time.time()
     r = None
     try:
@@ -31,16 +45,16 @@ def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[
                 model=model,
                 messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
                 response_format={"type": "json_schema", "json_schema": {"name": "spec", "schema": schema}},
-                temperature=0,
-                max_tokens=_max_tokens(),
+                temperature=temperature,
+                max_tokens=max_new,
             )
         else:
             r = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
                 response_format={"type": "text"},
-                temperature=0,
-                max_tokens=_max_tokens(),
+                temperature=temperature,
+                max_tokens=max_new,
             )
     except Exception:
         try:
@@ -48,12 +62,12 @@ def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[
                 model=model,
                 messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
                 response_format={"type": "text"},
-                temperature=0,
-                max_tokens=_max_tokens(),
+                temperature=temperature,
+                max_tokens=max_new,
             )
         except Exception:
             lat_ms = (time.time() - t0) * 1000.0
-            return {}, float(lat_ms), float(lat_ms), -1
+            return "", {}, float(lat_ms), float(lat_ms), -1, -1
 
     lat_ms = (time.time() - t0) * 1000.0
     ttft_ms = lat_ms
@@ -117,4 +131,18 @@ def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[
                     j[req] = {}
 
     tokens_out = _completion_tokens(r)
-    return j, lat_ms, ttft_ms, tokens_out
+    tokens_in = _prompt_tokens(r)
+    return txt, j, lat_ms, ttft_ms, tokens_in, tokens_out
+
+
+def generate_json(
+    prompt: str,
+    schema: dict,
+    mode: str = "structured",
+    temperature: float = 0.0,
+    max_tokens: Optional[int] = None,
+) -> Tuple[dict, float, float, int]:
+    _raw, parsed, lat_ms, ttft_ms, _tokens_in, tokens_out = generate_raw(
+        prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+    )
+    return parsed, lat_ms, ttft_ms, tokens_out

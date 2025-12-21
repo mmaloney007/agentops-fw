@@ -1,0 +1,2 @@
+model,decode_mode,disagreement_at_k,total_agreement_rate_at_k
+qwen/qwen3-vl-4b,SPEC_DRIVEN,0.0,1.0

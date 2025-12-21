@@ -1,0 +1,62 @@
+# Criteria for P1 experiments (CLINC intent, HotpotQA grounded QA, tool calls)
+
+schema_version: "1.0"
+criteria_id: "p1_core_v1"
+
+description: |
+  Contract-first evaluation criteria for single-GPU, OpenAI-compatible endpoints.
+  Suites reference in-repo task JSONL files and output schemas.
+
+suites:
+  p1_core:
+    tasks:
+      - id: "t1_clinc"
+        family: "accuracy"
+        task_file: "tasks/clinc_en.jsonl"
+        output_schema: "tasks/schemas/clinc_nlu_schema.json"
+
+      - id: "t2_hotpot"
+        family: "faithfulness"
+        task_file: "tasks/hotpot_dev.jsonl"
+        output_schema: "tasks/schemas/hotpot_explainer_schema.json"
+
+      - id: "t3_tools"
+        family: "tools"
+        task_file: "tasks/t3_tools.jsonl"
+        output_schema: "tasks/schemas/t3_tool_call_schema.json"
+
+gating:
+  order: ["structure", "accuracy", "faithfulness", "tools", "stability", "slo"]
+  policy: "strict"
+
+structure:
+  json_valid: 0.99
+  f1: 0.85
+  em: 0.65
+
+accuracy:
+  clinc_intent_f1: 0.85
+  clinc_intent_accuracy: 0.85
+  hotpot_answer_em: 0.65
+  hotpot_answer_f1: 0.75
+
+faithfulness:
+  hotpot_faithfulness: 0.80  # judge-based 0-1 normalized
+  hotpot_contradiction_rate_max: 0.05
+
+tools:
+  tool_success_rate: 0.90
+
+stability:
+  disagreement_max: 0.10
+
+slo:
+  success_at_slo: 0.75
+  p95_ms: 1200
+  p99_ms: 2000
+  max_tokens_out: 512
+
+notes: |
+  Apply metrics lexicographically: structure/accuracy/faithfulness must pass
+  before considering stability, then SLO. Latency cannot compensate for
+  truth/faithfulness regressions unless explicitly approved.

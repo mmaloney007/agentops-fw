@@ -3,8 +3,11 @@ import os, json, time
 from typing import Tuple
 from openai import OpenAI
 def _max_tokens():
-    try: return int(os.getenv("MAX_THOUGHT_TOKENS","0")) or None
-    except Exception: return None
+    try:
+        val = int(os.getenv("MAX_THOUGHT_TOKENS", "512"))
+        return val if val > 0 else None
+    except Exception:
+        return 512
 def generate_json(prompt: str, schema: dict) -> Tuple[dict, float, float, int]:
     base=os.getenv("OPENAI_API_BASE","http://localhost:1234/v1")
     key=os.getenv("OPENAI_API_KEY","lm-studio")

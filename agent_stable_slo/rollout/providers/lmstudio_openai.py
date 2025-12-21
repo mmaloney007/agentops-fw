@@ -1,6 +1,6 @@
 
 import os, json, time, re
-from typing import Tuple
+from typing import Optional, Tuple
 from openai import OpenAI
 
 TOOLSEQ_DEFAULTS = {
@@ -9,15 +9,23 @@ TOOLSEQ_DEFAULTS = {
     "file_ticket": ["run_sql_query", "file_ticket"],
 }
 
-def _max_tokens():
+def _max_tokens(default: Optional[int] = None):
     try:
-        return int(os.getenv("MAX_THOUGHT_TOKENS", "0")) or None
+        val = int(os.getenv("MAX_THOUGHT_TOKENS", str(default or 512)))
+        return val if val > 0 else None
     except Exception:
-        return None
+        return default or 512
 
 def _completion_tokens(resp) -> int:
     try:
         return int(getattr(resp, "usage").completion_tokens)
+    except Exception:
+        return -1
+
+
+def _prompt_tokens(resp) -> int:
+    try:
+        return int(getattr(resp, "usage").prompt_tokens)
     except Exception:
         return -1
 
@@ -121,12 +129,19 @@ def _normalize_tool_call(j: dict) -> dict:
     return j
 
 
-def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[dict, float, float, int]:
+def generate_raw(
+    prompt: str,
+    schema: dict,
+    mode: str = "structured",
+    temperature: float = 0.0,
+    max_tokens: Optional[int] = None,
+) -> Tuple[str, dict, float, float, int, int]:
     base = os.getenv("OPENAI_API_BASE", "http://localhost:1234/v1")
     key = os.getenv("OPENAI_API_KEY", "lm-studio")
     model = os.getenv("LMSTUDIO_MODEL", "qwen/qwen3-4b-thinking-2507")
     client = OpenAI(base_url=base, api_key=key)
 
+    max_new = max_tokens if max_tokens is not None else _max_tokens()
     t0 = time.time()
     r = None
     try:
@@ -135,16 +150,16 @@ def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[
                 model=model,
                 messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
                 response_format={"type": "json_schema", "json_schema": {"name": "spec", "schema": schema}},
-                temperature=0,
-                max_tokens=_max_tokens(),
+                temperature=temperature,
+                max_tokens=max_new,
             )
         else:
             r = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
                 response_format={"type": "text"},
-                temperature=0,
-                max_tokens=_max_tokens(),
+                temperature=temperature,
+                max_tokens=max_new,
             )
     except Exception:
         try:
@@ -153,13 +168,13 @@ def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[
                 model=model,
                 messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
                 response_format={"type": "text"},
-                temperature=0,
-                max_tokens=_max_tokens(),
+                temperature=temperature,
+                max_tokens=max_new,
             )
         except Exception:
             # Hard failure: return empty with large latencies to signal SLO violation
             lat_ms = (time.time() - t0) * 1000.0
-            return {}, float(lat_ms), float(lat_ms), -1
+            return "", {}, float(lat_ms), float(lat_ms), -1, -1
     lat_ms = (time.time() - t0) * 1000.0
     ttft_ms = lat_ms  # non-streaming: treat first token latency as total latency
 
@@ -225,5 +240,19 @@ def generate_json(prompt: str, schema: dict, mode: str = "structured") -> Tuple[
                 elif typ == "object":
                     j[req] = {}
     tokens_out = _completion_tokens(r)
+    tokens_in = _prompt_tokens(r)
     j = _normalize_tool_call(j)
-    return j, lat_ms, ttft_ms, tokens_out
+    return txt, j, lat_ms, ttft_ms, tokens_in, tokens_out
+
+
+def generate_json(
+    prompt: str,
+    schema: dict,
+    mode: str = "structured",
+    temperature: float = 0.0,
+    max_tokens: Optional[int] = None,
+) -> Tuple[dict, float, float, int]:
+    _, parsed, lat_ms, ttft_ms, _tokens_in, tokens_out = generate_raw(
+        prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+    )
+    return parsed, lat_ms, ttft_ms, tokens_out

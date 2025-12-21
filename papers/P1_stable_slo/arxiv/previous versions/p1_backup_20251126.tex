@@ -1,25 +1,3 @@
-\documentclass[11pt]{article}
-\usepackage[margin=1in]{geometry}
-\usepackage{amsmath,amssymb}
-\usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{graphicx}
-\usepackage{xcolor}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc}
-\usepackage[numbers]{natbib}
-\usepackage{enumitem}
-\usepackage{listings}
-\newcommand{\pninetyfive}{\ensuremath{\mathrm{p95}}}
-\newcommand{\pninetynine}{\ensuremath{\mathrm{p99}}}
-\newcommand{\slo}{\ensuremath{\mathrm{SLO}}}
-\newcommand{\etal}{\textit{et al.}}
-
-\title{Spec-Driven, SLO-Aware Agents on a Single GPU}
-\date{}
-\begin{document}
-\maketitle
-
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc}
 
@@ -1536,323 +1514,52 @@ P1 establishes a measurement regime that is actionable for single-GPU deployment
 Its central limitations are predictable (judge bias, schema expressiveness, horizon length, and safety), and we have made them explicit to avoid over-claiming.
 P2 builds on this foundation by using the same metrics as rewards and constraints while explicitly guarding against reward gaming and evaluator overfitting.
 
-
-\section{Discussion and Limitations}
-\label{sec:discussion}
-
-The results and infrastructure described so far argue for a simple premise:
-\emph{deployable} LLM agents must be treated as contract-bound services with explicit SLOs, not as free-form text generators.
-SpecSLOEval makes this premise operational by combining (i) contract-first decoding and validation, (ii) multi-family evaluation metrics, and (iii) tail-latency aware SLO accounting in a single harness.
-This section clarifies what failure modes that framework covers well today, what it does not (yet) cover, and which engineering and research risks remain when moving from offline evaluation to real production.
-
-\subsection{Real-World Failure Modes and Coverage}
-
-We intentionally center three failure classes that repeatedly show up in commercial deployments (analytics/BI agents, support automation, workflow engines, adtech orchestration, and internal copilots):
-
-\begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Structural failures (integration risk).}
-    Malformed JSON, schema violations, missing required fields, and type mismatches are ``small'' model mistakes that can hard-fail downstream systems (ETL, dashboards, workflow routers) and create brittle, hard-to-debug incidents.
-
-    \item \textbf{Faithfulness failures (decision risk).}
-    Fluent but unsupported claims about metrics, trends, entities, or actions are often worse than slow answers: they can trigger incorrect business decisions, mis-route tickets, or silently corrupt data products.
-
-    \item \textbf{Latency failures (operational risk).}
-    Heavy-tailed latency (p95/p99 spikes) degrades perceived reliability, collapses throughput under burst load, and breaks user trust even when average latency looks acceptable.
-\end{enumerate}
-
-SpecSLOEval's current ``P1'' scope is deliberately biased toward these risks.
-Figure~\ref{fig:coverage-map} makes the boundary explicit: we measure and gate the core reliability axis (structure, correctness, faithfulness, tool behavior, stability, SLOs), while leaving several important dimensions as explicit extensions rather than pretending to solve them implicitly.
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[
-    font=\small,
-    box/.style={draw, rounded corners, align=center, minimum width=4.2cm, minimum height=0.9cm, fill=gray!5},
-    title/.style={font=\small\bfseries},
-    line/.style={-Latex, thick}
-]
-% Titles
-\node[title] (tin) {Measured \& gated in P1 (SpecSLOEval core)};
-\node[title, right=6.0cm of tin] (tout) {Important extensions (not fully gated in P1)};
-
-% Left column (in-scope)
-\node[box, below=0.35cm of tin] (c1) {Structure\\(JSON parse + schema validity)};
-\node[box, below=0.15cm of c1]  (c2) {Task accuracy\\(F1 / EM / pass@k)};
-\node[box, below=0.15cm of c2]  (c3) {Faithfulness\\(support + contradiction)};
-\node[box, below=0.15cm of c3]  (c4) {Tools \& trajectories\\(valid args, success, redundancy)};
-\node[box, below=0.15cm of c4]  (c5) {Stability\\(Disagreement@k, variance)};
-\node[box, below=0.15cm of c5]  (c6) {Latency \& SLOs\\(p50/p95/p99, Success@\slo)};
-
-% Right column (extensions)
-\node[box, below=0.35cm of tout] (e1) {Multi-turn dialogue quality\\(long-horizon plans, memory)};
-\node[box, below=0.15cm of e1]   (e2) {Safety / policy compliance\\(harm, privacy, bias)};
-\node[box, below=0.15cm of e2]   (e3) {Domain invariants\\(accounting rules, approvals, constraints)};
-\node[box, below=0.15cm of e3]   (e4) {Human factors\\(explanations, operator trust)};
-\node[box, below=0.15cm of e4]   (e5) {Multi-node deployments\\(routing, interference, region tails)};
-
-% Dashed group boxes
-\draw[rounded corners, thick, dashed, gray]
-    ($(tin.north west)+(-0.4,0.35)$)
-    rectangle
-    ($(c6.south east)+(0.4,-0.35)$);
-
-\draw[rounded corners, thick, dashed, gray]
-    ($(tout.north west)+(-0.4,0.35)$)
-    rectangle
-    ($(e5.south east)+(0.4,-0.35)$);
-
-% Arrow between groups
-\draw[line] ($(c3.east)+(0.3,0)$) -- node[above, align=center]{same harness \& criteria.yaml\\can add families over time} ($(e3.west)+(-0.3,0)$);
-
-\end{tikzpicture}
-\caption{Scope boundary.
-SpecSLOEval (P1) gates the reliability-critical axis for contract-first agents (structure, correctness, faithfulness, tools, stability, and SLOs).
-Several high-impact dimensions (multi-turn behavior, safety, domain invariants, human factors, multi-node effects) are explicit extensions rather than silently assumed.}
-\label{fig:coverage-map}
-\end{figure}
-
-\subsection{Limitations of LLM-as-Judge Faithfulness}
-
-Our faithfulness scoring follows the pragmatic ``LLM-as-judge'' pattern (RAGAS-style scoring and atomic-statement decomposition), but it must be treated as a \emph{measurement instrument} with known error modes rather than ground truth.
-
-\paragraph{Key limitations.}
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Prompt sensitivity and calibration drift.}
-    Small changes to judge prompts or to the judge model can shift score distributions, which can silently break fixed thresholds if not versioned and monitored.
-
-    \item \textbf{Systematic blind spots.}
-    Judges often under-penalize subtle numeric misstatements (trend direction, percentage deltas, ranking errors) unless explicitly instructed and given strong negative examples.
-
-    \item \textbf{Correlation and overfitting risk.}
-    If the same (or closely related) model family is used for both policy and judge, or if RL directly optimizes the judge score, the system can overfit to judge idiosyncrasies instead of improving true groundedness.
-
-    \item \textbf{Cost and latency coupling.}
-    Judge calls add compute and can become part of the tail-latency story unless carefully budgeted or offloaded.
-\end{itemize}
-
-\paragraph{Operational mitigations we recommend.}
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Version everything.}
-    Judge model, judge prompt, and scoring code should be versioned and logged as artifacts alongside \texttt{criteria.yaml}.
-
-    \item \textbf{Use ``hybrid checks'' where possible.}
-    For numeric claims and schema-derived invariants, prefer deterministic validation (recomputing totals, verifying ordering, checking date logic) and treat the judge as a backstop for natural-language claims.
-
-    \item \textbf{Calibrate with small human audits.}
-    A lightweight labeled subset (even 50--200 examples per domain) is enough to sanity-check thresholds and detect drift.
-
-    \item \textbf{Separate selection from evaluation.}
-    If self-consistency uses a judge to select among candidates, evaluate final systems with a different prompt, different judge, or additional deterministic checks to reduce reward hacking.
-\end{itemize}
-
-\subsection{Schema and Grammar Expressiveness}
-
-JSON Schema and grammar constraints are excellent for \emph{shape}, but limited for \emph{semantics}.
-Many production contracts include invariants that are cross-field, temporal, or policy-dependent (e.g., accounting constraints, approval rules, permission-bound actions).
-
-\paragraph{What works well today.}
-\begin{itemize}[leftmargin=12pt]
-    \item enforcing required/optional fields, types, enums, bounds, and simple array constraints at decode-time;
-    \item eliminating catastrophic integration failures (non-JSON, missing keys, type mismatches);
-    \item enabling stable downstream parsing and typed pipelines.
-\end{itemize}
-
-\paragraph{What remains hard.}
-\begin{itemize}[leftmargin=12pt]
-    \item cross-field equalities/inequalities and conservation laws (``must sum to 1'');
-    \item conditional constraints (``if status=CLOSED then closed\_at exists and closed\_at $\le$ now'');
-    \item business logic constraints (``discount $>$ 20\% requires approver and justification'').
-\end{itemize}
-
-\paragraph{Pragmatic design pattern.}
-In production, the workable pattern is a \emph{two-layer contract}:
-(1) schemas/grammars for syntactic shape and low-level types;
-(2) post-hoc ``semantic validators'' for domain rules, with bounded repair loops.
-This increases reliability but can introduce latency variance (validators and retries), which is why SpecSLOEval treats validation as part of end-to-end latency $L_\kappa(x)$ rather than an afterthought.
-
-Table~\ref{tab:limitations-mitigations} summarizes these limitations and the mitigation strategies that keep the framework honest without claiming completeness.
-
-\begin{table}[t]
-\centering
-\small
-\begin{tabular}{@{}p{3.3cm}p{5.4cm}p{5.4cm}@{}}
-\toprule
-\textbf{Limitation} & \textbf{Why it matters} & \textbf{Mitigation in practice} \\
-\midrule
-Judge-based faithfulness noise &
-Scores drift; subtle numeric errors slip through; RL can game judges &
-Version judge+prompt; add deterministic checks; calibrate on small human subset; evaluate with alternative judge/prompt \\
-\addlinespace
-Schema/grammar expressiveness &
-Cross-field and policy rules can't be encoded; invalid business actions may pass ``valid JSON'' &
-Two-layer contracts: schema for shape + semantic validators; bounded repair loops; explicit error taxonomy \\
-\addlinespace
-Non-stationary workloads &
-Traffic, context lengths, and tool latency shift; p95/p99 can regress without model changes &
-Re-run SLO sweeps periodically; log workload summaries; include burst and long-context slices in CI \\
-\addlinespace
-Tool coupling and brittleness &
-Tool schemas drift; downstream APIs change; agents fail with perfect language &
-Tool mocks + contract tests; schema versioning; trajectory regression tests; fail-closed defaults \\
-\addlinespace
-Reward hacking in RL &
-Agents optimize metrics, not business outcomes; can become uninformative but valid &
-Hard gates for structure/faithfulness; holdout test sets not used for reward; periodic human audits \\
-\bottomrule
-\end{tabular}
-\caption{Limitations and practical mitigations.
-SpecSLOEval makes these risks explicit and measurable rather than implicit and surprising at deployment time.}
-\label{tab:limitations-mitigations}
-\end{table}
-
-\subsection{Single-GPU Focus and Deployment Generality}
-
-We target single-node deployments as a realistic and common baseline: one GPU (RTX~4090 class) or a laptop-class accelerator.
-This choice forces the framework to confront tight compute budgets, queueing effects, and tail-latency sensitivity under burst load.
-The metric families remain valid in larger deployments, but additional phenomena appear:
-
-\begin{itemize}[leftmargin=12pt]
-    \item cluster-level routing and interference (multi-tenant contention),
-    \item network and cross-service latency components,
-    \item regional tail effects (multi-region p95/p99),
-    \item admission control and load shedding as first-class policies.
-\end{itemize}
-
-The current paper does not implement these cluster-level extensions, but the criteria-driven design intentionally keeps them additive: new SLO metrics and workload models can be introduced without changing the contract or scoring interfaces.
-
-\subsection{RL Integration Scope and Risks}
-
-SpecSLOEval's metrics are designed to be reused as reward components and constraints in P2, but the optimization surface introduces failure modes of its own.
-
-\paragraph{Primary risks.}
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Metric gaming:} produce trivially valid but low-information JSON to maximize structure scores.
-    \item \textbf{Judge overfitting:} optimize the judge instead of truthfulness.
-    \item \textbf{Rare-case regressions:} improve means while regressing on high-risk tails.
-\end{itemize}
-
-\paragraph{Guardrails we treat as non-negotiable.}
-\begin{itemize}[leftmargin=12pt]
-    \item strict gating order (structure/accuracy/faithfulness before stability and SLOs);
-    \item fixed diagnostic sets not used for reward shaping;
-    \item explicit ``fail-closed'' behaviors (timeouts and invalid outputs become structured errors, not free-form guesses);
-    \item human-in-the-loop promotion checkpoints for model updates.
-\end{itemize}
-
-\subsection{Human Factors and Operational Adoption}
-
-Even perfect metrics do not deploy themselves.
-The central adoption challenge is to translate a multi-metric evaluation suite into a workflow that engineers and stakeholders trust.
-
-Figure~\ref{fig:promotion-pipeline} depicts the promotion pipeline we assume in practice: offline evaluation produces a configuration candidate, strict gates prevent ``fast but wrong'' configurations from advancing, and canary deployments validate tail behavior under real traffic before broad rollout.
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[
-    font=\small,
-    step/.style={draw, rounded corners, align=center, minimum width=3.1cm, minimum height=0.95cm, fill=gray!5},
-    gate/.style={draw, rounded corners, align=center, minimum width=3.1cm, minimum height=0.95cm, fill=blue!5},
-    line/.style={-Latex, thick},
-    node distance=0.9cm and 1.0cm
-]
-\node[step] (logs) {Workload\\samples \& goldens};
-\node[step, right=of logs] (offline) {Offline eval\\(SpecSLOEval)};
-\node[gate, right=of offline] (gates) {Strict gates\\(criteria.yaml)};
-\node[step, right=of gates] (canary) {Canary deploy\\(small traffic)};
-\node[step, right=of canary] (monitor) {Monitor\\(tails + failures)};
-
-\draw[line] (logs) -- (offline);
-\draw[line] (offline) -- node[above]{metrics} (gates);
-\draw[line] (gates) -- node[above]{pass} (canary);
-\draw[line] (canary) -- node[above]{live tails} (monitor);
-
-% Feedback loops
-\draw[line] (monitor.south) .. controls +(0,-1.0) and +(0,-1.0) .. node[below, align=center]{regressions $\Rightarrow$ add tests\\or adjust budgets} (offline.south);
-\draw[line] (monitor.north) .. controls +(0,1.0) and +(0,1.0) .. node[above, align=center]{promotion criteria\\\& dashboards} (gates.north);
-
-\end{tikzpicture}
-\caption{Operational promotion pipeline.
-SpecSLOEval is designed to sit inside a practical release loop: offline tests and strict gating prevent brittle configurations from reaching production, while canaries validate tail-latency and rare-case behavior before full rollout.}
-\label{fig:promotion-pipeline}
-\end{figure}
-
-In summary, SpecSLOEval is deliberately a \emph{reliability-first} skeleton.
-It hardens the integration surface (contracts), measures the semantic risk surface (faithfulness), and forces tail behavior into the same scorecard as correctness.
-P2 builds on this foundation by turning the same scorecard into a constrained optimization target, while preserving the guardrails above.
-
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-This paper introduced SpecSLOEval: a spec-driven, SLO-aware framework for serving and evaluating LLM agents in realistic single-GPU deployments.
-The core claim is operational:
-\emph{if an agent is consumed by systems, it must behave like a contract-bound service.}
-Accordingly, we treat the contract (JSON Schema / grammar) as the primary interface, and we evaluate agents with the same rigor used for production services: structural validity, task success, faithfulness to evidence, tool reliability, stability under re-runs, and tail-latency SLO compliance.
+We have introduced a spec-driven, SLO-aware framework for evaluating and serving LLM agents in realistic, single-GPU environments.
+Rather than treating the model as a monolithic text generator, we treat the \emph{contract} between the agent and its consumers as a first-class object: JSON Schemas and grammars define the admissible output space, are compiled into backend-specific decoding artefacts, and drive both serving-time behavior (structured decoding, validation-and-retry, budgeted self-consistency) and post-hoc evaluation.
+On top of this contract-first layer, we build a family-based evaluation suite that explicitly measures structure, task accuracy, faithfulness, tools and trajectories, stability, and latency/SLO adherence, all configured through a single \texttt{criteria.yaml} file and instrumented with online Weights \& Biases logging.
 
-\paragraph{What P1 contributes.}
-P1 establishes a baseline that practitioners can replicate and extend:
+Conceptually, the contributions of P1 are threefold.
+First, we show how to consolidate a heterogeneous ecosystem of structured-output mechanisms (OpenAI-style schemas, LM Studio and Ollama structured modes, vLLM, \texttt{llama.cpp} grammars, Outlines-style constraints) behind a single internal contract representation and spec compiler, so that application-level schemas are portable across backends without re-implementation.
+Second, we design and operationalize an evaluation framework that takes seriously the failure modes that matter in production---malformed JSON, schema violations, unfaithful summaries, brittle tool trajectories, unstable behavior across runs, and tail latency---and organizes them into reusable test families with explicit thresholds and weights.
+Third, we demonstrate that these ideas can be implemented on commodity hardware (a single RTX~4090 and an Apple M2 Max) with open-weight models, and that, even under such constraints, spec-driven decoding with validation-and-retry and modest self-consistency budgets can substantially improve structural correctness and faithfulness while keeping p95/p99 latency within realistic SLOs through careful configuration and workload-aware tuning.
 
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Contract-first agent serving.}
-    A backend-agnostic contract layer that compiles to provider-native structured outputs and grammar-based constraints, and is hardened by bounded validation-and-retry and budgeted self-consistency under explicit token and wall-clock budgets.
+Empirically, our experiments indicate that moving from unconstrained decoding to contract-first decoding with validation-and-retry eliminates most catastrophic structural failures and reduces “long-tail” pathologies that are invisible to average-case metrics but highly visible to downstream systems.
+On context-grounded tasks, we observe that even shallow forms of self-consistency and LLM-as-judge faithfulness scoring can meaningfully reduce unsupported claims and contradictions when combined with structured outputs, especially for numeric and trend statements, without collapsing under latency budgets.
+By evaluating unconstrained decoding, provider-native structured outputs, grammar-based constraints, and our full spec-driven configuration across LM Studio, Ollama, and vLLM, we surface trade-offs between correctness, faithfulness, and latency in a way that is both auditable and reusable across tasks and domains.
 
-    \item \textbf{A unified, auditable evaluation surface.}
-    A single \texttt{criteria.yaml} defines metric families, gates, and weights, enabling consistent comparison across backends (LM Studio, Ollama, vLLM) and models, with per-episode logging for diagnosis and reproducibility.
+At the same time, P1 is intentionally scoped.
+We focus on single-turn episodes and relatively short-horizon tool use, and we largely abstract away safety, bias, fairness, and complex multi-party conversational dynamics.
+We rely on LLM-as-judge mechanisms for faithfulness, which are powerful but imperfect proxies, and we encode many domain-specific invariants via post-hoc validation rather than in the contract language itself.
+Finally, we restrict ourselves to static evaluation and configuration search: policies are fixed, and we vary contracts, decoding parameters, and runtimes rather than updating weights.
+These choices keep the problem tractable and make the framework directly usable for teams that will never run reinforcement learning, but they also leave important questions open.
 
-    \item \textbf{A deployment-oriented measurement framing.}
-    We treat p95/p99 and Success@\slo as first-class metrics alongside correctness and faithfulness, revealing trade-offs that are invisible when evaluation ends at average quality or JSON validity alone.
-\end{itemize}
-
-Figure~\ref{fig:specsloeval-stack} summarizes the end-to-end ``contract to deployment'' stack that P1 operationalizes.
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[
-    font=\small,
-    layer/.style={draw, rounded corners, align=center, minimum width=11.2cm, minimum height=0.95cm, fill=gray!5},
-    accent/.style={draw, rounded corners, align=center, minimum width=11.2cm, minimum height=0.95cm, fill=blue!5},
-    line/.style={-Latex, thick},
-    node distance=0.35cm
-]
-\node[layer]  (l1) {Application contracts\\(JSON Schema / typed models / tool signatures)};
-\node[layer, below=of l1] (l2) {Spec compiler\\(backend-specific: response\_format / tools / grammars)};
-\node[accent, below=of l2] (l3) {Serving wrapper\\(constrained decoding + validation-and-retry + budgeted self-consistency)};
-\node[layer, below=of l3] (l4) {Evaluation harness\\(structure, accuracy, faithfulness, tools, stability, SLOs)};
-\node[layer, below=of l4] (l5) {Logging + analysis\\(W\&B / dashboards / CI gates)};
-\node[layer, below=of l5] (l6) {Optimization hooks\\(static config search in P1; constrained RL in P2)};
-
-\draw[line] (l1) -- (l2);
-\draw[line] (l2) -- (l3);
-\draw[line] (l3) -- (l4);
-\draw[line] (l4) -- (l5);
-\draw[line] (l5) -- (l6);
-
-\end{tikzpicture}
-\caption{SpecSLOEval stack.
-Contracts are compiled into backend constraints; serving is hardened by validation and budgeted self-consistency; evaluation computes a multi-family scorecard and enforces strict gates; the same scorecard supports CI and (in P2) constrained RL.}
-\label{fig:specsloeval-stack}
-\end{figure}
-
-\paragraph{Future work.}
-P1 is intentionally scoped and leaves several high-impact extensions:
+Looking forward, we see several concrete extensions:
 
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{Multi-turn and long-horizon workflows.}
-    Extend test families to cover memory, planning under partial observability, escalation policies, and long-running tool workflows where latency composes over multiple steps.
+    \item \textbf{Richer interaction patterns and safety.}
+    Extending the test families to multi-turn dialogues, hierarchical tools, long-running workflows, and safety- and fairness-oriented metrics would broaden the applicability of the framework.
+    In particular, we would like to incorporate domain-specific safety tests and policy constraints as first-class families alongside structure, faithfulness, and SLOs.
 
-    \item \textbf{Safety and policy as first-class families.}
-    Add explicit safety/policy contracts (privacy constraints, sensitive data handling, refusal correctness, bias and fairness probes) with auditable thresholds in \texttt{criteria.yaml}.
+    \item \textbf{SLO-aware reinforcement learning on a single GPU (P2).}
+    P2 will treat the metrics and thresholds defined here as reward components and constraints in TRL PPO/GRPO loops with LoRA adapters, running on the same single-GPU infrastructure.
+    The goal is to move from static selection of $(R,\pi_\theta,\delta)$ to dynamic policy improvement under explicit SLOs, and to study how agents trade off structure, faithfulness, stability, and latency when these dimensions are optimized jointly.
 
-    \item \textbf{SLO-aware reinforcement learning on a single GPU.}
-    P2 will reuse the same metric surface as reward components and constraints (PPO/GRPO with LoRA adapters), emphasizing guardrails against reward hacking and tail regressions.
-
-    \item \textbf{Richer contract languages.}
-    Combine schema/grammar constraints with programmable semantic validators and domain-rule libraries so that contracts capture not only types but invariants (e.g., accounting identities, approval policies, campaign constraints).
+    \item \textbf{Contracts and grammars for complex domains.}
+    Many real systems involve contracts that go beyond static JSON Schemas: cross-field relationships, temporal constraints, role- and policy-dependent permissions.
+    Extending the spec compiler and validation layer to support richer contract languages, while retaining efficient decoding and post-hoc checking, is an important technical direction.
 
     \item \textbf{Beyond single-node deployments.}
-    Generalize workload models and SLO accounting to multi-node systems (routing, interference, multi-region tails) while preserving the contract-first interface and metric families.
+    Although we focus on single RTX~4090 and Apple Silicon nodes, the same evaluation principles apply to multi-node and multi-region deployments where new phenomena appear (cross-region latency, replica placement, multi-tenant interference).
+    Adapting SpecSLOEval to such settings would require additional latency and reliability metrics, and tighter integration with cluster schedulers.
+
+    \item \textbf{Human-centered evaluation and adoption.}
+    Finally, we view the metrics, YAML configuration, and W\&B dashboards not only as research tools but as artifacts that engineering and product teams must understand and own.
+    Future work includes designing lighter-weight “views” of the test suite for non-experts, studying how practitioners interpret composite scores and trade-offs, and iterating on the framework itself based on feedback from real deployments.
 \end{itemize}
 
-The broader goal is standardization: a shared vocabulary and a portable, contract-first evaluation harness that makes agent reliability measurable and improvable.
-SpecSLOEval is a step toward agents that are not only capable, but also \emph{structurally safe, evidence-faithful, stable under repetition, and predictable under tail latency} in the systems that depend on them.
-
-\end{document}
+Our broader hope is that contract-first decoding, unified metric configuration, and family-based test suites can serve as building blocks for a more standardized culture of agent evaluation.
+If researchers and practitioners can converge on a shared vocabulary and a small set of portable tests for structure, faithfulness, tools, stability, and SLOs, then comparing agents and systems becomes less about anecdotal demos and more about explicit, measurable guarantees.
+In that sense, this work is a step toward LLM agents that are not only impressive on benchmarks, but \emph{reliable, truthful, and predictable} in the real systems that depend on them.
