@@ -1,0 +1,81 @@
+logging:
+  level: info
+  show_progress: true
+
+runtime:
+  engine: local
+
+input:
+  source: csv
+  csv_path: /Users/maloney/neuralift_data/heuristics_data/marketing-kaggle/marketing-kaggle-dab.csv
+  id_cols: ["ID"]
+  dtype_overrides:
+    AverageOrderValue: object
+    Income: float64
+  snapshot:
+    enabled: false
+
+# feature_functions:
+#   - Partition-wise pandas functions, applied first. Signature: fn(pdf: pd.DataFrame) -> pd.DataFrame.
+#   - Format: "module:function". Runs in order, 0..N entries. Side-effect free; no compute/persist.
+#   - Example: add age/generation from a birth year column:
+#       neuralift_c360_prep.features.birthday:add_age_from_year
+feature_functions:
+  - neuralift_c360_prep.features.birthday:add_birth_month
+  - neuralift_c360_prep.features.map_state_and_region:map_state_and_region
+  - neuralift_c360_prep.features.zip_utils:clean_zip_codes_dask
+
+# kpi_functions:
+#   - Runs AFTER feature_functions, BEFORE preprocessing. Supports multiple ZSML definitions.
+#   - Each entry:
+#       type: zsml
+#       source_col: <col>
+#       out_col: <optional, defaults to <source_col>_tier>
+#       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
+kpi_functions: []
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  missing_fill: auto
+  zsml:
+    enabled: false
+    source_col: null
+    out_col: null
+    zero_threshold: 0.0
+    quantiles: [0.33, 0.66]
+    clip_high_quantile: 0.95
+    unit: ""
+    range_style: text
+    add_prefix: true
+
+# drop_columns:
+#   - Applied LAST, after preprocessing/renames (snake-case is allowed).
+drop_columns:
+  - customer_join_date
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 15
+  tags:
+    id_cols: ["id"]
+    kpi_cols: ["revenue", "purchases"]
+    missing_indicator_cols: []
+    extra_tags_all: null
+    extra_tags_by_column: {}
+    max_card: 25
+    use_approx_unique: true
+  schema_alignment: true
+  context: "Marketing Kaggle CSV run"
+  op_timeout: 45m
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: kaggle-marketing
+  uc_table: marketing_kaggle_local
+  s3_base: s3://dummy-bucket/marketing-kaggle-local/
+  partitions: ["id"]
+  target_mb_per_part: 512

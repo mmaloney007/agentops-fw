@@ -1,0 +1,118 @@
+logging:
+  level: debug
+  show_progress: true
+
+runtime:
+  engine: coiled
+  coiled:
+    software_env: neuralift_c360_prep
+    n_workers: 8
+    worker_vm_types: [i3.2xlarge]
+    scheduler_vm_types: [c5d.xlarge]
+    idle_timeout: 2h
+    no_client_timeout: 2h
+    create_timeout: 15m
+    op_timeout: 45m
+    env:
+      DATABRICKS_HOST: ${DATABRICKS_HOST}
+      DATABRICKS_TOKEN: ${DATABRICKS_TOKEN}
+      DATABRICKS_WAREHOUSE_ID: ${DATABRICKS_WAREHOUSE_ID}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      WANDB_API_KEY: ${WANDB_API_KEY}
+      AWS_ACCESS_KEY_ID_DEV: ${AWS_ACCESS_KEY_ID_DEV}
+      AWS_SECRET_ACCESS_KEY_DEV: ${AWS_SECRET_ACCESS_KEY_DEV}
+
+input:
+  source: uc_table
+  uc_table: staging-c360.media.viva_stream_media_27m
+  columns: null
+  id_cols: ["customer_id"]
+  snapshot:
+    enabled: false
+
+# feature_functions:
+#   - Partition-wise pandas functions, applied first. Signature: fn(pdf: pd.DataFrame) -> pd.DataFrame.
+#   - Format: "module:function". Runs in order, 0..N entries. Side-effect free; no compute/persist.
+#   - Example: add age/generation from a birth year column:
+#       neuralift_c360_prep.features.birthday:add_age_from_year
+feature_functions: []
+
+# kpi_functions:
+#   - Runs AFTER feature_functions, BEFORE preprocessing. Supports multiple ZSML definitions.
+#   - Each entry:
+#       type: zsml
+#       source_col: <col>
+#       out_col: <optional, defaults to <source_col>_tier>
+#       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
+kpi_functions:
+  - type: zsml
+    source_col: total_spent
+    out_col: total_spent_tier
+    zero_threshold: 0.0
+    quantiles: [0.33, 0.66]
+    clip_high_quantile: 0.95
+    unit: "$"
+    range_style: text
+    add_prefix: true
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  missing_fill: auto
+
+# drop_columns:
+#   - Applied LAST, after preprocessing/renames (snake-case is allowed).
+drop_columns:
+  - state
+  - zipcode
+  - cancellation_date
+  - subscription_start_date
+  - subscription_end_date
+  - last_login_date
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 50
+  tags:
+    id_cols: ["customer_id"]
+    kpi_cols:
+      - at_risk
+      - is_new_customer
+      - is_churned
+      - is_cycler
+      - is_active
+      - total_spent_tier
+    missing_indicator_cols: []
+    extra_tags_all: null
+    extra_tags_by_column:
+      total_spent_tier:
+        value_sum_column: total_spent
+        value_sum_unit: USD
+        event_sum_column: months_subscribed
+        event_sum_unit: months
+    max_card: 20
+    use_approx_unique: false
+  schema_alignment: true
+  context: >
+    VistaStream is a premium streaming platform dedicated to delivering an exceptional
+    entertainment experience to a diverse and discerning subscriber base.
+    In this table each row captures a unique subscriber and includes identifiers, plan details,
+    billing histories, churn markers and demographic attributes. It also holds device usage flags,
+    genre engagement indicators and viewing statistics expressed as counts, durations and spend totals.
+    Columns use text codes, numeric fields, boolean flags and date values.
+    Date fields span from the earliest subscription start dates through cancellation entries
+    (active accounts marked by a future placeholder date).
+  op_timeout: 45m
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: media
+  uc_table: vivastream_media_27m_01
+  uc_volume_name: vivastream_27m_01
+  run_name: vivastream_27m_01
+  # s3_base: s3://dummy-bucket/media_dask_test_54k/
+  partitions: []
+  target_mb_per_part: 256
