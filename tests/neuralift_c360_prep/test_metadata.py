@@ -91,7 +91,7 @@ def test_wandb_nulls_artifact_filenames():
         wandb_project="test_project",
     )
     assert config["use_wandb"] is True
-    assert config["delete_existing_artifacts"] is True
+    assert "delete_existing_artifacts" not in config
     assert "labels_file_name" not in config
     assert "ranked_points_file_name" not in config
 

@@ -1832,11 +1832,9 @@ def build_pretty_config_from_data_dict(
     )
 
     use_wandb_flag = bool(use_wandb)
-    delete_existing = bool(delete_existing_artifacts)
     labels_file_name: str | None = "labels.npy"
     ranked_points_file_name: str | None = "precomputed_points.npy"
     if use_wandb_flag:
-        delete_existing = True
         labels_file_name = None
         ranked_points_file_name = None
 
@@ -1866,7 +1864,6 @@ def build_pretty_config_from_data_dict(
         "headless": False,
         "resume": False,
         "json_logging": None,
-        "delete_existing_artifacts": bool(delete_existing),
         "data": {
             "sample_frac": None,
         },
@@ -1958,9 +1955,6 @@ def build_pretty_config_from_data_dict(
     )
     rationale["use_wandb"] = (
         "Track runs/metrics/artifacts; disable for air-gapped/offline runs."
-    )
-    rationale["delete_existing_artifacts"] = (
-        "If true, clear prior artifacts to avoid mixing outputs between runs."
     )
     rationale["labels_file_name"] = (
         "Standard output filename for final HDBSCAN labels; omitted when W&B is enabled."
