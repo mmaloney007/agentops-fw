@@ -19,7 +19,7 @@ jobs:
     runs-on:
       labels: ubuntu-latest
     environment:
-      name: preview
+      name: staging
     permissions:
       contents: read
       packages: write
@@ -80,7 +80,7 @@ jobs:
     runs-on:
       labels: ubuntu-latest
     environment:
-      name: preview
+      name: staging
     permissions:
       contents: write
       packages: write
