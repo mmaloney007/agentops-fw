@@ -33,7 +33,7 @@ points_and_labels = "neuralift_c360_prep.points_and_labels:main"
 [tool.pixi.workspace]
 name      = "neuralift-c360-prep"
 channels  = ["conda-forge"]
-platforms = ["osx-arm64", "linux-64"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
 
 [tool.pixi.dependencies]          # Conda binaries
 databricks-sql-connector = "*"
