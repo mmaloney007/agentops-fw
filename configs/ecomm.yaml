@@ -99,6 +99,7 @@ metadata:
     Offering a cross category selection across multiple styles from casual to work to formal Willow & Birch has established itself as a trusted destination for apparel and lifestyle essentials throughout
     their adult lives and style.
   op_timeout: 45m
+
 output:
   uc_catalog: staging-c360
   uc_schema: ecomm-clothing

@@ -1951,7 +1951,7 @@ def build_pretty_config_from_data_dict(
 
     # Root
     rationale["use_gpu"] = (
-        "Enable GPU acceleration (A10-class GPUs support fast bf16 mixed precision)."
+        "Enable GPU acceleration (A10-class GPUs+ support fast bf16 mixed precision)."
     )
     rationale["use_wandb"] = (
         "Track runs/metrics/artifacts; disable for air-gapped/offline runs."

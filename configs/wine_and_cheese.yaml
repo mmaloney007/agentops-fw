@@ -90,6 +90,7 @@ metadata:
   schema_alignment: true
   context: "Wine and cheese demo"
   op_timeout: 45m
+
 output:
   uc_catalog: staging-c360
   uc_schema: kaggle-marketing

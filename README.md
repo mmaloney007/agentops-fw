@@ -29,10 +29,11 @@ Regular env (pip + local code):
 
 ```bash
 mkdir -p coiled
-pixi run python -m pip freeze > coiled/requirements.txt
-# remove any local path entry (e.g. "-e ." or "@ file:")
+pixi run --environment default python scripts/lock_pip_requirements.py --output coiled/requirements.txt
 pixi run coiled env create --workspace neuralift-dev --name neuralift_c360_prep --pip coiled/requirements.txt --include-local-code
 ```
+
+Note: the lock resolves for your current platform. Run the lock step on linux-64 (or in a Linux container) for a Coiled-ready lock.
 
 Docker env (CPU):
 
@@ -65,8 +66,9 @@ Required for Coiled + Unity Catalog reads/writes:
 - `DATABRICKS_HOST` (workspace host, without `https://`)
 - `DATABRICKS_TOKEN` (PAT)
 - `DATABRICKS_WAREHOUSE_ID` (SQL warehouse id)
-- `AWS_ACCESS_KEY_ID_DEV`
-- `AWS_SECRET_ACCESS_KEY_DEV`
+    - CLIENT ID AND CLIENT SECRET INSTEAD OF PAT
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 
 Required for metadata generation:
 - `OPENAI_API_KEY` (LLM data dictionary + table comment)

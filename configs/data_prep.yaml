@@ -1,3 +1,5 @@
+### MAKE THIS A LOCAL OUTPUT CLUSTER SPOT TEST IT
+
 logging:
   level: info
   show_progress: true
@@ -41,7 +43,38 @@ feature_functions:
 #       source_col: <col>
 #       out_col: <optional, defaults to <source_col>_tier>
 #       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
-kpi_functions: []
+# feature_functions:
+#   - Partition-wise pandas functions, applied first. Signature: fn(pdf: pd.DataFrame) -> pd.DataFrame.
+#   - Format: "module:function". Runs in order, 0..N entries. Side-effect free; no compute/persist.
+#   - Example: add age/generation from a birth year column:
+#       neuralift_c360_prep.features.birthday:add_age_from_year
+feature_functions: []
+
+# kpi_functions:
+#   - Runs AFTER feature_functions, BEFORE preprocessing. Supports multiple ZSML definitions.
+#   - Each entry:
+#       type: zsml
+#       source_col: <col>
+#       out_col: <optional, defaults to <source_col>_tier>
+#       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
+kpi_functions:
+  - type: zsml
+    source_col: total_spent
+    out_col: total_spent_tier
+    zero_threshold: 0.0
+    quantiles: [0.33, 0.66]
+    clip_high_quantile: 0.95
+    unit: "$"
+    range_style: text
+    add_prefix: true
+    tag: kpi
+    # lift_potential:
+      value_sum_column: total_spent
+      value_sum_unit: USD
+      event_sum_column: months_subscribed
+      event_sum_unit: months
+  - type: idenity
+
 
 preprocessing:
   rename_to_snake: true
@@ -70,7 +103,7 @@ metadata:
   max_concurrency: 15
   tags:
     id_cols: ["id"]
-    kpi_cols: []
+    kpi_cols: [] # ADD THIS TO MATCH WINE AND CHEESE
     missing_indicator_cols: []
     extra_tags_all: null
     extra_tags_by_column: {}
