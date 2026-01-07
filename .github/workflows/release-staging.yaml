@@ -97,7 +97,7 @@ jobs:
           pixi-version: v0.62.1
           locked: true
           cache: true
-          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'coiled' }}
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       - run: | # everything here will be run inside of the pixi environment
           coiled env create -n neuralift_c360_prep --container ${{ env.ECR_REPOSITORY }}:${{needs.release.outputs.release_version}}
         shell: pixi run bash -e {0}
