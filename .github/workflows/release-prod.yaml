@@ -1,0 +1,105 @@
+name: Create Prod Release
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  ECR_REPOSITORY: "211125350094.dkr.ecr.us-west-2.amazonaws.com/neuralift_c360_prep"
+  PIXI_VER: "0.62.1"
+  LINUX_VER: "24.04"
+  CUDA_VER: "12.9.1"
+  COILED_WORKSPACE: "neuralift-prod"
+
+jobs:
+  release:
+    name: Build a new release image
+    runs-on:
+      labels: ubuntu-latest
+    environment:
+      name: prod
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      release_version: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.version'] }}
+      revision: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.revision'] }}
+    steps:
+      - name: ☠️ Delete huge unnecessary tools folder
+        run: |
+          cd /opt
+          find . -maxdepth 1 -mindepth 1 '!' -path ./containerd '!' -path ./actionarchivecache '!' -path ./runner '!' -path ./runner-cache -exec rm -rf '{}' ';'
+      - name: ⬇️ Check out
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Docker meta
+        id: metadata
+        uses: docker/metadata-action@v3
+        with:
+          # list of docker images to use as base name for tags
+          images: |
+            ${{ env.ECR_REPOSITORY }}
+          # generate docker tags based on the following events/attributes
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,prefix=,format=short
+      - name: 🐋 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: 🐋 Build and push docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          build-args: |
+            PIXI_VER=${{ env.PIXI_VER }}
+            LINUX_VER=${{ env.LINUX_VER }}
+            CUDA_VER=${{ env.CUDA_VER }}
+            RELEASE_VERSION=${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.revision'] }}
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.ECR_REPOSITORY }}:buildcache
+  deploy_prod:
+    name: Deploy neuralift_c360_prep release to coiled prod env
+    needs: release
+    runs-on:
+      labels: ubuntu-latest
+    environment:
+      name: prod
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Coiled Login
+        uses: coiled/login-action@v1
+        with:
+          token: ${{ secrets.COILED_API_TOKEN }}
+          workspace: ${{ env.COILED_WORKSPACE }}
+      - name: Pixi Enviornment
+        uses: prefix-dev/setup-pixi@v0.9.0
+        with:
+          pixi-version: v0.62.1
+          locked: true
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+      - run: | # everything here will be run inside of the pixi environment
+          coiled env create -n neuralift_c360_prep --container ${{ env.ECR_REPOSITORY }}:${{needs.release.outputs.release_version}}
+        shell: pixi run bash -e {0}
