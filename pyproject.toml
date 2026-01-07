@@ -33,7 +33,7 @@ points_and_labels = "neuralift_c360_prep.points_and_labels:main"
 [tool.pixi.workspace]
 name      = "neuralift-c360-prep"
 channels  = ["conda-forge"]
-platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
+platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]          # Conda binaries
 databricks-sql-connector = "*"
@@ -59,6 +59,7 @@ instructor = "*"
 uszipcode = ">=0.2.6,<1.0"
 pyarrow = ">=21.0.0,<23"
 weave = "==0.51.42"
+python-dotenv = ">=1.0.0,<2"
 neuralift_c360_prep = { path = "." }
 
 [tool.pixi.feature.dev.dependencies]

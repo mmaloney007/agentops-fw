@@ -15,14 +15,6 @@ runtime:
     no_client_timeout: 2h
     create_timeout: 15m
     op_timeout: 45m
-    env:
-      DATABRICKS_HOST: ${DATABRICKS_HOST}
-      DATABRICKS_TOKEN: ${DATABRICKS_TOKEN}
-      DATABRICKS_WAREHOUSE_ID: ${DATABRICKS_WAREHOUSE_ID}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      WANDB_API_KEY: ${WANDB_API_KEY}
-      AWS_ACCESS_KEY_ID_DEV: ${AWS_ACCESS_KEY_ID_DEV}
-      AWS_SECRET_ACCESS_KEY_DEV: ${AWS_SECRET_ACCESS_KEY_DEV}
 
 input:
   source: uc_table

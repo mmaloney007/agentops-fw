@@ -32,6 +32,7 @@ import yaml
 
 from .cluster import get_client
 from .config import BundleConfig
+from .databricks_oauth import get_databricks_access_token
 from .ingest import load_lazy_dask
 from .preprocess import preprocess
 from .write import (
@@ -49,6 +50,36 @@ from .metadata import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _strip_scheme(host: str) -> str:
+    return host.replace("https://", "").replace("http://", "").rstrip("/")
+
+
+def _build_dbsql_conn_params(*, require: bool) -> dict | None:
+    host = os.getenv("DATABRICKS_HOST", "")
+    client_id = os.getenv("DATABRICKS_CLIENT_ID", "")
+    client_secret = os.getenv("DATABRICKS_CLIENT_SECRET", "")
+    wh = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
+    if not (host and client_id and client_secret and wh):
+        if require:
+            raise ValueError(
+                "Missing Databricks OAuth envs for DBSQL: "
+                "DATABRICKS_HOST, DATABRICKS_CLIENT_ID, "
+                "DATABRICKS_CLIENT_SECRET, DATABRICKS_WAREHOUSE_ID"
+            )
+        return None
+
+    access_token = get_databricks_access_token(
+        host=host,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+    return {
+        "server_hostname": _strip_scheme(host),
+        "http_path": f"/sql/1.0/warehouses/{wh}",
+        "access_token": access_token,
+    }
 
 
 def _snake_case(value: str) -> str:
@@ -120,19 +151,10 @@ def run_from_config(cfg: BundleConfig) -> str:
         else:
             raise ValueError(f"Unsupported source for pipeline: {cfg.input.source}")
 
-        # Build Databricks conn params for schema lookup / DBSQL fallback (logical col names)
-        host = os.getenv("DATABRICKS_HOST", "").replace("https://", "")
-        token = os.getenv("DATABRICKS_TOKEN", "")
-        wh = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
-        conn_params = (
-            {
-                "server_hostname": host,
-                "http_path": f"/sql/1.0/warehouses/{wh}",
-                "access_token": token,
-            }
-            if host and token and wh
-            else None
-        )
+        # Build Databricks conn params for UC schema lookup / DBSQL fallback.
+        conn_params = None
+        if cfg.input.source == "uc_table":
+            conn_params = _build_dbsql_conn_params(require=True)
 
         ddf = load_lazy_dask(
             fmt=fmt,
@@ -144,7 +166,7 @@ def run_from_config(cfg: BundleConfig) -> str:
             snapshot_mode="off",
             show_progress=cfg.logging.show_progress,
             conn_params=conn_params,
-            allow_dbsql_fallback=True,
+            allow_dbsql_fallback=cfg.input.source == "uc_table",
             require_logical_names=cfg.input.require_logical_names,
             debug_rename_map=cfg.logging.level == "debug",
             debug_head_rows=cfg.logging.debug_head_rows if cfg.logging.level == "debug" else 0,
@@ -182,14 +204,7 @@ def run_from_config(cfg: BundleConfig) -> str:
         if base_uri is None:
             include_c360_tag = getattr(cfg.output, "include_c360_tag", True)
             # Create volume and use its storage location
-            host = os.getenv("DATABRICKS_HOST", "")
-            token = os.getenv("DATABRICKS_TOKEN", "")
-            wh = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
-            conn = {
-                "server_hostname": host.replace("https://", ""),
-                "http_path": f"/sql/1.0/warehouses/{wh}",
-                "access_token": token,
-            }
+            conn = conn_params or _build_dbsql_conn_params(require=True)
             volume_comment = (
                 cfg.output.run_name
                 or cfg.output.uc_table

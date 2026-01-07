@@ -7,7 +7,10 @@ Proprietary - do not distribute.
 
 ### Quickstart
 
-Local run (Pixi):
+The --runtime flag controls where Dask tasks are run in the Cloud on Coiled or local on your machine.
+The configs are capable of reading and writing to both local and remote sources/destinations.  That is controlled 100% by the yaml files.
+
+Local run (Pixi) meaning local dask and file writing:
 
 ```bash
 pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime local
@@ -62,13 +65,15 @@ pixi run points_and_labels --volume s3://bucket/prefix --input-subdir segmented_
 
 ### Environment credentials
 
+Set these in a local `.env` file; they are loaded automatically and passed to Coiled workers.
+
 Required for Coiled + Unity Catalog reads/writes:
 - `DATABRICKS_HOST` (workspace host, without `https://`)
-- `DATABRICKS_TOKEN` (PAT)
+- `DATABRICKS_CLIENT_ID` (used for auth and to token sometimes for sql)
+- `DATABRICKS_CLIENT_SECRET` (used for auth and to token sometimes for sql)
 - `DATABRICKS_WAREHOUSE_ID` (SQL warehouse id)
-    - CLIENT ID AND CLIENT SECRET INSTEAD OF PAT
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+- `AWS_ACCESS_KEY_ID` (only required if you are running locally, coiled should have these variables)
+- `AWS_SECRET_ACCESS_KEY` (only required if you are running locally, coiled should have these variables)
 
 Required for metadata generation:
 - `OPENAI_API_KEY` (LLM data dictionary + table comment)
@@ -77,20 +82,19 @@ Optional:
 - `WANDB_API_KEY` (only if `metadata.use_wandb: true`)
 - `NL_SKIP_LLM=1` (skip LLM metadata; uses deterministic fallbacks)
 - `NL_DEVICE_MEM_GB` or `NL_GPU_MEM_GB` (batch-size heuristic for config generation)
-- `DASK_DATAFRAME__QUERY_PLANNING=0` (used in `configs/media_testing_mils.yaml`)
+- `DASK_DATAFRAME__QUERY_PLANNING=0` (disable query planning for large Dask plans)
 
 ### Dask behavior highlights
 
 - Supports parquet/csv/delta paths and UC tables (DBSQL fallback for logical column names).
 - `feature_functions` run first (partition-wise), then `kpi_functions`, then preprocessing.
-- Metadata timeout defaults to 45m; parquet shards target ~512 MB unless overridden.
+- Metadata (creation of data dictionary) timeout defaults to 45m; parquet shards target ~512 MB unless overridden.
 - If `output.s3_base` is omitted, a managed UC volume is created and used.
 
 ### Available configs and what they do
 
-- `configs/data_prep.yaml`: local demo on the wine fixture in
-  `tests/fixtures/wine/wine.csv` with two feature functions. Writes to a
-  placeholder `s3_base`.
+- `configs/data_prep.yaml`: local demo on `example-data/wine_cheese.parquet`
+  that writes to `local-output`.
 - `configs/ecomm.yaml`: Coiled UC table `staging-ecomm-clothing-source.default.ecomm_lp`
   with ecomm KPI tags; writes to `staging-c360.ecomm-clothing.ecomm_demo_lp`.
 - `configs/ecomm_loyalty.yaml`: Coiled UC table
