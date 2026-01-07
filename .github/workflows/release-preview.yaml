@@ -9,7 +9,7 @@ concurrency:
 env:
   ECR_REPOSITORY: "315433105763.dkr.ecr.us-west-2.amazonaws.com/neuralift_c360_prep"
   PIXI_VER: "0.62.1"
-  LINUX_VER: "ubuntu24.04"
+  LINUX_VER: "24.04"
   CUDA_VER: "12.9.1"
   COILED_WORKSPACE: "neuralift-dev"
 
