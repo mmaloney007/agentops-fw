@@ -37,6 +37,7 @@ from typing import List, Literal, Optional, Sequence
 import yaml
 from pydantic import BaseModel, Field, ValidationError, model_validator, ConfigDict
 
+from .env import load_dotenv_file
 SourceType = Literal[
     "uc_table",
     "delta_path",
@@ -295,7 +296,8 @@ class BundleConfig(BaseModel):
             "OPENAI_API_KEY",
             "WANDB_API_KEY",
             "DATABRICKS_HOST",
-            "DATABRICKS_TOKEN",
+            "DATABRICKS_CLIENT_ID",
+            "DATABRICKS_CLIENT_SECRET",
             "DATABRICKS_WAREHOUSE_ID",
         ]
         for env in required_envs:
@@ -317,6 +319,7 @@ def load_config(path: str | Path) -> BundleConfig:
     """
     Load and validate a YAML config file into a BundleConfig.
     """
+    load_dotenv_file()
     cfg_path = Path(path)
     data = _read_yaml(cfg_path)
     try:

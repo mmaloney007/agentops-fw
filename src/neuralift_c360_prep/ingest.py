@@ -233,25 +233,19 @@ def _make_workspace_client() -> "WorkspaceClient":
     if WorkspaceClient is None:
         raise RuntimeError("databricks-sdk not installed")
 
-    auth_type_env = os.getenv("DATABRICKS_AUTH_TYPE")
     host = os.getenv("DATABRICKS_HOST")
-    token = os.getenv("DATABRICKS_TOKEN")
+    client_id = os.getenv("DATABRICKS_CLIENT_ID")
+    client_secret = os.getenv("DATABRICKS_CLIENT_SECRET")
 
-    # If both PAT and OAuth envs are present, prefer PAT to avoid mixed-mode validation
-    if token:
-        return WorkspaceClient(host=host, token=token, auth_type="pat")
+    if not host or not client_id or not client_secret:
+        raise RuntimeError(
+            "Databricks OAuth requires DATABRICKS_HOST, DATABRICKS_CLIENT_ID, and "
+            "DATABRICKS_CLIENT_SECRET."
+        )
 
-    # Otherwise honor explicit metadata-service setting
-    if auth_type_env == "metadata-service":
-        if not host or not token:
-            raise RuntimeError(
-                "DATABRICKS_AUTH_TYPE=metadata-service but DATABRICKS_HOST/TOKEN "
-                "are not set. Either unset DATABRICKS_AUTH_TYPE or provide host/token "
-                "for PAT auth."
-            )
-        return WorkspaceClient(host=host, token=token, auth_type="pat")
-
-    return WorkspaceClient()
+    return WorkspaceClient(
+        host=host, client_id=client_id, client_secret=client_secret
+    )
 
 
 def _lookup_storage_location(table_fqdn: str) -> str:
@@ -437,14 +431,22 @@ def _read_via_dbsql_schema(
     sel = ", ".join([f"`{c}`" for c in columns]) if columns else "*"
     query = f"SELECT {sel} FROM {qf} LIMIT 0"
 
-    with (
-        sql.connect(
-            server_hostname=conn_params["server_hostname"],
-            http_path=conn_params["http_path"],
-            access_token=conn_params["access_token"],
-        ) as conn,
-        conn.cursor() as cur,
-    ):
+    connect_kwargs = {
+        "server_hostname": conn_params["server_hostname"],
+        "http_path": conn_params["http_path"],
+    }
+    if "access_token" in conn_params:
+        connect_kwargs["access_token"] = conn_params["access_token"]
+    else:
+        connect_kwargs.update(
+            {
+                "auth_type": conn_params["auth_type"],
+                "client_id": conn_params["client_id"],
+                "client_secret": conn_params["client_secret"],
+            }
+        )
+
+    with (sql.connect(**connect_kwargs) as conn, conn.cursor() as cur):
         cur.execute(query)
         if not cur.description:
             return []

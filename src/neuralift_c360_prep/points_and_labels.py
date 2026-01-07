@@ -24,12 +24,13 @@ from dask import delayed
 from dask import compute as dask_compute
 from dask.distributed import Client, LocalCluster
 
+from .env import dotenv_env_vars
 
 def _storage_options_for_uri(
     uri: str,
     *,
-    aws_key_env: str = "AWS_ACCESS_KEY_ID_DEV",
-    aws_secret_env: str = "AWS_SECRET_ACCESS_KEY_DEV",
+    aws_key_env: str = "AWS_ACCESS_KEY_ID",
+    aws_secret_env: str = "AWS_SECRET_ACCESS_KEY",
     require_creds: bool = False,
 ) -> dict:
     if uri.startswith("s3://"):
@@ -408,8 +409,10 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    env_from_dotenv = dotenv_env_vars()
     args = _parse_args()
     args.coiled_env = _parse_env_pairs(args.coiled_env)
+    args.coiled_env = {**env_from_dotenv, **args.coiled_env}
     args.worker_vm_types = (
         [v.strip() for v in args.worker_vm_types.split(",") if v.strip()]
         if args.worker_vm_types

@@ -29,6 +29,7 @@ from typing import Iterator
 from dask.distributed import Client, LocalCluster
 
 from .config import BundleConfig
+from .env import dotenv_env_vars
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def coiled_client(cfg: BundleConfig) -> Iterator[Client]:
         raise RuntimeError("Coiled is required for coiled runtime") from exc
 
     c = cfg.runtime.coiled
+    env_vars = {**dotenv_env_vars(), **c.env}
     cluster_kwargs: dict = {
         "name": c.name,
         "software": c.software_env,
@@ -61,7 +63,7 @@ def coiled_client(cfg: BundleConfig) -> Iterator[Client]:
         "idle_timeout": c.idle_timeout,
         "no_client_timeout": c.no_client_timeout,
         "shutdown_on_close": True,
-        "environ": c.env,
+        "environ": env_vars,
     }
     if c.worker_vm_types:
         cluster_kwargs["worker_vm_types"] = c.worker_vm_types

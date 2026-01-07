@@ -68,7 +68,9 @@ def create_managed_uc_volume_via_sql(
     catalog: str,
     schema: str,
     table_name: str,
-    conn_params: Mapping[str, str],  # {server_hostname, http_path, access_token}
+    conn_params: Mapping[
+        str, str
+    ],  # {server_hostname, http_path, access_token} or oauth fields
     volume_name: Optional[str] = None,
     volume_comment: Optional[str] = None,
     show_sql: bool = True,
@@ -99,14 +101,7 @@ def create_managed_uc_volume_via_sql(
         print("CREATE VOLUME SQL:\n", create_volume_sql)
         print("DESCRIBE VOLUME SQL:\n", describe_sql)
 
-    with (
-        sql.connect(
-            server_hostname=conn_params["server_hostname"],
-            http_path=conn_params["http_path"],
-            access_token=conn_params["access_token"],
-        ) as conn,
-        conn.cursor() as cur,
-    ):
+    with _connect_dbsql(conn_params) as conn, conn.cursor() as cur:
         cur.execute(create_schema_sql)
         cur.execute(create_volume_sql)
         cur.execute(describe_sql)
@@ -143,7 +138,9 @@ def tag_uc_volume_via_sql(
     schema: str,
     volume_name: str,
     table_name: str,
-    conn_params: Mapping[str, str],  # {server_hostname, http_path, access_token}
+    conn_params: Mapping[
+        str, str
+    ],  # {server_hostname, http_path, auth_type, client_id, client_secret}
     created_date_utc: str,
     created_ts_utc: str,
     uc_volume_name: Optional[str] = None,
@@ -177,15 +174,26 @@ def tag_uc_volume_via_sql(
     if show_sql:
         print("TAG SQL:\n", tag_sql)
 
-    with (
-        sql.connect(
-            server_hostname=conn_params["server_hostname"],
-            http_path=conn_params["http_path"],
-            access_token=conn_params["access_token"],
-        ) as conn,
-        conn.cursor() as cur,
-    ):
+    with _connect_dbsql(conn_params) as conn, conn.cursor() as cur:
         cur.execute(tag_sql)
+
+
+def _connect_dbsql(conn_params: Mapping[str, str]) -> sql.Connection:  # type: ignore[name-defined]
+    connect_kwargs = {
+        "server_hostname": conn_params["server_hostname"],
+        "http_path": conn_params["http_path"],
+    }
+    if "access_token" in conn_params:
+        connect_kwargs["access_token"] = conn_params["access_token"]
+    else:
+        connect_kwargs.update(
+            {
+                "auth_type": conn_params["auth_type"],
+                "client_id": conn_params["client_id"],
+                "client_secret": conn_params["client_secret"],
+            }
+        )
+    return sql.connect(**connect_kwargs)
 
 
 def _storage_options_for_base(
@@ -211,8 +219,8 @@ def _storage_options_for_base(
 def count_parquet_files(
     *,
     s3_base: str,
-    aws_key_env: str = "AWS_ACCESS_KEY_ID_DEV",
-    aws_secret_env: str = "AWS_SECRET_ACCESS_KEY_DEV",
+    aws_key_env: str = "AWS_ACCESS_KEY_ID",
+    aws_secret_env: str = "AWS_SECRET_ACCESS_KEY",
 ) -> int | None:
     """
     Count parquet files under <s3_base>/input_data/. Returns None if inaccessible.
@@ -247,8 +255,8 @@ def write_ddf_and_yaml_to_s3(
     meta_json_text: str,  # this is already JSON text
     bundle_config_yaml_text: str | None = None,
     partition_on: Iterable[str] | None = None,
-    aws_key_env: str = "AWS_ACCESS_KEY_ID_DEV",
-    aws_secret_env: str = "AWS_SECRET_ACCESS_KEY_DEV",
+    aws_key_env: str = "AWS_ACCESS_KEY_ID",
+    aws_secret_env: str = "AWS_SECRET_ACCESS_KEY",
     show_progress: bool = True,
     force_npartitions: int | None = None,  # if set, force exact nparts (min 2)
     target_mb_per_part: int = 256,  # DEFAULT = 256MB (Dask parquet guidance is 100–300 MiB)
@@ -259,8 +267,8 @@ def write_ddf_and_yaml_to_s3(
     Write Parquet under <s3_base>/input_data/ and config/metadata files at <s3_base>.
 
     Notes:
-      - repartition(partition_size=...) triggers computation to determine partition sizes and can be expensive.  [oai_citation:2‡Dask Documentation](https://docs.dask.org/en/stable/generated/dask.dataframe.DataFrame.repartition.html?utm_source=chatgpt.com)
-      - partition_on can create >npartitions parquet files because each dask partition may write multiple files per key.  [oai_citation:3‡Dask Documentation](https://docs.dask.org/en/stable/_modules/dask/dataframe/dask_expr/io/parquet.html?utm_source=chatgpt.com)
+      - repartition(partition_size=...) triggers computation to determine partition sizes and can be expensive.  (https://docs.dask.org/en/stable/generated/dask.dataframe.DataFrame.repartition.html)
+      - partition_on can create >npartitions parquet files because each dask partition may write multiple files per key.  (https://docs.dask.org/en/stable/_modules/dask/dataframe/dask_expr/io/parquet.html)
       - shuffle(on=partition_on) is the standard way to reduce per-key file explosion (at cost of a shuffle).
     """
 
@@ -353,7 +361,7 @@ def write_ddf_and_yaml_to_s3(
         part_size = f"{int(target_mb_per_part)}MB"
         log(f"[repartition] target partition_size={part_size}")
 
-        # repartition(partition_size=...) triggers a size measurement pass and can be expensive.  [oai_citation:4‡Dask Documentation](https://docs.dask.org/en/stable/generated/dask.dataframe.DataFrame.repartition.html?utm_source=chatgpt.com)
+        # repartition(partition_size=...) triggers a size measurement pass and can be expensive.  (https://docs.dask.org/en/stable/generated/dask.dataframe.DataFrame.repartition.html)
         # Guard: on a distributed client with very low nparts, this is where people often OOM if one partition is huge.
         if client is not None and ddf_to_write.npartitions <= 4:
             log(
@@ -381,7 +389,7 @@ def write_ddf_and_yaml_to_s3(
         log(
             f"[write] partition_on={part_cols} "
             "(note: can create >npartitions files because each dask partition can write multiple files per key)."
-        )  #  [oai_citation:5‡Dask Documentation](https://docs.dask.org/en/stable/_modules/dask/dataframe/dask_expr/io/parquet.html?utm_source=chatgpt.com)
+        )  #  (https://docs.dask.org/en/stable/_modules/dask/dataframe/dask_expr/io/parquet.html)
 
         if shuffle_before_partition_on:
             log(

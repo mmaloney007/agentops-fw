@@ -59,6 +59,7 @@ instructor = "*"
 uszipcode = ">=0.2.6,<1.0"
 pyarrow = ">=21.0.0,<23"
 weave = "==0.51.42"
+python-dotenv = ">=1.0.0,<2"
 neuralift_c360_prep = { path = "." }
 
 [tool.pixi.feature.dev.dependencies]
