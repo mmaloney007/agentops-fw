@@ -42,7 +42,7 @@ drop_columns:
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 15
+  max_concurrency: 50
   tags:
     id_cols: ["ID"]
     kpi_cols:

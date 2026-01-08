@@ -22,8 +22,16 @@ def test_metadata_builds():
         {
             "runtime": {"engine": "local"},
             "input": {"source": "parquet", "parquet_path": "x", "id_cols": ["id"]},
-            "metadata": {"context": "demo", "tags": {"id_cols": ["id"], "kpi_cols": ["revenue"]}},
-            "output": {"uc_catalog": "c", "uc_schema": "s", "uc_table": "t", "s3_base": "s3://b/"},
+            "metadata": {
+                "context": "demo",
+                "tags": {"id_cols": ["id"], "kpi_cols": ["revenue"]},
+            },
+            "output": {
+                "uc_catalog": "c",
+                "uc_schema": "s",
+                "uc_table": "t",
+                "s3_base": "s3://b/",
+            },
         }
     )
     meta, text = build_metadata(ddf, cfg)
