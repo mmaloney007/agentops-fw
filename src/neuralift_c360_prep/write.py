@@ -311,7 +311,6 @@ def write_ddf_and_yaml_to_s3(
     # Prefer pyarrow-backed strings for cross-environment pickle stability.
     string_dtype = "string"
     try:
-
         string_dtype = "string[pyarrow]"
     except Exception:
         string_dtype = "string"

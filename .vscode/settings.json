@@ -8,5 +8,9 @@
   "python.analysis.typeCheckingMode": "basic",
   "python.linting.enabled": true,
   "python.linting.ruffEnabled": true,
-  "ruff.lint.run": "onSave"
+  "ruff.lint.run": "onSave",
+  "github.copilot.chat.alternateGeminiModelFPrompt.enabled": true,
+  "github.copilot.chat.alternateGptPrompt.enabled": true,
+  "github.copilot.chat.tools.memory.enabled": true,
+  "chat.useAgentSkills": true
 }
