@@ -82,7 +82,9 @@ def test_pipeline_delta_path_maps_to_delta(monkeypatch):
 
 
 def test_pipeline_data_prep_config_runs(monkeypatch):
-    monkeypatch.setattr(pipeline_mod, "get_client", lambda _cfg: contextlib.nullcontext())
+    monkeypatch.setattr(
+        pipeline_mod, "get_client", lambda _cfg: contextlib.nullcontext()
+    )
 
     cfg = load_config("configs/data_prep.yaml")
     base = pipeline_mod.run_from_config(cfg)
@@ -93,7 +95,9 @@ def test_pipeline_data_prep_config_runs(monkeypatch):
 
 
 def test_pipeline_wine_and_cheese_config_runs(monkeypatch):
-    monkeypatch.setattr(pipeline_mod, "get_client", lambda _cfg: contextlib.nullcontext())
+    monkeypatch.setattr(
+        pipeline_mod, "get_client", lambda _cfg: contextlib.nullcontext()
+    )
 
     def _stub_load_lazy_dask(*_args, **_kwargs):
         return dd.read_parquet("example-data/wine_cheese.parquet")
@@ -108,7 +112,9 @@ def test_pipeline_wine_and_cheese_config_runs(monkeypatch):
         )
 
     monkeypatch.setattr(pipeline_mod, "load_lazy_dask", _stub_load_lazy_dask)
-    monkeypatch.setattr(pipeline_mod, "create_managed_uc_volume_via_sql", _stub_create_volume)
+    monkeypatch.setattr(
+        pipeline_mod, "create_managed_uc_volume_via_sql", _stub_create_volume
+    )
     monkeypatch.setattr(pipeline_mod, "tag_uc_volume_via_sql", lambda **_kwargs: None)
 
     cfg = load_config("configs/wine_and_cheese.yaml")

@@ -5,6 +5,7 @@ Dask-friendly state/region mapper.
 Adds USPS abbreviation, full state name, and Census region; intended for use
 as a pre-hook via map_partitions.
 """
+
 from __future__ import annotations
 
 import pandas as pd

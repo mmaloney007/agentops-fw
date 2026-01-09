@@ -26,6 +26,7 @@ from dask.distributed import Client, LocalCluster
 
 from .env import dotenv_env_vars
 
+
 def _storage_options_for_uri(
     uri: str,
     *,
@@ -74,7 +75,9 @@ def _list_parquet_files(input_uri: str, storage_options: dict) -> list[str]:
     try:
         paths = fs.find(base_path)
     except Exception as exc:
-        raise RuntimeError(f"Unable to list parquet files under {input_uri}: {exc}") from exc
+        raise RuntimeError(
+            f"Unable to list parquet files under {input_uri}: {exc}"
+        ) from exc
 
     parquet_paths = [
         path
@@ -124,9 +127,7 @@ def _int_to_uuid(arr: np.ndarray) -> np.ndarray:
 
 def _generate_points(segment_id: np.ndarray, rng_seed: int) -> np.ndarray:
     rng = np.random.default_rng(rng_seed)
-    centres = {
-        sid: (2 * i, 0.0) for i, sid in enumerate(pd.unique(segment_id))
-    }
+    centres = {sid: (2 * i, 0.0) for i, sid in enumerate(pd.unique(segment_id))}
 
     def rand_point(sid: int) -> tuple[float, float]:
         cx, cy = centres[sid]
@@ -303,9 +304,7 @@ def generate_points_and_labels(
     unique = pd.unique(seg_series.dropna())
     seg_id_map = {s: i for i, s in enumerate(unique)}
     seg_id_map[None] = -1
-    segment_id = (
-        seg_series.map(seg_id_map).fillna(-1).astype("int32").to_numpy()
-    )
+    segment_id = seg_series.map(seg_id_map).fillna(-1).astype("int32").to_numpy()
 
     labels = _int_to_uuid(segment_id)
     points = _generate_points(segment_id, rng_seed)

@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "pixi: lint",
+      "type": "shell",
+      "command": "pixi run -e dev lint",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "pixi: format-check",
+      "type": "shell",
+      "command": "pixi run -e dev format-check",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "pixi: unit-tests",
+      "type": "shell",
+      "command": "pixi run -e dev pytest -m \"not integration\" -k \"not enrich_zip_segment\"",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -5,6 +5,7 @@ Dask-friendly ZIP enrichment.
 Adds state/city/county/country/region/urban density/timezone for US ZIPs.
 Intended for use as a pre-hook via map_partitions.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -19,7 +20,9 @@ except Exception:  # pragma: no cover - optional install
     SearchEngine = None
 
 
-def classify_urban_density(population: float | int | None, land_area_sqmi: float | int | None) -> str:
+def classify_urban_density(
+    population: float | int | None, land_area_sqmi: float | int | None
+) -> str:
     if not population or not land_area_sqmi or land_area_sqmi <= 0:
         return "Unknown"
     density = float(population) / float(land_area_sqmi)

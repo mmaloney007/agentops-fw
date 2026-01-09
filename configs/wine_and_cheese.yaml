@@ -1,11 +1,11 @@
 logging:
   level: debug
-  show_progress: true
+  show_progress: true # FIX THIS TO BE LOGGING
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep
+    software_env: neuralift_c360_prep_test
     n_workers: 2
     # worker_cpu: 4
     # worker_memory: 16GiB
@@ -20,8 +20,8 @@ input:
   source: uc_table
   uc_table: staging-c360.kaggle-marketing.wine_cheese_20250624_01
   columns: null
-  id_cols: ["id"]
-  snapshot:
+  id_cols: ["id"] # MIGHT BE ABLE TO REMOVE
+  snapshot: # REMOVE SNAPSOT
     enabled: false
 
 # feature_functions:
@@ -41,6 +41,7 @@ feature_functions:
 #       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
 kpi_functions: []
 
+# FIDDLE WITH IDEA OF MOVING THIS UP BEFORE FUNCTIONS....
 preprocessing:
   rename_to_snake: true
   bool_fix: true
@@ -66,7 +67,7 @@ drop_columns:
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 15
+  max_concurrency: 50
   tags:
     id_cols: ["id"]
     kpi_cols:

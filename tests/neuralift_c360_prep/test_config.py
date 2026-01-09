@@ -33,7 +33,10 @@ def test_azure_allowed_but_ingest_raises():
     cfg = BundleConfig.model_validate(
         {
             "runtime": {"engine": "local"},
-            "input": {"source": "azure_parquet", "azure": {"account_name": "a", "container": "c", "path": "p"}},
+            "input": {
+                "source": "azure_parquet",
+                "azure": {"account_name": "a", "container": "c", "path": "p"},
+            },
             "output": {
                 "uc_catalog": "c",
                 "uc_schema": "s",

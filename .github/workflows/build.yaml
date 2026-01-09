@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - "*"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_integration:
+        description: Run integration tests (requires external services)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,22 +26,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Pixi Enviornment
+      - name: Pixi Environment
         uses: prefix-dev/setup-pixi@v0.9.0
         with:
           pixi-version: v0.62.1
           locked: true
           cache: true
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-      - run: echo '✨☠️'
       - name: Ruff Linting
-        uses: chartboost/ruff-action@v1
+        run: pixi run -e dev lint
+      - name: Ruff Format Check
+        run: pixi run -e dev format-check
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    env:
+      NL_INTEGRATION: "0"
+      NL_SKIP_LLM: "1"
+      OPENAI_API_KEY: "sk-test"
+      WANDB_API_KEY: "test"
+      DATABRICKS_HOST: "https://workspace.test"
+      DATABRICKS_CLIENT_ID: "client-id"
+      DATABRICKS_CLIENT_SECRET: "client-secret"
+      DATABRICKS_WAREHOUSE_ID: "wh"
+      DATABRICKS_OAUTH_ACCESS_TOKEN: "test"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Pixi Environment
+        uses: prefix-dev/setup-pixi@v0.9.0
         with:
-          args: check
-      - name: Ruff Check Code Format
-        uses: chartboost/ruff-action@v1
-        with:
-          args: format
+          pixi-version: v0.62.1
+          locked: true
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+      - name: Unit Tests (no external services)
+        run: >
+          pixi run -e dev pytest -m "not integration"
+          -k "not enrich_zip_segment"

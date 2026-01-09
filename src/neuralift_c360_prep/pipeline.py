@@ -169,7 +169,9 @@ def run_from_config(cfg: BundleConfig) -> str:
             allow_dbsql_fallback=cfg.input.source == "uc_table",
             require_logical_names=cfg.input.require_logical_names,
             debug_rename_map=cfg.logging.level == "debug",
-            debug_head_rows=cfg.logging.debug_head_rows if cfg.logging.level == "debug" else 0,
+            debug_head_rows=cfg.logging.debug_head_rows
+            if cfg.logging.level == "debug"
+            else 0,
         )
 
         ddf = preprocess(ddf, cfg)
@@ -178,9 +180,7 @@ def run_from_config(cfg: BundleConfig) -> str:
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
         meta_json = json.loads(meta_text)
-        wandb_project = _resolve_wandb_project(
-            cfg, cfg.output.run_name or table_name
-        )
+        wandb_project = _resolve_wandb_project(cfg, cfg.output.run_name or table_name)
         pretty_config = build_pretty_config_from_data_dict(
             data_dict=meta_json,
             ddf=ddf,

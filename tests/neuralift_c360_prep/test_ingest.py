@@ -40,7 +40,10 @@ def test_ingest_azure_not_implemented(tmp_path):
     cfg = BundleConfig.model_validate(
         {
             "runtime": {"engine": "local"},
-            "input": {"source": "azure_parquet", "azure": {"account_name": "a", "container": "c", "path": "p"}},
+            "input": {
+                "source": "azure_parquet",
+                "azure": {"account_name": "a", "container": "c", "path": "p"},
+            },
             "output": _base_output(),
         }
     )
@@ -59,13 +62,17 @@ def test_delta_log_mapping_from_metadata(tmp_path):
                 "name": "id",
                 "type": "long",
                 "nullable": True,
-                "metadata": {"delta.columnMapping.physicalName": "col_11111111_1111_1111_1111_111111111111"},
+                "metadata": {
+                    "delta.columnMapping.physicalName": "col_11111111_1111_1111_1111_111111111111"
+                },
             },
             {
                 "name": "state",
                 "type": "string",
                 "nullable": True,
-                "metadata": {"delta.columnMapping.physicalName": "col_22222222_2222_2222_2222_222222222222"},
+                "metadata": {
+                    "delta.columnMapping.physicalName": "col_22222222_2222_2222_2222_222222222222"
+                },
             },
         ],
     }
@@ -90,7 +97,9 @@ def test_require_logical_names_blocks_physical(tmp_path, monkeypatch):
     parquet_path = tmp_path / "data.parquet"
     pdf.to_parquet(parquet_path, index=False)
 
-    monkeypatch.setattr(ingest_mod, "_lookup_storage_location", lambda _: parquet_path.as_posix())
+    monkeypatch.setattr(
+        ingest_mod, "_lookup_storage_location", lambda _: parquet_path.as_posix()
+    )
     monkeypatch.setattr(ingest_mod, "_phys_to_log_mapping", lambda *args, **kwargs: {})
     monkeypatch.setattr(ingest_mod, "_logical_cols_uc", lambda *args, **kwargs: [])
 
@@ -113,13 +122,17 @@ def test_partial_mapping_drops_extra_physical(tmp_path, monkeypatch):
     parquet_path = tmp_path / "data.parquet"
     pdf.to_parquet(parquet_path, index=False)
 
-    monkeypatch.setattr(ingest_mod, "_lookup_storage_location", lambda _: parquet_path.as_posix())
+    monkeypatch.setattr(
+        ingest_mod, "_lookup_storage_location", lambda _: parquet_path.as_posix()
+    )
     monkeypatch.setattr(
         ingest_mod,
         "_phys_to_log_mapping",
         lambda *args, **kwargs: {physical_a: "id", physical_b: "state"},
     )
-    monkeypatch.setattr(ingest_mod, "_logical_cols_uc", lambda *args, **kwargs: ["id", "state"])
+    monkeypatch.setattr(
+        ingest_mod, "_logical_cols_uc", lambda *args, **kwargs: ["id", "state"]
+    )
 
     ddf = ingest_mod.load_lazy_dask(
         fmt="databricks_table",

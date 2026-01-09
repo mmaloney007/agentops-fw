@@ -149,7 +149,9 @@ def _format_debug_head_table(pdf: pd.DataFrame, rows: int) -> tuple[str, int]:
     headers = ["column"] + [f"v{i + 1}" for i in range(row_count)]
     table_rows = []
     for col in head_pdf.columns:
-        values = [_sanitize_table_cell(head_pdf.iloc[idx][col]) for idx in range(row_count)]
+        values = [
+            _sanitize_table_cell(head_pdf.iloc[idx][col]) for idx in range(row_count)
+        ]
         table_rows.append([str(col)] + values)
     widths = [len(h) for h in headers]
     for row in table_rows:
@@ -175,7 +177,11 @@ def _log_debug_head(
     if rows <= 0:
         return
     try:
-        pdf = head_pdf.head(rows) if head_pdf is not None else ddf.head(rows, compute=True)
+        pdf = (
+            head_pdf.head(rows)
+            if head_pdf is not None
+            else ddf.head(rows, compute=True)
+        )
     except Exception as exc:
         _log(f"[debug] head({rows}) failed: {exc}", show_progress)
         return
@@ -243,9 +249,7 @@ def _make_workspace_client() -> "WorkspaceClient":
             "DATABRICKS_CLIENT_SECRET."
         )
 
-    return WorkspaceClient(
-        host=host, client_id=client_id, client_secret=client_secret
-    )
+    return WorkspaceClient(host=host, client_id=client_id, client_secret=client_secret)
 
 
 def _lookup_storage_location(table_fqdn: str) -> str:
@@ -446,7 +450,7 @@ def _read_via_dbsql_schema(
             }
         )
 
-    with (sql.connect(**connect_kwargs) as conn, conn.cursor() as cur):
+    with sql.connect(**connect_kwargs) as conn, conn.cursor() as cur:
         cur.execute(query)
         if not cur.description:
             return []
@@ -579,7 +583,9 @@ def load_lazy_dask(
         if mapping:
             rename_map = {c: mapping[c] for c in ddf.columns if c in mapping}
             if rename_map:
-                _log_rename_map(rename_map, show_progress, debug_rename_map, "delta metadata")
+                _log_rename_map(
+                    rename_map, show_progress, debug_rename_map, "delta metadata"
+                )
                 ddf = ddf.rename(columns=rename_map)
                 remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
                 _log(
@@ -662,7 +668,9 @@ def load_lazy_dask(
         if mapping:
             rename_map = {c: mapping[c] for c in ddf.columns if c in mapping}
             if rename_map:
-                _log_rename_map(rename_map, show_progress, debug_rename_map, "delta metadata")
+                _log_rename_map(
+                    rename_map, show_progress, debug_rename_map, "delta metadata"
+                )
                 ddf = ddf.rename(columns=rename_map)
                 remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
                 _log(
@@ -715,13 +723,20 @@ def load_lazy_dask(
             if logical_names and len(logical_names) == len(ddf.columns):
                 dbsql_logical_cols = logical_names
                 ddf, applied = _apply_positional_rename(
-                    ddf, logical_names, show_progress, "DBSQL logical list", debug_rename_map
+                    ddf,
+                    logical_names,
+                    show_progress,
+                    "DBSQL logical list",
+                    debug_rename_map,
                 )
                 if applied:
                     remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
                     if not remaining:
                         renamed = True
-                        _log("[fallback] DBSQL schema-based rename succeeded", show_progress)
+                        _log(
+                            "[fallback] DBSQL schema-based rename succeeded",
+                            show_progress,
+                        )
             elif logical_names:
                 dbsql_logical_cols = logical_names
                 _log(
@@ -857,7 +872,9 @@ def load_ddf(cfg):
         snapshot_mode="off",
         require_logical_names=cfg.input.require_logical_names,
         debug_rename_map=cfg.logging.level == "debug",
-        debug_head_rows=cfg.logging.debug_head_rows if cfg.logging.level == "debug" else 0,
+        debug_head_rows=cfg.logging.debug_head_rows
+        if cfg.logging.level == "debug"
+        else 0,
         show_progress=getattr(cfg.logging, "show_progress", True),
     )
 
