@@ -1,6 +1,6 @@
 logging:
   level: debug
-  show_progress: true
+  show_progress: true # FIX THIS TO BE LOGGING
 
 runtime:
   engine: coiled
@@ -20,8 +20,8 @@ input:
   source: uc_table
   uc_table: staging-c360.kaggle-marketing.wine_cheese_20250624_01
   columns: null
-  id_cols: ["id"]
-  snapshot:
+  id_cols: ["id"] # MIGHT BE ABLE TO REMOVE
+  snapshot: # REMOVE SNAPSOT
     enabled: false
 
 # feature_functions:
@@ -41,6 +41,7 @@ feature_functions:
 #       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
 kpi_functions: []
 
+# FIDDLE WITH IDEA OF MOVING THIS UP BEFORE FUNCTIONS....
 preprocessing:
   rename_to_snake: true
   bool_fix: true
