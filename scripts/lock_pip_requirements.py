@@ -2,6 +2,7 @@
 """
 Generate a pip-only lock file from pyproject.toml.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -117,7 +118,9 @@ def _install_and_freeze(
             if not line or line.startswith("-e "):
                 continue
             if " @ file://" in line:
-                raise SystemExit(f"Found local path requirement in freeze output: {line}")
+                raise SystemExit(
+                    f"Found local path requirement in freeze output: {line}"
+                )
             pkg = line.split("==", 1)[0].strip().lower()
             if pkg in _SKIP_PACKAGES:
                 continue

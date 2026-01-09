@@ -69,6 +69,9 @@ from pandas.api.types import (
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
+logger = logging.getLogger(__name__)
+data_dict_logger = logging.getLogger("data-dict")
+
 # ---------------------------------------------------------------------------
 # ASCII helpers
 # ---------------------------------------------------------------------------
@@ -142,9 +145,7 @@ def _rate_limit_before_sleep(retry_state) -> None:
     exc = retry_state.outcome.exception() if retry_state.outcome else None
     if _is_rate_limit_error(exc):
         delay = _note_rate_limit()
-        logging.getLogger("data-dict").warning(
-            "Rate limit encountered; backing off for %.1fs", delay
-        )
+        data_dict_logger.warning("Rate limit encountered; backing off for %.1fs", delay)
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +348,6 @@ def create_intelligent_data_dictionary(
     max_concurrency: int = 8,
     use_cache: bool = False,
     cache_dir: str | Path = ".nl_dd_cache",
-    show_progress: bool = True,
     debug: bool = False,
     use_approx_unique: bool = True,
     use_sample_for_uniques: bool = False,
@@ -377,13 +377,12 @@ def create_intelligent_data_dictionary(
     client = _wrap_instructor(base_client)
     client_kind = "Instructor-wrapped (forced)"
 
-    if show_progress:
-        print("=== data-dict init ===")
-        print(f"- model: {model}")
-        print(f"- client_source: {client_source}")
-        print(f"- client_kind: {client_kind}")
-        print(f"- use_approx_unique: {use_approx_unique}")
-        print(f"- use_sample_for_uniques: {use_sample_for_uniques}")
+    logger.info("=== data-dict init ===")
+    logger.info("- model: %s", model)
+    logger.info("- client_source: %s", client_source)
+    logger.info("- client_kind: %s", client_kind)
+    logger.info("- use_approx_unique: %s", use_approx_unique)
+    logger.info("- use_sample_for_uniques: %s", use_sample_for_uniques)
 
     if isinstance(source, str):
         if not os.path.isfile(source):
@@ -403,9 +402,8 @@ def create_intelligent_data_dictionary(
 
     col_names = list(ddf.columns[:max_cols]) if max_cols else list(ddf.columns)
 
-    if show_progress:
-        print(f"🚀 Starting data dictionary for {len(col_names)} column(s)...")
-        print("📊 Computing Dask stats (counts, uniques)...")
+    logger.info("🚀 Starting data dictionary for %s column(s)...", len(col_names))
+    logger.info("📊 Computing Dask stats (counts, uniques)...")
 
     counts_delayed = ddf[col_names].count()
 
@@ -440,9 +438,12 @@ def create_intelligent_data_dictionary(
     if unique_counts is not None:
         unique_counts = unique_counts.astype(int)
 
-    if show_progress:
-        print(f"✅ Stats done: ~{row_count:,} rows over {len(col_names)} columns")
-        print("🎯 Building sample via ddf.sample(...) (no head())...")
+    logger.info(
+        "✅ Stats done: ~%s rows over %s columns",
+        f"{row_count:,}",
+        len(col_names),
+    )
+    logger.info("🎯 Building sample via ddf.sample(...) (no head())...")
 
     sample_frac = min(1.0, sample_rows / max(row_count, 1))
     sample_ddf = ddf[col_names].sample(frac=sample_frac, random_state=42)
@@ -454,17 +455,17 @@ def create_intelligent_data_dictionary(
             unique_counts = pd.Series(unique_counts, index=col_names)
         unique_counts = unique_counts.astype(int)
 
-    if show_progress:
-        print(
-            f"📏 Sample ready: {len(sample_pdf)} rows, "
-            f"{len(col_names)} columns (used for profiling)"
-        )
-        print("🧮 Profiling columns and generating LLM definitions...")
+    logger.info(
+        "📏 Sample ready: %s rows, %s columns (used for profiling)",
+        len(sample_pdf),
+        len(col_names),
+    )
+    logger.info("🧮 Profiling columns and generating LLM definitions...")
 
     profiles: List[Dict[str, Any]] = []
     for i, name in enumerate(col_names, start=1):
-        if show_progress and (i == 1 or i % 10 == 0 or i == len(col_names)):
-            print(f"[profile] {i}/{len(col_names)} {name}")
+        if i == 1 or i % 10 == 0 or i == len(col_names):
+            logger.info("[profile] %s/%s %s", i, len(col_names), name)
         prof = _profile_single_column(
             sample_pdf[name],
             name,
@@ -500,22 +501,22 @@ def create_intelligent_data_dictionary(
         if cache_path:
             cached = _cache_load(cache_path, key)
             if cached:
-                if show_progress:
-                    print(f"[cache] {idx}/{total} {name}")
+                logger.info("[cache] %s/%s %s", idx, total, name)
                 return idx, name, cached
 
-        if show_progress:
-            print(f"[start] {idx}/{total} {name}")
+        logger.info("[start] %s/%s %s", idx, total, name)
         delay = _current_rate_limit_delay()
         if delay:
             time.sleep(delay)
         prompt = _prompt_for_column(profile, context)
         if debug:
-            print(f"\n[DEBUG {idx}/{total}] Prompt for '{name}':\n{prompt}\n")
+            logger.debug("[DEBUG %s/%s] Prompt for '%s':\n%s", idx, total, name, prompt)
         desc = _describe_column(client, prompt, model=model)
         definition = desc.definition
         if debug:
-            print(f"[DEBUG {idx}/{total}] Definition for '{name}': {definition}")
+            logger.debug(
+                "[DEBUG %s/%s] Definition for '%s': %s", idx, total, name, definition
+            )
         _relax_rate_limit()
         if cache_path:
             _cache_save(cache_path, key, definition)
@@ -532,21 +533,18 @@ def create_intelligent_data_dictionary(
                 idx, name, definition = fut.result()
                 safe_def = _ascii7(definition)
             except Exception as e:
-                logging.getLogger("data-dict").exception(
-                    "Definition failed for column %s", futs[fut]
-                )
+                data_dict_logger.exception("Definition failed for column %s", futs[fut])
                 name = futs[fut]
                 safe_def = _ascii7(f"Definition unavailable; {type(e).__name__}")
             definitions[name] = safe_def
             completed += 1
-            if show_progress and (completed == 1 or completed % 10 == 0):
-                print(f"✨ LLM progress: {completed}/{total_cols} columns")
+            if completed == 1 or completed % 10 == 0:
+                logger.info("✨ LLM progress: %s/%s columns", completed, total_cols)
 
     del sample_pdf, counts, null_counts, unique_counts
     gc.collect()
 
-    if show_progress:
-        print(f"✅ Complete! Generated {len(definitions)} definitions")
+    logger.info("✅ Complete! Generated %s definitions", len(definitions))
 
     yaml_out = {
         "generated_utc": datetime.now(timezone.utc).isoformat(),
@@ -570,7 +568,6 @@ def create_intelligent_data_dictionary(
 # Table comment generation
 # ---------------------------------------------------------------------------
 DEFAULT_TABLE_COMMENT_MODEL = "gpt-5-nano"
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 _default_client = from_openai(openai, mode=Mode.JSON)
 
 
@@ -664,7 +661,6 @@ def build_column_tags_yaml_dask(
     exact_unique_limit: int | None = None,
     extra_tags_all: Mapping[str, str] | None = None,
     extra_tags_by_column: Mapping[str, Mapping[str, str]] | None = None,
-    show_progress: bool = True,
     progress_every: int = 10,
     approx_row_threshold: int = 2_000_000,
     debug: bool = False,
@@ -685,8 +681,7 @@ def build_column_tags_yaml_dask(
     kpi_set = {c.lower() for c in kpi_cols}
     miss_set = {c.lower() for c in (missing_indicator_cols or [])}
 
-    if show_progress:
-        print("[tags] computing non-null counts (and inferring row_count)...")
+    logger.info("[tags] computing non-null counts (and inferring row_count)...")
 
     counts = ddf[cols].count().compute()
     if not isinstance(counts, pd.Series):
@@ -696,19 +691,20 @@ def build_column_tags_yaml_dask(
     null_counts = row_count - counts
     dtypes = ddf.dtypes
 
-    if show_progress:
-        print(
-            f"[tags] stats: rows≈{row_count:,}, cols={len(cols)}, "
-            f"use_approx_unique={use_approx_unique}, approx_row_threshold={approx_row_threshold}"
-        )
+    logger.info(
+        "[tags] stats: rows≈%s, cols=%s, use_approx_unique=%s, approx_row_threshold=%s",
+        f"{row_count:,}",
+        len(cols),
+        use_approx_unique,
+        approx_row_threshold,
+    )
 
     use_approx = bool(use_approx_unique and row_count > approx_row_threshold)
 
     if use_approx:
-        if show_progress:
-            print(
-                "[tags] using approximate uniques (per-column nunique_approx) for large table"
-            )
+        logger.info(
+            "[tags] using approximate uniques (per-column nunique_approx) for large table"
+        )
 
         # IMPORTANT: DataFrame.nunique_approx() can return a scalar in some environments.
         # Compute per-column to guarantee one value per column.
@@ -717,8 +713,7 @@ def build_column_tags_yaml_dask(
         unique_counts = pd.Series(approx_vals, index=cols).astype(int)
 
     else:
-        if show_progress:
-            print("[tags] computing exact uniques (nunique) for all columns...")
+        logger.info("[tags] computing exact uniques (nunique) for all columns...")
         unique_counts = ddf[cols].nunique(dropna=True).compute()
 
     # SAFETY: normalize shape (still useful for exact path or odd returns)
@@ -749,8 +744,7 @@ def build_column_tags_yaml_dask(
             gray_cols = gray_cols[:exact_unique_limit]
 
         if gray_cols:
-            if show_progress:
-                print(f"[tags] exact uniques for gray-band cols: {gray_cols}")
+            logger.info("[tags] exact uniques for gray-band cols: %s", gray_cols)
             exact_uniques = ddf[gray_cols].nunique(dropna=True).compute()
             if isinstance(exact_uniques, pd.DataFrame) and exact_uniques.shape[0] == 1:
                 exact_uniques = exact_uniques.iloc[0]
@@ -766,8 +760,8 @@ def build_column_tags_yaml_dask(
     total_cols = len(cols)
 
     for i, col in enumerate(cols, start=1):
-        if show_progress and (i == 1 or i % progress_every == 0 or i == total_cols):
-            print(f"[tags] profiling {i}/{total_cols}")
+        if i == 1 or i % progress_every == 0 or i == total_cols:
+            logger.info("[tags] profiling %s/%s", i, total_cols)
 
         col_l = col.lower()
         uniq = int(unique_counts.get(col, 0))
@@ -818,9 +812,16 @@ def build_column_tags_yaml_dask(
                 is_string_dtype(dt) or "object" in dtype_str or "category" in dtype_str
             )
             is_cat = "category" in dtype_str
-            print(
-                f"[tag] {col} dtype={dtype_str} uniq={uniq} max_card={max_card} "
-                f"is_bool={is_bool} is_str={is_str} is_cat={is_cat} -> type={ctype}"
+            logger.debug(
+                "[tag] %s dtype=%s uniq=%s max_card=%s is_bool=%s is_str=%s is_cat=%s -> type=%s",
+                col,
+                dtype_str,
+                uniq,
+                max_card,
+                is_bool,
+                is_str,
+                is_cat,
+                ctype,
             )
 
     columns_yaml = [{"name": c, **tags_by_col[c]} for c in cols]
@@ -961,7 +962,7 @@ def inspect_schema_alignment(
     json_cols = {c["column_name"]: c for c in meta_json.get("columns", [])}
 
     all_cols = list(ddf.columns)
-    print(f"Inspecting {len(all_cols)} column(s)...\n")
+    logger.info("Inspecting %s column(s)...", len(all_cols))
 
     for col in all_cols:
         dask_dtype = str(ddf[col].dtype)
@@ -1004,19 +1005,18 @@ def inspect_schema_alignment(
         if only_suspect and not suspect:
             continue
 
-        print(f"--- {col} ---")
-        print(f"  Dask dtype        : {dask_dtype}")
-        print(f"  dtypes_map entry  : {dtypes_entry}")
-        print(f"  tags['type']      : {col_type}")
-        print(f"  JSON.data_type    : {json_data_type}")
-        print(f"  JSON.column_type  : {json_col_type}")
-        print(f"  null_count        : {null_count}")
-        print(f"  unique_count      : {unique_count}")
-        print(f"  max_card          : {max_card}")
-        print(f"  is_dask_numeric   : {is_dask_numeric}")
-        print(f"  json_says_string  : {json_says_string}")
-        print(f"  cat/cont mismatch : {cat_vs_cont_mismatch}")
-        print()
+        logger.info("--- %s ---", col)
+        logger.info("  Dask dtype        : %s", dask_dtype)
+        logger.info("  dtypes_map entry  : %s", dtypes_entry)
+        logger.info("  tags['type']      : %s", col_type)
+        logger.info("  JSON.data_type    : %s", json_data_type)
+        logger.info("  JSON.column_type  : %s", json_col_type)
+        logger.info("  null_count        : %s", null_count)
+        logger.info("  unique_count      : %s", unique_count)
+        logger.info("  max_card          : %s", max_card)
+        logger.info("  is_dask_numeric   : %s", is_dask_numeric)
+        logger.info("  json_says_string  : %s", json_says_string)
+        logger.info("  cat/cont mismatch : %s", cat_vs_cont_mismatch)
 
 
 # ---------------------------------------------------------------------------
@@ -2210,7 +2210,7 @@ def print_config_yaml(config: Dict[str, Any]) -> None:
         default_flow_style=False,  # block style
         allow_unicode=False,
     )
-    print(text)
+    logger.info(text)
 
 
 def save_config_yaml(
@@ -2279,7 +2279,6 @@ def build_metadata(
       3) Build table comment
       4) Build JSON data dictionary (comment/data_type/column_name/column_type/lift_*)
     """
-    show_progress = getattr(cfg.logging, "show_progress", True)
     table_name = resolve_output_table_name(cfg, table_name_override)
     skip_llm = os.getenv("NL_SKIP_LLM") == "1" or os.getenv(
         "OPENAI_API_KEY", ""
@@ -2298,7 +2297,6 @@ def build_metadata(
         use_approx_unique=tags_cfg.use_approx_unique,
         extra_tags_all=extra_all,
         extra_tags_by_column=extra_by_col,
-        show_progress=show_progress,
         debug=cfg.logging.level == "debug",
     )
 
@@ -2312,13 +2310,12 @@ def build_metadata(
             context=cfg.metadata.context,
             sample_rows=cfg.metadata.sample_rows,
             max_concurrency=cfg.metadata.max_concurrency,
-            show_progress=show_progress,
         )
     except Exception as exc:  # pragma: no cover - network/LLM failures
-        if show_progress:
-            print(
-                f"[meta] LLM data dictionary skipped/failed ({exc}); using fallback definitions"
-            )
+        logger.warning(
+            "[meta] LLM data dictionary skipped/failed (%s); using fallback definitions",
+            exc,
+        )
         definitions = {c: f"{c} column" for c in ddf.columns}
         dtypes_out = {c: ddf.dtypes[c] for c in ddf.columns}
         dd_yaml = yaml.safe_dump(
@@ -2343,10 +2340,9 @@ def build_metadata(
             yaml_dd=dd_yaml,
         )
     except Exception as exc:  # pragma: no cover - network/LLM failures
-        if show_progress:
-            print(
-                f"[meta] table comment generation skipped/failed ({exc}); using fallback"
-            )
+        logger.warning(
+            "[meta] table comment generation skipped/failed (%s); using fallback", exc
+        )
         table_comment = (
             cfg.metadata.context
             or getattr(cfg.output, "run_name", None)
@@ -2367,9 +2363,12 @@ def build_metadata(
         for col in ddf.columns:
             json_entry = json_cols.get(col, {})
             uniq = tags_by_col.get(col, {}).get("unique_count")
-            print(
-                f"[final] {col} data_type={json_entry.get('data_type')} "
-                f"unique_count={uniq} column_type={json_entry.get('column_type')}"
+            logger.debug(
+                "[final] %s data_type=%s unique_count=%s column_type=%s",
+                col,
+                json_entry.get("data_type"),
+                uniq,
+                json_entry.get("column_type"),
             )
 
     meta_with_table = dict(meta_json)

@@ -38,6 +38,7 @@ import yaml
 from pydantic import BaseModel, Field, ValidationError, model_validator, ConfigDict
 
 from .env import load_dotenv_file
+
 SourceType = Literal[
     "uc_table",
     "delta_path",
@@ -79,9 +80,13 @@ class CoiledConfig(BaseModel):
                 self.scheduler_vm_types = list(self.worker_vm_types)
         else:
             if self.worker_cpu is None or self.worker_cpu <= 0:
-                raise ValueError("worker_cpu must be positive when worker_vm_types is not set")
+                raise ValueError(
+                    "worker_cpu must be positive when worker_vm_types is not set"
+                )
             if not self.worker_memory:
-                raise ValueError("worker_memory must be set when worker_vm_types is not set")
+                raise ValueError(
+                    "worker_memory must be set when worker_vm_types is not set"
+                )
 
         if self.scheduler_vm_types:
             if not all(self.scheduler_vm_types):
@@ -92,9 +97,13 @@ class CoiledConfig(BaseModel):
             if self.scheduler_memory is None:
                 self.scheduler_memory = self.worker_memory
             if self.scheduler_cpu is None or self.scheduler_cpu <= 0:
-                raise ValueError("scheduler_cpu must be positive when scheduler_vm_types is not set")
+                raise ValueError(
+                    "scheduler_cpu must be positive when scheduler_vm_types is not set"
+                )
             if not self.scheduler_memory:
-                raise ValueError("scheduler_memory must be set when scheduler_vm_types is not set")
+                raise ValueError(
+                    "scheduler_memory must be set when scheduler_vm_types is not set"
+                )
 
         return self
 
@@ -253,7 +262,6 @@ class OutputConfig(BaseModel):
 
 class LoggingConfig(BaseModel):
     level: Literal["debug", "info", "warning", "error"] = "info"
-    show_progress: bool = True
     debug_head_rows: int = 5
 
 

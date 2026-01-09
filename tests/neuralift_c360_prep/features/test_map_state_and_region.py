@@ -2,9 +2,13 @@
 python -m tests.neuralift_c360_prep.features.test_map_state_and_region
 """
 
+import logging
+
 import pandas as pd
 
 from neuralift_c360_prep.features.map_state_and_region import map_state_and_region
+
+logger = logging.getLogger(__name__)
 
 
 def test_map_state_and_region_mixed_inputs():
@@ -58,7 +62,7 @@ def test_map_state_and_region_mixed_inputs():
     assert pd.isna(df_out.loc[7, "full_state_name"])
     assert pd.isna(df_out.loc[7, "census_region"])
 
-    print("test_map_state_and_region_mixed_inputs passed.")
+    logger.info("test_map_state_and_region_mixed_inputs passed.")
 
 
 def test_map_state_and_region_single_input():
@@ -73,10 +77,11 @@ def test_map_state_and_region_single_input():
     assert df_out.loc[0, "full_state_name"] == "New York"
     assert df_out.loc[0, "census_region"] == "Northeast"
 
-    print("test_map_state_and_region_single_input passed.")
+    logger.info("test_map_state_and_region_single_input passed.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     test_map_state_and_region_mixed_inputs()
     test_map_state_and_region_single_input()
-    print("All tests passed.")
+    logger.info("All tests passed.")

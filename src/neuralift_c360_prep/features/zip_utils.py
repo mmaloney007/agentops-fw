@@ -7,16 +7,22 @@ Provides:
     - add_distance_indicators_dask: merge distance/duration metrics produced offline.
 Intended for use as pre-hooks (map_partitions).
 """
+
 from __future__ import annotations
 
 import pandas as pd
 
 
-def clean_zip_codes_dask(df: pd.DataFrame, zip_column: str = "ZIP_Code") -> pd.DataFrame:
+def clean_zip_codes_dask(
+    df: pd.DataFrame, zip_column: str = "ZIP_Code"
+) -> pd.DataFrame:
     df = df.copy()
     if zip_column in df.columns:
         df["ZIP5"] = (
-            df[zip_column].astype(str).str.extract(r"(\d{1,5})", expand=False).str.zfill(5)
+            df[zip_column]
+            .astype(str)
+            .str.extract(r"(\d{1,5})", expand=False)
+            .str.zfill(5)
         )
         valid = df["ZIP5"].str.fullmatch(r"[0-9]{5}").fillna(False)
         df.loc[~valid | (df["ZIP5"] == "00000"), "ZIP5"] = pd.NA

@@ -31,6 +31,7 @@ Copyright © 2025 Neuralift, Inc.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from typing import Any, Mapping, Sequence
@@ -55,10 +56,7 @@ _PHYSICAL_NAME_RE = re.compile(
     re.IGNORECASE,
 )
 
-
-def _log(msg: str, enabled: bool) -> None:
-    if enabled:
-        print(msg)
+logger = logging.getLogger(__name__)
 
 
 def _looks_like_physical_name(name: str) -> bool:
@@ -87,7 +85,6 @@ def _schema_to_dict(schema: Any) -> dict[str, Any] | None:
 def _apply_positional_rename(
     ddf: dd.DataFrame,
     logical_cols: Sequence[str],
-    show_progress: bool,
     label: str,
     debug_rename_map: bool,
 ) -> tuple[dd.DataFrame, bool]:
@@ -109,31 +106,27 @@ def _apply_positional_rename(
             candidate[idx] = rename_map[col]
 
     if len(set(candidate)) != len(candidate):
-        _log(
-            f"[rename] {label} positional rename would create duplicate columns; skipping",
-            show_progress,
+        logger.warning(
+            "[rename] %s positional rename would create duplicate columns; skipping",
+            label,
         )
         return ddf, False
 
-    _log_rename_map(rename_map, show_progress, debug_rename_map, label)
+    _log_rename_map(rename_map, debug_rename_map, label)
     ddf = ddf.rename(columns=rename_map)
-    _log(
-        f"[rename] {label} positional rename for {len(rename_map)} columns",
-        show_progress,
-    )
+    logger.info("[rename] %s positional rename for %s columns", label, len(rename_map))
     return ddf, True
 
 
 def _log_rename_map(
     rename_map: Mapping[str, str],
-    show_progress: bool,
     debug_rename_map: bool,
     label: str,
 ) -> None:
     if not debug_rename_map or not rename_map:
         return
     lines = "\n".join(f"  {src} -> {dst}" for src, dst in rename_map.items())
-    _log(f"[rename] {label} mapping ({len(rename_map)}):\n{lines}", show_progress)
+    logger.debug("[rename] %s mapping (%s):\n%s", label, len(rename_map), lines)
 
 
 def _sanitize_table_cell(value: Any) -> str:
@@ -149,7 +142,9 @@ def _format_debug_head_table(pdf: pd.DataFrame, rows: int) -> tuple[str, int]:
     headers = ["column"] + [f"v{i + 1}" for i in range(row_count)]
     table_rows = []
     for col in head_pdf.columns:
-        values = [_sanitize_table_cell(head_pdf.iloc[idx][col]) for idx in range(row_count)]
+        values = [
+            _sanitize_table_cell(head_pdf.iloc[idx][col]) for idx in range(row_count)
+        ]
         table_rows.append([str(col)] + values)
     widths = [len(h) for h in headers]
     for row in table_rows:
@@ -169,33 +164,34 @@ def _format_debug_head_table(pdf: pd.DataFrame, rows: int) -> tuple[str, int]:
 def _log_debug_head(
     ddf: dd.DataFrame,
     rows: int,
-    show_progress: bool,
     head_pdf: pd.DataFrame | None = None,
 ) -> None:
     if rows <= 0:
         return
     try:
-        pdf = head_pdf.head(rows) if head_pdf is not None else ddf.head(rows, compute=True)
+        pdf = (
+            head_pdf.head(rows)
+            if head_pdf is not None
+            else ddf.head(rows, compute=True)
+        )
     except Exception as exc:
-        _log(f"[debug] head({rows}) failed: {exc}", show_progress)
+        logger.debug("[debug] head(%s) failed: %s", rows, exc)
         return
     if pdf.empty:
-        _log(f"[debug] head({rows}) empty; columns={list(ddf.columns)}", show_progress)
+        logger.debug("[debug] head(%s) empty; columns=%s", rows, list(ddf.columns))
         return
     table, row_count = _format_debug_head_table(pdf, rows)
     if not table:
-        _log(f"[debug] head({rows}) empty; columns={list(ddf.columns)}", show_progress)
+        logger.debug("[debug] head(%s) empty; columns=%s", rows, list(ddf.columns))
         return
-    _log(
-        f"[debug] head({row_count}) with {len(ddf.columns)} cols:\n{table}",
-        show_progress,
+    logger.debug(
+        "[debug] head(%s) with %s cols:\n%s", row_count, len(ddf.columns), table
     )
 
 
 def _drop_extra_physical_columns(
     ddf: dd.DataFrame,
     logical_cols: Sequence[str] | None,
-    show_progress: bool,
     label: str,
 ) -> tuple[dd.DataFrame, bool]:
     if not logical_cols:
@@ -211,10 +207,10 @@ def _drop_extra_physical_columns(
         return ddf, False
 
     ddf = ddf.drop(columns=physical_cols)
-    _log(
-        f"[rename] dropped {len(physical_cols)} extra physical columns "
-        f"based on {label} logical list",
-        show_progress,
+    logger.info(
+        "[rename] dropped %s extra physical columns based on %s logical list",
+        len(physical_cols),
+        label,
     )
     return ddf, True
 
@@ -243,9 +239,7 @@ def _make_workspace_client() -> "WorkspaceClient":
             "DATABRICKS_CLIENT_SECRET."
         )
 
-    return WorkspaceClient(
-        host=host, client_id=client_id, client_secret=client_secret
-    )
+    return WorkspaceClient(host=host, client_id=client_id, client_secret=client_secret)
 
 
 def _lookup_storage_location(table_fqdn: str) -> str:
@@ -295,7 +289,6 @@ def _schema_string_to_mapping(schema_string: str) -> dict[str, str]:
 def _read_delta_log_mapping(
     loc: str,
     storage_options: Mapping[str, Any] | None,
-    show_progress: bool,
 ) -> dict[str, str]:
     log_uri = loc.rstrip("/") + "/_delta_log"
     try:
@@ -305,7 +298,7 @@ def _read_delta_log_mapping(
         except Exception:
             candidates = [p for p in fs.find(base) if p.endswith(".json")]
     except Exception as exc:
-        _log(f"[delta-log] failed to list {log_uri}: {exc}", show_progress)
+        logger.warning("[delta-log] failed to list %s: %s", log_uri, exc)
         return {}
 
     versioned: list[tuple[int, str]] = []
@@ -315,7 +308,7 @@ def _read_delta_log_mapping(
             versioned.append((int(name[:20]), path))
 
     if not versioned:
-        _log(f"[delta-log] no json log files found at {log_uri}", show_progress)
+        logger.info("[delta-log] no json log files found at %s", log_uri)
         return {}
 
     versioned.sort(reverse=True)
@@ -334,37 +327,36 @@ def _read_delta_log_mapping(
                     if meta and "schemaString" in meta:
                         mapping = _schema_string_to_mapping(meta["schemaString"])
                         if mapping:
-                            _log(
-                                f"[delta-log] extracted mapping from version {version} "
-                                f"({len(mapping)} cols)",
-                                show_progress,
+                            logger.info(
+                                "[delta-log] extracted mapping from version %s (%s cols)",
+                                version,
+                                len(mapping),
                             )
                             return mapping
-                        _log(
-                            f"[delta-log] metadata in version {version} but no mapping entries",
-                            show_progress,
+                        logger.info(
+                            "[delta-log] metadata in version %s but no mapping entries",
+                            version,
                         )
                         return {}
         except Exception as exc:
-            _log(f"[delta-log] failed reading {path}: {exc}", show_progress)
+            logger.warning("[delta-log] failed reading %s: %s", path, exc)
             continue
 
-    _log("[delta-log] no metadata found in delta log", show_progress)
+    logger.info("[delta-log] no metadata found in delta log")
     return {}
 
 
 def _phys_to_log_mapping(
     loc: str,
     storage_options: Mapping[str, Any] | None,
-    show_progress: bool,
 ) -> dict[str, str]:
     """
     For Delta tables with column mapping, build physical->logical mapping.
     """
     mapping: dict[str, str] = {}
     if DeltaTable is None:
-        _log("[delta-rs] deltalake not installed; skipping mapping", show_progress)
-        return _read_delta_log_mapping(loc, storage_options, show_progress)
+        logger.info("[delta-rs] deltalake not installed; skipping mapping")
+        return _read_delta_log_mapping(loc, storage_options)
 
     try:
         if "RUST_LOG" not in os.environ:
@@ -388,14 +380,14 @@ def _phys_to_log_mapping(
             if phys and log:
                 mapping[phys] = log
     except Exception as exc:
-        _log(f"[delta-rs] mapping failed: {exc}", show_progress)
+        logger.warning("[delta-rs] mapping failed: %s", exc)
         mapping = {}
 
     if mapping:
-        _log(f"[delta-rs] extracted mapping for {len(mapping)} columns", show_progress)
+        logger.info("[delta-rs] extracted mapping for %s columns", len(mapping))
         return mapping
 
-    return _read_delta_log_mapping(loc, storage_options, show_progress)
+    return _read_delta_log_mapping(loc, storage_options)
 
 
 def _logical_cols_uc(table_fqdn: str) -> Sequence[str]:
@@ -446,7 +438,7 @@ def _read_via_dbsql_schema(
             }
         )
 
-    with (sql.connect(**connect_kwargs) as conn, conn.cursor() as cur):
+    with sql.connect(**connect_kwargs) as conn, conn.cursor() as cur:
         cur.execute(query)
         if not cur.description:
             return []
@@ -471,7 +463,6 @@ def load_lazy_dask(
     columns: Sequence[str] | None = None,
     prefer_delta: bool = True,
     read_blocksize_mb: int = 512,
-    show_progress: bool = True,
     conn_params: Mapping[str, Any] | None = None,
     allow_dbsql_fallback: bool = True,
     require_logical_names: bool = True,
@@ -503,9 +494,10 @@ def load_lazy_dask(
     if use_snapshot:
         snap_opts = snapshot_storage_options or {}
         if _snapshot_exists(snapshot_uri, snap_opts):
-            _log(
-                f"[snapshot] using existing snapshot at {snapshot_uri} (mode={snapshot_mode})",
-                show_progress,
+            logger.info(
+                "[snapshot] using existing snapshot at %s (mode=%s)",
+                snapshot_uri,
+                snapshot_mode,
             )
             return dd.read_parquet(
                 snapshot_uri, storage_options=snap_opts, blocksize=blocksize
@@ -517,13 +509,12 @@ def load_lazy_dask(
             )
 
     # Read from ORIGINAL source (UC / Parquet / CSV)
-    _log(f"[init] fmt={fmt_lc}, uri={uri}", show_progress)
+    logger.info("[init] fmt=%s, uri=%s", fmt_lc, uri)
 
     if fmt_lc == "csv":
         if columns is not None:
-            _log(
-                "[warn] columns pruning not supported for CSV at read; will load all columns",
-                show_progress,
+            logger.warning(
+                "[warn] columns pruning not supported for CSV at read; will load all columns"
             )
         ddf = dd.read_csv(
             uri,
@@ -544,9 +535,7 @@ def load_lazy_dask(
 
     elif fmt_lc in {"delta", "delta_path"}:
         loc = uri
-        mapping = _phys_to_log_mapping(
-            loc, storage_options=storage_options, show_progress=show_progress
-        )
+        mapping = _phys_to_log_mapping(loc, storage_options=storage_options)
         read_kwargs = {
             "storage_options": storage_options,
             "columns": columns,
@@ -562,50 +551,46 @@ def load_lazy_dask(
         if prefer_delta and _HAVE_DELTA:
             try:
                 ddf = dd.read_delta(loc, **read_kwargs)
-                _log("[delta-rs] read_delta succeeded", show_progress)
+                logger.info("[delta-rs] read_delta succeeded")
             except Exception as exc:
-                _log(
-                    f"[delta-rs] read_delta failed ({exc}); falling back to parquet",
-                    show_progress,
+                logger.warning(
+                    "[delta-rs] read_delta failed (%s); falling back to parquet", exc
                 )
                 ddf = dd.read_parquet(loc, **parquet_kwargs)
         else:
             ddf = dd.read_parquet(loc, **parquet_kwargs)
-            _log(
-                "[delta-rs] delta not preferred/available; using parquet", show_progress
-            )
+            logger.info("[delta-rs] delta not preferred/available; using parquet")
 
         renamed = False
         if mapping:
             rename_map = {c: mapping[c] for c in ddf.columns if c in mapping}
             if rename_map:
-                _log_rename_map(rename_map, show_progress, debug_rename_map, "delta metadata")
+                _log_rename_map(rename_map, debug_rename_map, "delta metadata")
                 ddf = ddf.rename(columns=rename_map)
                 remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
-                _log(
-                    f"[rename] applied mapping for {len(rename_map)} columns (delta metadata)",
-                    show_progress,
+                logger.info(
+                    "[rename] applied mapping for %s columns (delta metadata)",
+                    len(rename_map),
                 )
                 if remaining:
                     sample = ", ".join(remaining[:5])
-                    _log(
-                        f"[rename] {len(remaining)} physical cols remain after delta mapping "
-                        f"(sample: {sample})",
-                        show_progress,
+                    logger.warning(
+                        "[rename] %s physical cols remain after delta mapping (sample: %s)",
+                        len(remaining),
+                        sample,
                     )
                 else:
                     renamed = True
             else:
-                _log(
-                    f"[rename] delta mapping had {len(mapping)} entries; none matched Dask columns",
-                    show_progress,
+                logger.warning(
+                    "[rename] delta mapping had %s entries; none matched Dask columns",
+                    len(mapping),
                 )
 
         physical_cols = [c for c in ddf.columns if _looks_like_physical_name(c)]
         if not renamed and physical_cols:
-            _log(
-                "[warn] no logical-column mapping available; columns remain physical names",
-                show_progress,
+            logger.warning(
+                "[warn] no logical-column mapping available; columns remain physical names"
             )
         if require_logical_names and physical_cols:
             sample = ", ".join(physical_cols[:5])
@@ -616,16 +601,15 @@ def load_lazy_dask(
 
     elif fmt_lc in {"databricks_table", "table"}:
         loc = _lookup_storage_location(uri)
-        _log(f"[storage_location] {loc}", show_progress)
+        logger.info("[storage_location] %s", loc)
 
-        mapping = _phys_to_log_mapping(
-            loc, storage_options=storage_options, show_progress=show_progress
-        )
+        mapping = _phys_to_log_mapping(loc, storage_options=storage_options)
         uc_logical_cols = _logical_cols_uc(uri)
         if uc_logical_cols:
-            _log(
-                f"[uc] got {len(uc_logical_cols)} logical cols from UC; first 5: {uc_logical_cols[:5]}",
-                show_progress,
+            logger.info(
+                "[uc] got %s logical cols from UC; first 5: %s",
+                len(uc_logical_cols),
+                uc_logical_cols[:5],
             )
 
         read_kwargs = {
@@ -643,18 +627,15 @@ def load_lazy_dask(
         if prefer_delta and _HAVE_DELTA:
             try:
                 ddf = dd.read_delta(loc, **read_kwargs)
-                _log("[delta-rs] read_delta succeeded", show_progress)
+                logger.info("[delta-rs] read_delta succeeded")
             except Exception as exc:
-                _log(
-                    f"[delta-rs] read_delta failed ({exc}); falling back to parquet",
-                    show_progress,
+                logger.warning(
+                    "[delta-rs] read_delta failed (%s); falling back to parquet", exc
                 )
                 ddf = dd.read_parquet(loc, **parquet_kwargs)
         else:
             ddf = dd.read_parquet(loc, **parquet_kwargs)
-            _log(
-                "[delta-rs] delta not preferred/available; using parquet", show_progress
-            )
+            logger.info("[delta-rs] delta not preferred/available; using parquet")
 
         # Column renaming: physical -> logical
         renamed = False
@@ -662,31 +643,32 @@ def load_lazy_dask(
         if mapping:
             rename_map = {c: mapping[c] for c in ddf.columns if c in mapping}
             if rename_map:
-                _log_rename_map(rename_map, show_progress, debug_rename_map, "delta metadata")
+                _log_rename_map(rename_map, debug_rename_map, "delta metadata")
                 ddf = ddf.rename(columns=rename_map)
                 remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
-                _log(
-                    f"[rename] applied mapping for {len(rename_map)} columns (delta metadata)",
-                    show_progress,
+                logger.info(
+                    "[rename] applied mapping for %s columns (delta metadata)",
+                    len(rename_map),
                 )
                 if remaining:
                     sample = ", ".join(remaining[:5])
-                    _log(
-                        f"[rename] {len(remaining)} physical cols remain after delta mapping "
-                        f"(sample: {sample}); attempting logical list fallback",
-                        show_progress,
+                    logger.warning(
+                        "[rename] %s physical cols remain after delta mapping "
+                        "(sample: %s); attempting logical list fallback",
+                        len(remaining),
+                        sample,
                     )
                 else:
                     renamed = True
             else:
-                _log(
-                    f"[rename] delta mapping had {len(mapping)} entries; none matched Dask columns",
-                    show_progress,
+                logger.warning(
+                    "[rename] delta mapping had %s entries; none matched Dask columns",
+                    len(mapping),
                 )
 
         if not renamed and uc_logical_cols and len(uc_logical_cols) == len(ddf.columns):
             ddf, applied = _apply_positional_rename(
-                ddf, uc_logical_cols, show_progress, "UC logical list", debug_rename_map
+                ddf, uc_logical_cols, "UC logical list", debug_rename_map
             )
             if applied:
                 remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
@@ -694,46 +676,43 @@ def load_lazy_dask(
                     renamed = True
 
         if not renamed and uc_logical_cols and len(uc_logical_cols) != len(ddf.columns):
-            _log(
-                f"[rename] UC logical cols={len(uc_logical_cols)} "
-                f"!= Dask cols={len(ddf.columns)}; skipping positional rename",
-                show_progress,
+            logger.warning(
+                "[rename] UC logical cols=%s != Dask cols=%s; skipping positional rename",
+                len(uc_logical_cols),
+                len(ddf.columns),
             )
 
         dbsql_logical_cols: Sequence[str] | None = None
         if not renamed and allow_dbsql_fallback and conn_params is not None:
-            _log(
-                "[fallback] using DBSQL to fetch logical column names (schema only)",
-                show_progress,
+            logger.info(
+                "[fallback] using DBSQL to fetch logical column names (schema only)"
             )
             try:
                 logical_names = _read_via_dbsql_schema(uri, conn_params, columns=None)
             except Exception as exc:
-                _log(f"[fallback] DBSQL schema fetch failed: {exc}", show_progress)
+                logger.warning("[fallback] DBSQL schema fetch failed: %s", exc)
                 logical_names = None
 
             if logical_names and len(logical_names) == len(ddf.columns):
                 dbsql_logical_cols = logical_names
                 ddf, applied = _apply_positional_rename(
-                    ddf, logical_names, show_progress, "DBSQL logical list", debug_rename_map
+                    ddf, logical_names, "DBSQL logical list", debug_rename_map
                 )
                 if applied:
                     remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
                     if not remaining:
                         renamed = True
-                        _log("[fallback] DBSQL schema-based rename succeeded", show_progress)
+                        logger.info("[fallback] DBSQL schema-based rename succeeded")
             elif logical_names:
                 dbsql_logical_cols = logical_names
-                _log(
-                    f"[fallback] DBSQL cols={len(logical_names)} "
-                    f"!= Dask cols={len(ddf.columns)}; skipping rename",
-                    show_progress,
+                logger.warning(
+                    "[fallback] DBSQL cols=%s != Dask cols=%s; skipping rename",
+                    len(logical_names),
+                    len(ddf.columns),
                 )
 
         if not renamed:
-            ddf, dropped = _drop_extra_physical_columns(
-                ddf, uc_logical_cols, show_progress, "UC"
-            )
+            ddf, dropped = _drop_extra_physical_columns(ddf, uc_logical_cols, "UC")
             if dropped:
                 remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
                 if not remaining:
@@ -741,7 +720,7 @@ def load_lazy_dask(
 
         if not renamed:
             ddf, dropped = _drop_extra_physical_columns(
-                ddf, dbsql_logical_cols, show_progress, "DBSQL"
+                ddf, dbsql_logical_cols, "DBSQL"
             )
             if dropped:
                 remaining = [c for c in ddf.columns if _looks_like_physical_name(c)]
@@ -750,9 +729,8 @@ def load_lazy_dask(
 
         physical_cols = [c for c in ddf.columns if _looks_like_physical_name(c)]
         if not renamed and physical_cols:
-            _log(
-                "[warn] no logical-column mapping available; columns remain physical names",
-                show_progress,
+            logger.warning(
+                "[warn] no logical-column mapping available; columns remain physical names"
             )
         if require_logical_names and physical_cols:
             sample = ", ".join(physical_cols[:5])
@@ -766,29 +744,29 @@ def load_lazy_dask(
 
     n_cols = len(ddf.columns)
     if n_cols > max_expected_columns and columns is None:
-        _log(
-            f"[warn] loading {n_cols} columns without projection; "
-            f"consider passing columns=... or increasing max_expected_columns",
-            show_progress,
+        logger.warning(
+            "[warn] loading %s columns without projection; consider passing columns=... "
+            "or increasing max_expected_columns",
+            n_cols,
         )
-    _log(
-        f"[cols] ddf has {n_cols} columns across {ddf.npartitions} partitions",
-        show_progress,
+    logger.info(
+        "[cols] ddf has %s columns across %s partitions",
+        n_cols,
+        ddf.npartitions,
     )
 
     head_pdf = None
 
     # row_limit path: for quick local dev
     if row_limit:
-        _log(
-            f"[row_limit] materializing first {row_limit} rows into in-memory Dask df",
-            show_progress,
+        logger.info(
+            "[row_limit] materializing first %s rows into in-memory Dask df", row_limit
         )
         head_pdf = ddf.head(row_limit, compute=True)
         ddf = dd.from_pandas(head_pdf, npartitions=max(1, min(4, row_limit)))
 
     if debug_head_rows > 0:
-        _log_debug_head(ddf, debug_head_rows, show_progress, head_pdf=head_pdf)
+        _log_debug_head(ddf, debug_head_rows, head_pdf=head_pdf)
 
     # Snapshot build/refresh if requested
     build_snapshot = snapshot_uri is not None and snapshot_mode in {
@@ -797,9 +775,10 @@ def load_lazy_dask(
     }
     if build_snapshot:
         snap_opts = snapshot_storage_options or {}
-        _log(
-            f"[snapshot] building snapshot at {snapshot_uri} (mode={snapshot_mode})",
-            show_progress,
+        logger.info(
+            "[snapshot] building snapshot at %s (mode=%s)",
+            snapshot_uri,
+            snapshot_mode,
         )
 
         snapshot_ddf = ddf
@@ -819,7 +798,7 @@ def load_lazy_dask(
             write_index=False,
             overwrite=True,
         )
-        _log("[snapshot] parquet snapshot write complete", show_progress)
+        logger.info("[snapshot] parquet snapshot write complete")
 
         # reload snapshot as new lazy Dask DataFrame
         del snapshot_ddf
@@ -827,7 +806,7 @@ def load_lazy_dask(
         ddf = dd.read_parquet(
             snapshot_uri, storage_options=snap_opts, blocksize=blocksize
         )
-        _log("[snapshot] reloaded snapshot as new lazy Dask DataFrame", show_progress)
+        logger.info("[snapshot] reloaded snapshot as new lazy Dask DataFrame")
 
     return ddf
 
@@ -857,8 +836,9 @@ def load_ddf(cfg):
         snapshot_mode="off",
         require_logical_names=cfg.input.require_logical_names,
         debug_rename_map=cfg.logging.level == "debug",
-        debug_head_rows=cfg.logging.debug_head_rows if cfg.logging.level == "debug" else 0,
-        show_progress=getattr(cfg.logging, "show_progress", True),
+        debug_head_rows=cfg.logging.debug_head_rows
+        if cfg.logging.level == "debug"
+        else 0,
     )
 
 

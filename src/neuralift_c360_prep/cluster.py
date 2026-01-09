@@ -30,20 +30,55 @@ from dask.distributed import Client, LocalCluster
 
 from .config import BundleConfig
 from .env import dotenv_env_vars
+from .log_utils import configure_dask_logging, set_worker_shutdown_flag
 
 logger = logging.getLogger(__name__)
+
+_DASK_SHUTDOWN_NOISE = "Failed to communicate with scheduler during heartbeat"
+_shutdown_in_progress = False
+
+
+class _DaskShutdownFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not _shutdown_in_progress:
+            return True
+        msg = record.getMessage()
+        if _DASK_SHUTDOWN_NOISE in msg:
+            return False
+        return True
+
+
+def _ensure_shutdown_filter() -> None:
+    worker_logger = logging.getLogger("distributed.worker")
+    for existing in worker_logger.filters:
+        if isinstance(existing, _DaskShutdownFilter):
+            return
+    worker_logger.addFilter(_DaskShutdownFilter())
+
+
+def _set_shutdown_flag(enabled: bool) -> None:
+    global _shutdown_in_progress
+    _shutdown_in_progress = enabled
 
 
 @contextlib.contextmanager
 def local_client(cfg: BundleConfig) -> Iterator[Client]:
     cluster = LocalCluster()
     client = Client(cluster)
+    configure_dask_logging(client, level=cfg.logging.level, forward_to_scheduler=False)
+    _ensure_shutdown_filter()
     logger.info("Started local Dask cluster at %s", client.scheduler_info()["address"])
     try:
         yield client
     finally:
+        _set_shutdown_flag(True)
+        try:
+            client.run(set_worker_shutdown_flag, True)
+        except Exception:
+            pass
         client.close()
         cluster.close()
+        _set_shutdown_flag(False)
         logger.info("Closed local Dask cluster")
 
 
@@ -78,14 +113,22 @@ def coiled_client(cfg: BundleConfig) -> Iterator[Client]:
 
     coiled_cluster = coiled.Cluster(**cluster_kwargs)
     client = Client(coiled_cluster)
+    configure_dask_logging(client, level=cfg.logging.level, forward_to_scheduler=True)
+    _ensure_shutdown_filter()
     logger.info(
         "Started Coiled cluster '%s' at %s", c.name, client.scheduler_info()["address"]
     )
     try:
         yield client
     finally:
+        _set_shutdown_flag(True)
+        try:
+            client.run(set_worker_shutdown_flag, True)
+        except Exception:
+            pass
         client.close()
         coiled_cluster.close()
+        _set_shutdown_flag(False)
         logger.info("Closed Coiled cluster '%s'", c.name)
 
 

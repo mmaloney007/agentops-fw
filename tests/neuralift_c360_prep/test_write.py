@@ -29,7 +29,9 @@ def test_write_outputs_local(tmp_path, monkeypatch):
 
     monkeypatch.setattr(write_mod, "_assert_volume_absent", lambda cfg: None)
 
-    base = write_mod.write_outputs(ddf, cfg, meta_json_text=json.dumps({"table": "t"}), config_text="config: demo")
+    base = write_mod.write_outputs(
+        ddf, cfg, meta_json_text=json.dumps({"table": "t"}), config_text="config: demo"
+    )
     assert Path(base, "input_data").exists()
     assert Path(base, "data_dictionary.json").exists()
     assert Path(base, "config.yaml").exists()
@@ -47,7 +49,6 @@ def test_write_min_two_partitions(tmp_path):
         partition_on=None,
         target_mb_per_part=512,
         force_npartitions=None,
-        show_progress=False,
     )
 
     assert write_mod.count_parquet_files(s3_base=base) == 2

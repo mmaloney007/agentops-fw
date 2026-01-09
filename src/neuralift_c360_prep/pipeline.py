@@ -34,6 +34,7 @@ from .cluster import get_client
 from .config import BundleConfig
 from .databricks_oauth import get_databricks_access_token
 from .ingest import load_lazy_dask
+from .log_utils import setup_logging
 from .preprocess import preprocess
 from .write import (
     count_parquet_files,
@@ -102,44 +103,37 @@ def _print_output_summary(
     parquet_count: int | None,
     volume_info: dict | None,
 ) -> None:
-    print("\n=== Output Summary ===")
-    print(f"Base URI       : {base_uri}")
+    logger.info("=== Output Summary ===")
+    logger.info("Base URI       : %s", base_uri)
     if parquet_count is None:
-        print("Parquet files  : unknown")
+        logger.info("Parquet files  : unknown")
     else:
-        print(f"Parquet files  : {parquet_count}")
-    print("Artifacts      : config.yaml, bundleconfig.yaml, data_dictionary.json")
+        logger.info("Parquet files  : %s", parquet_count)
+    logger.info("Artifacts      : config.yaml, bundleconfig.yaml, data_dictionary.json")
     if volume_info:
-        print("\n=== UC Volume ===")
-        print(f"Name           : {volume_info['volume_name']}")
-        print(f"Comment        : {volume_info['volume_comment']}")
-        print(f"UC Path        : {volume_info['uc_path']}")
+        logger.info("=== UC Volume ===")
+        logger.info("Name           : %s", volume_info["volume_name"])
+        logger.info("Comment        : %s", volume_info["volume_comment"])
+        logger.info("UC Path        : %s", volume_info["uc_path"])
         tags = volume_info.get("tags", {})
         if tags:
             tags_text = ", ".join(f"{k}={v}" for k, v in tags.items())
-            print(f"Tags           : {tags_text}")
-    print()
+            logger.info("Tags           : %s", tags_text)
 
 
 def run_from_config(cfg: BundleConfig) -> str:
     """
     Execute the pipeline and return the output base URI.
     """
-    logging.basicConfig(level=getattr(logging, cfg.logging.level.upper(), logging.INFO))
-
-    # If debug, force progress logs on and emit the resolved config for transparency
-    debug_mode = cfg.logging.level == "debug"
-    if debug_mode and not cfg.logging.show_progress:
-        cfg.logging.show_progress = True
-
-    logger.info("Starting pipeline (engine=%s)", cfg.runtime.engine)
-    if cfg.logging.level in {"info", "debug"}:
-        logger.info(
-            "Resolved config:\n%s",
-            yaml.safe_dump(cfg.model_dump(exclude_none=True), sort_keys=False),
-        )
+    setup_logging(cfg.logging.level)
 
     with get_client(cfg):
+        logger.info("Starting pipeline (engine=%s)", cfg.runtime.engine)
+        if cfg.logging.level in {"info", "debug"}:
+            logger.info(
+                "Resolved config:\n%s",
+                yaml.safe_dump(cfg.model_dump(exclude_none=True), sort_keys=False),
+            )
         if cfg.input.source == "uc_table":
             fmt, uri = "databricks_table", cfg.input.uc_table
         elif cfg.input.source == "delta_path":
@@ -164,12 +158,13 @@ def run_from_config(cfg: BundleConfig) -> str:
             dtype_overrides=cfg.input.dtype_overrides,
             read_blocksize_mb=cfg.output.target_mb_per_part,
             snapshot_mode="off",
-            show_progress=cfg.logging.show_progress,
             conn_params=conn_params,
             allow_dbsql_fallback=cfg.input.source == "uc_table",
             require_logical_names=cfg.input.require_logical_names,
             debug_rename_map=cfg.logging.level == "debug",
-            debug_head_rows=cfg.logging.debug_head_rows if cfg.logging.level == "debug" else 0,
+            debug_head_rows=cfg.logging.debug_head_rows
+            if cfg.logging.level == "debug"
+            else 0,
         )
 
         ddf = preprocess(ddf, cfg)
@@ -178,9 +173,7 @@ def run_from_config(cfg: BundleConfig) -> str:
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
         meta_json = json.loads(meta_text)
-        wandb_project = _resolve_wandb_project(
-            cfg, cfg.output.run_name or table_name
-        )
+        wandb_project = _resolve_wandb_project(cfg, cfg.output.run_name or table_name)
         pretty_config = build_pretty_config_from_data_dict(
             data_dict=meta_json,
             ddf=ddf,
@@ -252,7 +245,6 @@ def run_from_config(cfg: BundleConfig) -> str:
             target_mb_per_part=cfg.output.target_mb_per_part,
             force_npartitions=cfg.output.force_npartitions,
             write_index=cfg.output.write_index,
-            show_progress=cfg.logging.show_progress,
         )
 
         if volume_tags:

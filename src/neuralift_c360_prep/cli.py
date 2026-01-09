@@ -26,10 +26,10 @@ Copyright © 2025 Neuralift, Inc.
 from __future__ import annotations
 
 import argparse
-import logging
 from pathlib import Path
 
 from .config import load_config
+from .log_utils import setup_logging
 from .pipeline import run_from_config
 
 
@@ -54,7 +54,7 @@ def main() -> None:
     if args.log_level:
         cfg.logging.level = args.log_level
 
-    logging.basicConfig(level=getattr(logging, cfg.logging.level.upper(), logging.INFO))
+    setup_logging(cfg.logging.level)
     run_from_config(cfg)
 
 

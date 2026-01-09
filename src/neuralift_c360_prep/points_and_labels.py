@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import logging
 import os
 import re
 import uuid
@@ -25,6 +26,10 @@ from dask import compute as dask_compute
 from dask.distributed import Client, LocalCluster
 
 from .env import dotenv_env_vars
+from .log_utils import configure_dask_logging, setup_logging
+
+logger = logging.getLogger(__name__)
+
 
 def _storage_options_for_uri(
     uri: str,
@@ -74,7 +79,9 @@ def _list_parquet_files(input_uri: str, storage_options: dict) -> list[str]:
     try:
         paths = fs.find(base_path)
     except Exception as exc:
-        raise RuntimeError(f"Unable to list parquet files under {input_uri}: {exc}") from exc
+        raise RuntimeError(
+            f"Unable to list parquet files under {input_uri}: {exc}"
+        ) from exc
 
     parquet_paths = [
         path
@@ -124,9 +131,7 @@ def _int_to_uuid(arr: np.ndarray) -> np.ndarray:
 
 def _generate_points(segment_id: np.ndarray, rng_seed: int) -> np.ndarray:
     rng = np.random.default_rng(rng_seed)
-    centres = {
-        sid: (2 * i, 0.0) for i, sid in enumerate(pd.unique(segment_id))
-    }
+    centres = {sid: (2 * i, 0.0) for i, sid in enumerate(pd.unique(segment_id))}
 
     def rand_point(sid: int) -> tuple[float, float]:
         cx, cy = centres[sid]
@@ -155,7 +160,7 @@ def _update_config_yaml(
 ) -> bool:
     fs, path = fsspec.core.url_to_fs(config_uri, **storage_options)
     if not fs.exists(path):
-        print(f"[config] not found, skipping update: {config_uri}")
+        logger.warning("[config] not found, skipping update: %s", config_uri)
         return False
 
     with fs.open(path, "r", **storage_options) as fh:
@@ -182,7 +187,7 @@ def _update_config_yaml(
     with fs.open(path, "w", **storage_options) as fh:
         fh.write(new_text)
 
-    print(
+    logger.info(
         "[config] updated config.yaml with labels_file_name and ranked_points_file_name"
     )
     return True
@@ -289,7 +294,7 @@ def generate_points_and_labels(
     client: Client | None,
 ) -> tuple[str, str]:
     parquet_uris = _list_parquet_files(input_uri, input_storage_options)
-    print(f"[scan] found {len(parquet_uris)} parquet files under {input_uri}")
+    logger.info("[scan] found %s parquet files under %s", len(parquet_uris), input_uri)
 
     segments = _collect_segments(
         parquet_uris,
@@ -297,15 +302,13 @@ def generate_points_and_labels(
         storage_options=input_storage_options,
         client=client,
     )
-    print(f"[read] collected {len(segments)} rows of '{segment_col}'")
+    logger.info("[read] collected %s rows of '%s'", len(segments), segment_col)
 
     seg_series = segments.astype("object").apply(_normalize_segment)
     unique = pd.unique(seg_series.dropna())
     seg_id_map = {s: i for i, s in enumerate(unique)}
     seg_id_map[None] = -1
-    segment_id = (
-        seg_series.map(seg_id_map).fillna(-1).astype("int32").to_numpy()
-    )
+    segment_id = seg_series.map(seg_id_map).fillna(-1).astype("int32").to_numpy()
 
     labels = _int_to_uuid(segment_id)
     points = _generate_points(segment_id, rng_seed)
@@ -319,9 +322,9 @@ def generate_points_and_labels(
     with fsspec.open(points_uri, "wb", **output_storage_options) as fh:
         np.save(fh, points)
 
-    print(f"[write] labels.npy -> {labels_uri}")
-    print(f"[write] precomputed_points.npy -> {points_uri}")
-    print(
+    logger.info("[write] labels.npy -> %s", labels_uri)
+    logger.info("[write] precomputed_points.npy -> %s", points_uri)
+    logger.info(
         "[done] ordering guarantee: rows follow sorted parquet part-file order (part-00000, part-00001, ...)"
     )
 
@@ -390,6 +393,12 @@ def _parse_args() -> argparse.Namespace:
         default="coiled",
         help="Execution runtime (default: coiled).",
     )
+    parser.add_argument(
+        "--log-level",
+        choices=["debug", "info", "warning", "error"],
+        default="info",
+        help="Logging level (default: info).",
+    )
     parser.add_argument("--coiled-name", default="neuralift_c360_prep")
     parser.add_argument("--coiled-software-env", default="neuralift_c360_prep")
     parser.add_argument("--n-workers", type=int, default=2)
@@ -411,6 +420,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     env_from_dotenv = dotenv_env_vars()
     args = _parse_args()
+    setup_logging(args.log_level)
     args.coiled_env = _parse_env_pairs(args.coiled_env)
     args.coiled_env = {**env_from_dotenv, **args.coiled_env}
     args.worker_vm_types = (
@@ -443,13 +453,18 @@ def main() -> None:
         config_uri, require_creds=config_uri.startswith("s3://")
     )
 
-    print(f"[init] input={input_uri}")
-    print(f"[init] output={output_uri}")
-    print(f"[init] runtime={args.runtime}")
-
     with _client_context(
         runtime=args.runtime, coiled_kwargs=_build_coiled_kwargs(args)
     ) as client:
+        if client is not None:
+            configure_dask_logging(
+                client,
+                level=args.log_level,
+                forward_to_scheduler=args.runtime == "coiled",
+            )
+        logger.info("[init] input=%s", input_uri)
+        logger.info("[init] output=%s", output_uri)
+        logger.info("[init] runtime=%s", args.runtime)
         generate_points_and_labels(
             input_uri=input_uri,
             output_uri=output_uri,
@@ -470,7 +485,7 @@ def main() -> None:
             storage_options=config_storage_options,
         )
 
-    print("[done] points_and_labels job complete.")
+    logger.info("[done] points_and_labels job complete.")
 
 
 if __name__ == "__main__":  # pragma: no cover

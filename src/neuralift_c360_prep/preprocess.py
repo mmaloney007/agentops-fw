@@ -28,6 +28,7 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 import unicodedata
@@ -40,24 +41,25 @@ import pandas as pd
 from dask import compute as dask_compute
 from dask.dataframe.utils import meta_nonempty
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Logging helpers
 # ---------------------------------------------------------------------------
 
 
-def _log_step(msg: str, verbose: bool) -> None:
-    if verbose:
-        print(msg)
+def _log_step(msg: str) -> None:
+    logger.info(msg)
 
 
-def _log_head(ddf: dd.DataFrame, cols: list[str], verbose: bool, label: str) -> None:
-    if not verbose or not cols:
+def _log_head(ddf: dd.DataFrame, cols: list[str], debug: bool, label: str) -> None:
+    if not debug or not cols:
         return
     try:
         sample = ddf[cols].head(5, compute=True)
-        _log_step(f"[debug] {label} sample (first 5 rows):\n{sample}", True)
+        logger.debug("[debug] %s sample (first 5 rows):\n%s", label, sample)
     except Exception:
-        _log_step(f"[debug] {label} sample unavailable (head() failed)", True)
+        logger.debug("[debug] %s sample unavailable (head() failed)", label)
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +166,6 @@ def _compute_numeric_medians_bigaware(
     total_rows: int,
     big_row_threshold: int = 5_000_000,
     sample_rows: int = 500_000,
-    verbose: bool = False,
 ) -> Dict[str, float]:
     """
     Compute medians for numeric columns that have nulls.
@@ -176,8 +177,7 @@ def _compute_numeric_medians_bigaware(
     if total_rows <= big_row_threshold:
         _log_step(
             f"[missing/medians] small table (rows≈{total_rows:,}), "
-            f"batched quantile() for {len(num_cols)} numeric cols",
-            verbose,
+            f"batched quantile() for {len(num_cols)} numeric cols"
         )
         q = ddf[num_cols].quantile(0.5).compute()
         for col in num_cols:
@@ -190,8 +190,7 @@ def _compute_numeric_medians_bigaware(
     _log_step(
         f"[missing/medians] big table (rows≈{total_rows:,}), "
         f"shared sample for {len(num_cols)} numeric cols "
-        f"(sample_rows={sample_rows:,})",
-        verbose,
+        f"(sample_rows={sample_rows:,})"
     )
 
     frac = min(1.0, sample_rows / total_rows if total_rows > 0 else 1.0)
@@ -229,6 +228,7 @@ def missing_report_and_fill_dask(
     """
     Memory-efficient missing report + optional fills with progress logging.
     """
+    debug = verbose
     if row_count is None:
         try:
             row_count = int(ddf.map_partitions(len).sum().compute())
@@ -239,7 +239,7 @@ def missing_report_and_fill_dask(
         dtypes = ddf.dtypes
 
     if null_counts is None:
-        _log_step("[missing] computing null counts via isna().sum()...", verbose)
+        _log_step("[missing] computing null counts via isna().sum()...")
         null_counts = ddf.isna().sum().compute()
 
     total_rows = int(row_count)
@@ -247,19 +247,19 @@ def missing_report_and_fill_dask(
         report_df = pd.DataFrame(
             columns=["column", "dtype", "null_count", "pct_null", "suggest_fill"]
         )
-        _log_step("⚠️ DataFrame is empty; nothing to fill.", verbose)
+        logger.warning("⚠️ DataFrame is empty; nothing to fill.")
         return ddf, report_df, {}
 
-    _log_step(f"[missing] start: rows≈{total_rows:,}, cols={len(ddf.columns)}", verbose)
+    _log_step(f"[missing] start: rows≈{total_rows:,}, cols={len(ddf.columns)}")
 
     cols_with_nulls = [c for c, n in null_counts.items() if n > 0]
-    _log_step(f"[missing] {len(cols_with_nulls)} column(s) with ≥1 null", verbose)
+    _log_step(f"[missing] {len(cols_with_nulls)} column(s) with ≥1 null")
 
     if not cols_with_nulls:
         report_df = pd.DataFrame(
             columns=["column", "dtype", "null_count", "pct_null", "suggest_fill"]
         )
-        _log_step("✅ No missing values detected.", verbose)
+        _log_step("✅ No missing values detected.")
         return ddf, report_df, {}
 
     num_cols = [c for c in cols_with_nulls if pd.api.types.is_numeric_dtype(dtypes[c])]
@@ -270,8 +270,7 @@ def missing_report_and_fill_dask(
 
     _log_step(
         f"[missing] split by type: numeric={len(num_cols)}, "
-        f"datetime={len(dt_cols)}, string/other={len(str_cols)}",
-        verbose,
+        f"datetime={len(dt_cols)}, string/other={len(str_cols)}"
     )
 
     medians: Dict[str, float] = {}
@@ -282,18 +281,16 @@ def missing_report_and_fill_dask(
             total_rows=total_rows,
             big_row_threshold=big_row_threshold,
             sample_rows=numeric_sample_rows,
-            verbose=verbose,
         )
 
     string_modes: dict[str, Any] = {}
     if fill and str_cols and fill_strings_with == "mode":
         _log_step(
-            f"[missing/modes] computing string modes for {len(str_cols)} columns...",
-            verbose,
+            f"[missing/modes] computing string modes for {len(str_cols)} columns..."
         )
         for i, col in enumerate(str_cols, start=1):
-            if verbose and (i == 1 or i % progress_every == 0 or i == len(str_cols)):
-                _log_step(f"[missing/modes] {i}/{len(str_cols)}: {col}", verbose)
+            if i == 1 or i % progress_every == 0 or i == len(str_cols):
+                _log_step(f"[missing/modes] {i}/{len(str_cols)}: {col}")
             vc = ddf[col].dropna().value_counts().head(1).compute()
             if len(vc):
                 string_modes[col] = vc.index[0]
@@ -304,10 +301,7 @@ def missing_report_and_fill_dask(
     fill_map: dict[str, Any] = {}
     flag_cols: list[str] = []
 
-    _log_step(
-        f"[missing] building fill_map over {len(cols_with_nulls)} column(s)...",
-        verbose,
-    )
+    _log_step(f"[missing] building fill_map over {len(cols_with_nulls)} column(s)...")
 
     for i, col in enumerate(cols_with_nulls, start=1):
         nulls = int(null_counts[col])
@@ -349,36 +343,31 @@ def missing_report_and_fill_dask(
             )
         )
 
-        if verbose and (i == 1 or i % progress_every == 0 or i == len(cols_with_nulls)):
+        if i == 1 or i % progress_every == 0 or i == len(cols_with_nulls):
             _log_step(
                 f"[missing] processed {i}/{len(cols_with_nulls)} (last={col}, "
-                f"nulls={nulls}, pct={pct}%)",
-                verbose,
+                f"nulls={nulls}, pct={pct}%)"
             )
 
     out = ddf
 
     if fill and fill_map:
         _log_step(
-            f"[missing] applying fills for {len(fill_map)} column(s) via .fillna(...)",
-            verbose,
+            f"[missing] applying fills for {len(fill_map)} column(s) via .fillna(...)"
         )
         out = out.fillna(fill_map)
 
     if add_flags and flag_cols:
-        _log_step(
-            f"[missing] adding missing flags for {len(flag_cols)} column(s)...",
-            verbose,
-        )
+        _log_step(f"[missing] adding missing flags for {len(flag_cols)} column(s)...")
         flag_exprs = {f"{c}_is_missing": out[c].isna() for c in flag_cols}
         out = out.assign(**flag_exprs)
 
     report_df = pd.DataFrame(suggestions).sort_values("pct_null", ascending=False)
-    if verbose:
+    if debug:
         with pd.option_context("display.max_colwidth", None, "display.width", 200):
-            print(report_df.to_markdown(index=False))
+            logger.debug("\n%s", report_df.to_markdown(index=False))
 
-    _log_step("[missing] done.", verbose)
+    _log_step("[missing] done.")
 
     return out, report_df, fill_map
 
@@ -409,14 +398,12 @@ def preprocess_dask_scaled(
     """
     Memory- and compute-efficient preprocess with step logging.
     """
-    _log_step(
-        f"[preprocess] start: rows≈unknown, cols={len(ddf.columns)}",
-        verbose,
-    )
+    debug = verbose
+    _log_step(f"[preprocess] start: rows≈unknown, cols={len(ddf.columns)}")
 
-    _log_step("[preprocess] step 1/5: renaming columns to snake_case...", verbose)
+    _log_step("[preprocess] step 1/5: renaming columns to snake_case...")
     out = rename_columns_snake_ddf(ddf)
-    _log_step(f"[preprocess] rename done → {len(out.columns)} columns", verbose)
+    _log_step(f"[preprocess] rename done → {len(out.columns)} columns")
 
     # Drop configured columns early (after rename) to avoid work on soon-to-be-dropped cols
     pre_drop = list(drop_columns) if drop_columns else []
@@ -431,8 +418,7 @@ def preprocess_dask_scaled(
         if to_drop:
             out = out.drop(columns=sorted(set(to_drop)))
             _log_step(
-                f"[preprocess] early drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}",
-                verbose,
+                f"[preprocess] early drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}"
             )
 
     if apply_boolfix:
@@ -445,13 +431,12 @@ def preprocess_dask_scaled(
             obj_cols = obj_like
 
         _log_step(
-            f"[preprocess] step 2/5: bool-fix on {len(obj_cols)} object/category cols",
-            verbose,
+            f"[preprocess] step 2/5: bool-fix on {len(obj_cols)} object/category cols"
         )
         if obj_cols:
             out = out.map_partitions(_boolfix_partition, obj_cols, meta=out)
     else:
-        _log_step("[preprocess] step 2/5: bool-fix disabled", verbose)
+        _log_step("[preprocess] step 2/5: bool-fix disabled")
 
     if sanitize_values:
         obj_all = [c for c in out.columns if str(out.dtypes[c]) == "object"]
@@ -460,24 +445,18 @@ def preprocess_dask_scaled(
         else:
             obj_cols = obj_all
 
-        _log_step(
-            f"[preprocess] step 3/5: sanitizing {len(obj_cols)} object cols",
-            verbose,
-        )
-        if verbose and len(obj_cols) > 100:
-            _log_step(
-                f"[preprocess] WARNING: {len(obj_cols)} object cols; "
-                f"consider restricting sanitize_cols=[...]",
-                verbose,
+        _log_step(f"[preprocess] step 3/5: sanitizing {len(obj_cols)} object cols")
+        if len(obj_cols) > 100:
+            logger.warning(
+                "[preprocess] WARNING: %s object cols; consider restricting sanitize_cols=[...]",
+                len(obj_cols),
             )
         if obj_cols:
             out = out.map_partitions(_clean_value_partition, obj_cols, meta=out)
     else:
-        _log_step("[preprocess] step 3/5: sanitize disabled", verbose)
+        _log_step("[preprocess] step 3/5: sanitize disabled")
 
-    _log_step(
-        "[preprocess] computing non-null counts (for nulls & drop_empty)...", verbose
-    )
+    _log_step("[preprocess] computing non-null counts (for nulls & drop_empty)...")
     counts = out.count().compute()
     if not isinstance(counts, pd.Series):
         counts = pd.Series(counts, index=out.columns)
@@ -487,12 +466,9 @@ def preprocess_dask_scaled(
     )
     dtypes = out.dtypes
 
-    _log_step(
-        f"[preprocess] inferred rows≈{row_count:,}, cols={len(out.columns)}",
-        verbose,
-    )
+    _log_step(f"[preprocess] inferred rows≈{row_count:,}, cols={len(out.columns)}")
 
-    _log_step("[preprocess] step 4/5: missing-value report and fills...", verbose)
+    _log_step("[preprocess] step 4/5: missing-value report and fills...")
     out, _, fill_map = missing_report_and_fill_dask(
         out,
         row_count=row_count,
@@ -503,37 +479,30 @@ def preprocess_dask_scaled(
         fill_strings_const=fill_strings_const,
         fill_numbers_with=fill_numbers_with,
         add_flags=add_missing_flags,
-        verbose=verbose,
+        verbose=debug,
         big_row_threshold=big_row_threshold,
         numeric_sample_rows=numeric_sample_rows,
     )
     _log_step(
-        f"[preprocess] missing-value phase done; filled {len(fill_map)} column(s)",
-        verbose,
+        f"[preprocess] missing-value phase done; filled {len(fill_map)} column(s)"
     )
 
     dropped: List[str] = []
 
     if drop_empty:
-        _log_step("[preprocess] step 5/5a: dropping empty columns...", verbose)
+        _log_step("[preprocess] step 5/5a: dropping empty columns...")
         empty_cols = counts[counts == 0].index.tolist()
         dropped += empty_cols
-        _log_step(f"[preprocess] drop_empty → {len(empty_cols)} column(s)", verbose)
+        _log_step(f"[preprocess] drop_empty → {len(empty_cols)} column(s)")
     else:
-        _log_step("[preprocess] step 5/5a: drop_empty disabled", verbose)
+        _log_step("[preprocess] step 5/5a: drop_empty disabled")
 
     if drop_constants or drop_every_value_is_unique:
         if drop_constants and row_count <= 1:
-            _log_step(
-                "[preprocess] step 5/5b: drop_constants skipped (row_count<=1)",
-                verbose,
-            )
+            _log_step("[preprocess] step 5/5b: drop_constants skipped (row_count<=1)")
             drop_constants = False
 
-        _log_step(
-            "[preprocess] step 5/5b: computing approx uniques for drop rules...",
-            verbose,
-        )
+        _log_step("[preprocess] step 5/5b: computing approx uniques for drop rules...")
         uniq_obj = out.nunique_approx()
         unique_counts = uniq_obj.compute()
         if not isinstance(unique_counts, pd.Series):
@@ -543,32 +512,25 @@ def preprocess_dask_scaled(
         if drop_constants:
             const_cols = unique_counts[unique_counts == 1].index.tolist()
             dropped += const_cols
-            _log_step(
-                f"[preprocess] drop_constants → {len(const_cols)} column(s)",
-                verbose,
-            )
+            _log_step(f"[preprocess] drop_constants → {len(const_cols)} column(s)")
 
         if drop_every_value_is_unique and row_count > 0:
             uniq_cols = unique_counts[unique_counts >= row_count].index.tolist()
             dropped += uniq_cols
             _log_step(
-                f"[preprocess] drop_every_value_is_unique → {len(uniq_cols)} column(s)",
-                verbose,
+                f"[preprocess] drop_every_value_is_unique → {len(uniq_cols)} column(s)"
             )
     else:
-        _log_step("[preprocess] step 5/5b: constants/unique drops disabled", verbose)
+        _log_step("[preprocess] step 5/5b: constants/unique drops disabled")
 
     dropped = sorted(set(dropped))
     if dropped:
         out = out.drop(columns=dropped)
-        _log_step(
-            f"[preprocess] total dropped columns: {len(dropped)} → {dropped}",
-            verbose,
-        )
+        _log_step(f"[preprocess] total dropped columns: {len(dropped)} → {dropped}")
     else:
-        _log_step("[preprocess] no columns dropped in step 5", verbose)
+        _log_step("[preprocess] no columns dropped in step 5")
 
-    _log_step("[preprocess] ✅ complete.", verbose)
+    _log_step("[preprocess] ✅ complete.")
     return out
 
 
@@ -967,7 +929,7 @@ def preprocess(ddf, cfg):
     hooks = getattr(cfg, "feature_functions", []) or []
     import importlib
 
-    verbose = getattr(cfg.logging, "level", "info") == "debug"
+    debug = getattr(cfg.logging, "level", "info") == "debug"
 
     orig_cols = list(ddf.columns)
 
@@ -993,8 +955,7 @@ def preprocess(ddf, cfg):
         after_cols = set(ddf.columns)
         new_cols = sorted(after_cols - before_cols)
         _log_step(
-            f"[feature_functions] applied {len(funcs)} hook(s); new columns: {new_cols or 'none'}",
-            verbose,
+            f"[feature_functions] applied {len(funcs)} hook(s); new columns: {new_cols or 'none'}"
         )
         # Show id cols and newly added columns, if present
         id_candidates = getattr(cfg.input, "id_cols", []) or []
@@ -1002,7 +963,7 @@ def preprocess(ddf, cfg):
         cols_for_head = [
             c for c in id_candidates + id_snake + new_cols if c in ddf.columns
         ][:10]
-        _log_head(ddf, cols_for_head, verbose, "after feature_functions")
+        _log_head(ddf, cols_for_head, debug, "after feature_functions")
 
     pre_cfg = getattr(cfg, "preprocessing", None) or getattr(cfg, "cleaning", None)
 
@@ -1073,8 +1034,7 @@ def preprocess(ddf, cfg):
         ddf = ddf.assign(**{tier_col: tier_series})
         _log_step(
             f"[kpi] zsml applied on '{source_col}' -> '{tier_col}' "
-            f"(quantiles={kpi['quantiles']}, zero_threshold={kpi['zero_threshold']})",
-            verbose,
+            f"(quantiles={kpi['quantiles']}, zero_threshold={kpi['zero_threshold']})"
         )
         # Show id + source + tier columns
         id_candidates = getattr(cfg.input, "id_cols", []) or []
@@ -1084,7 +1044,7 @@ def preprocess(ddf, cfg):
             for c in id_candidates + id_snake + [source_col, tier_col]
             if c in ddf.columns
         ][:10]
-        _log_head(ddf, cols_for_head, verbose, f"kpi '{tier_col}'")
+        _log_head(ddf, cols_for_head, debug, f"kpi '{tier_col}'")
 
     # Core preprocessing
     ddf = preprocess_dask_scaled(
@@ -1096,7 +1056,7 @@ def preprocess(ddf, cfg):
         drop_empty=getattr(pre_cfg, "drop_empty", True),
         sanitize_values=False,
         apply_boolfix=getattr(pre_cfg, "bool_fix", True),
-        verbose=verbose,
+        verbose=debug,
     )
 
     # Drop configured columns after preprocessing (support original and snake_case forms)

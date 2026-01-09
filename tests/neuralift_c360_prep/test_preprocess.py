@@ -6,7 +6,14 @@ from neuralift_c360_prep.preprocess import preprocess
 
 
 def test_feature_functions_and_rename(tmp_path):
-    pdf = pd.DataFrame({"ID": [1], "state": ["TX"], "birth_date": ["1980-01-01"], "ZIP_Code": ["78701"]})
+    pdf = pd.DataFrame(
+        {
+            "ID": [1],
+            "state": ["TX"],
+            "birth_date": ["1980-01-01"],
+            "ZIP_Code": ["78701"],
+        }
+    )
     ddf = dd.from_pandas(pdf, npartitions=1)
 
     cfg = BundleConfig.model_validate(
@@ -20,7 +27,12 @@ def test_feature_functions_and_rename(tmp_path):
                 "neuralift_c360_prep.features.zip_utils:clean_zip_codes_dask",
             ],
             "preprocessing": {"rename_to_snake": True, "missing_fill": "auto"},
-            "output": {"uc_catalog": "c", "uc_schema": "s", "uc_table": "t", "s3_base": "s3://b/"},
+            "output": {
+                "uc_catalog": "c",
+                "uc_schema": "s",
+                "uc_table": "t",
+                "s3_base": "s3://b/",
+            },
         }
     )
 
@@ -49,7 +61,12 @@ def test_kpi_functions_zsml():
                 }
             ],
             "preprocessing": {"rename_to_snake": True, "missing_fill": "none"},
-            "output": {"uc_catalog": "c", "uc_schema": "s", "uc_table": "t", "s3_base": "s3://b/"},
+            "output": {
+                "uc_catalog": "c",
+                "uc_schema": "s",
+                "uc_table": "t",
+                "s3_base": "s3://b/",
+            },
         }
     )
     out = preprocess(ddf, cfg).compute()

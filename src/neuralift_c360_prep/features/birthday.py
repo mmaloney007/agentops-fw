@@ -6,6 +6,7 @@ Purpose:
     Add simple birth month/day columns to a pandas partition; intended to run
     via map_partitions in the Dask pipeline pre-hooks.
 """
+
 from __future__ import annotations
 
 import pandas as pd
