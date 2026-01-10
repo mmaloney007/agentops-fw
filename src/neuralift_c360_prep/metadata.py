@@ -45,6 +45,7 @@ import threading
 import time
 import tempfile
 import unicodedata
+from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from hashlib import blake2b
@@ -258,6 +259,133 @@ def _wrap_instructor(force_client) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Column stats helpers
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ColumnStats:
+    columns: list[str]
+    row_count: int
+    counts: pd.Series
+    null_counts: pd.Series
+    dtypes: pd.Series
+    unique_counts: pd.Series | None
+    unique_is_approx: bool
+
+    def subset(self, columns: Iterable[str]) -> "ColumnStats":
+        cols = list(columns)
+        counts = self.counts.reindex(cols).fillna(0).astype(int)
+        null_counts = self.null_counts.reindex(cols).fillna(0).astype(int)
+        dtypes = self.dtypes.reindex(cols)
+        if self.unique_counts is None:
+            unique_counts = None
+        else:
+            unique_counts = self.unique_counts.reindex(cols).fillna(0).astype(int)
+        return ColumnStats(
+            columns=cols,
+            row_count=self.row_count,
+            counts=counts,
+            null_counts=null_counts,
+            dtypes=dtypes,
+            unique_counts=unique_counts,
+            unique_is_approx=self.unique_is_approx,
+        )
+
+
+def _empty_int_series(columns: Sequence[str]) -> pd.Series:
+    return pd.Series(index=list(columns), dtype="int64")
+
+
+def _compute_approx_unique_counts(ddf: dd.DataFrame, cols: Sequence[str]) -> pd.Series:
+    if not cols:
+        return _empty_int_series(cols)
+    delayed_vals = [ddf[c].nunique_approx() for c in cols]
+    approx_vals = dask_compute(*delayed_vals)
+    return pd.Series(approx_vals, index=cols).astype(int)
+
+
+def _compute_exact_unique_counts(ddf: dd.DataFrame, cols: Sequence[str]) -> pd.Series:
+    if not cols:
+        return _empty_int_series(cols)
+    unique_counts = ddf[cols].nunique(dropna=True).compute()
+    if isinstance(unique_counts, pd.DataFrame):
+        if unique_counts.shape[0] == 1:
+            unique_counts = unique_counts.iloc[0]
+        else:
+            raise TypeError(
+                "Expected unique counts as Series/1-row DF; got "
+                f"DF shape={unique_counts.shape}"
+            )
+    if not isinstance(unique_counts, pd.Series):
+        raise TypeError(
+            f"Unique counts must be a pandas Series; got {type(unique_counts)}. "
+            "Refusing to broadcast a scalar across columns."
+        )
+    return unique_counts.reindex(cols).fillna(0).astype(int)
+
+
+def compute_column_stats(
+    ddf: dd.DataFrame,
+    *,
+    columns: Iterable[str] | None = None,
+    use_approx_unique: bool = False,
+    approx_row_threshold: int | None = 2_000_000,
+    compute_unique_counts: bool = True,
+) -> ColumnStats:
+    cols = list(columns) if columns is not None else list(ddf.columns)
+    dtypes = ddf.dtypes.reindex(cols)
+
+    if not cols:
+        empty = _empty_int_series(cols)
+        return ColumnStats(
+            columns=cols,
+            row_count=0,
+            counts=empty,
+            null_counts=empty,
+            dtypes=dtypes,
+            unique_counts=empty if compute_unique_counts else None,
+            unique_is_approx=False,
+        )
+
+    counts = ddf[cols].count().compute()
+    if not isinstance(counts, pd.Series):
+        counts = pd.Series(counts, index=cols)
+    counts = counts.reindex(cols).fillna(0).astype(int)
+    row_count = int(counts.max()) if len(counts) else 0
+    null_counts = (row_count - counts).astype(int)
+
+    if not compute_unique_counts:
+        return ColumnStats(
+            columns=cols,
+            row_count=row_count,
+            counts=counts,
+            null_counts=null_counts,
+            dtypes=dtypes,
+            unique_counts=None,
+            unique_is_approx=bool(use_approx_unique),
+        )
+
+    if approx_row_threshold is None:
+        use_approx = bool(use_approx_unique)
+    else:
+        use_approx = bool(use_approx_unique and row_count > approx_row_threshold)
+
+    if use_approx:
+        unique_counts = _compute_approx_unique_counts(ddf, cols)
+    else:
+        unique_counts = _compute_exact_unique_counts(ddf, cols)
+
+    return ColumnStats(
+        columns=cols,
+        row_count=row_count,
+        counts=counts,
+        null_counts=null_counts,
+        dtypes=dtypes,
+        unique_counts=unique_counts,
+        unique_is_approx=use_approx,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Column profiling for data dictionary
 # ---------------------------------------------------------------------------
 def _profile_single_column(
@@ -348,6 +476,7 @@ def create_intelligent_data_dictionary(
     max_concurrency: int = 8,
     use_cache: bool = False,
     cache_dir: str | Path = ".nl_dd_cache",
+    stats: ColumnStats | None = None,
     debug: bool = False,
     use_approx_unique: bool = True,
     use_sample_for_uniques: bool = False,
@@ -359,6 +488,7 @@ def create_intelligent_data_dictionary(
       - Single stats pass for non-null counts and uniques (approx by default).
       - Sampling via ddf.sample(...), no head().
       - All per-column profiling only uses the in-memory pandas sample.
+      - Optionally accepts precomputed stats to avoid recomputation.
 
     Returns:
       - defs:   {column_name -> definition string}
@@ -403,40 +533,67 @@ def create_intelligent_data_dictionary(
     col_names = list(ddf.columns[:max_cols]) if max_cols else list(ddf.columns)
 
     logger.info("🚀 Starting data dictionary for %s column(s)...", len(col_names))
-    logger.info("📊 Computing Dask stats (counts, uniques)...")
 
-    counts_delayed = ddf[col_names].count()
+    if stats is None:
+        logger.info("📊 Computing Dask stats (counts, uniques)...")
 
-    if use_sample_for_uniques:
-        stats_to_compute = [counts_delayed]
-        has_unique = False
+        counts_delayed = ddf[col_names].count()
+
+        if use_sample_for_uniques:
+            stats_to_compute = [counts_delayed]
+            has_unique = False
+        else:
+            unique_delayed = (
+                ddf[col_names].nunique_approx()
+                if use_approx_unique
+                else ddf[col_names].nunique(dropna=True)
+            )
+            stats_to_compute = [counts_delayed, unique_delayed]
+            has_unique = True
+
+        computed_stats = dask_compute(*stats_to_compute)
+
+        if has_unique:
+            counts, unique_counts = computed_stats
+        else:
+            (counts,) = computed_stats
+            unique_counts = None
+
+        if not isinstance(counts, pd.Series):
+            counts = pd.Series(counts, index=col_names)
+
+        row_count = int(counts.max())
+        null_counts = row_count - counts
+
+        if unique_counts is not None and not isinstance(unique_counts, pd.Series):
+            unique_counts = pd.Series(unique_counts, index=col_names)
+        if unique_counts is not None:
+            unique_counts = unique_counts.astype(int)
     else:
-        unique_delayed = (
-            ddf[col_names].nunique_approx()
-            if use_approx_unique
-            else ddf[col_names].nunique(dropna=True)
-        )
-        stats_to_compute = [counts_delayed, unique_delayed]
-        has_unique = True
+        stats = stats.subset(col_names)
+        counts = stats.counts
+        row_count = stats.row_count
+        null_counts = stats.null_counts
+        unique_counts = stats.unique_counts
+        stats_unique_is_approx = stats.unique_is_approx
 
-    computed_stats = dask_compute(*stats_to_compute)
+        if use_sample_for_uniques:
+            unique_counts = None
+        elif unique_counts is None:
+            if use_approx_unique:
+                unique_counts = _compute_approx_unique_counts(ddf, col_names)
+                stats_unique_is_approx = True
+            else:
+                unique_counts = _compute_exact_unique_counts(ddf, col_names)
+                stats_unique_is_approx = False
+        elif not use_approx_unique and stats_unique_is_approx:
+            unique_counts = _compute_exact_unique_counts(ddf, col_names)
+            stats_unique_is_approx = False
 
-    if has_unique:
-        counts, unique_counts = computed_stats
-    else:
-        (counts,) = computed_stats
-        unique_counts = None
-
-    if not isinstance(counts, pd.Series):
-        counts = pd.Series(counts, index=col_names)
-
-    row_count = int(counts.max())
-    null_counts = row_count - counts
-
-    if unique_counts is not None and not isinstance(unique_counts, pd.Series):
-        unique_counts = pd.Series(unique_counts, index=col_names)
-    if unique_counts is not None:
-        unique_counts = unique_counts.astype(int)
+        if unique_counts is not None and not isinstance(unique_counts, pd.Series):
+            unique_counts = pd.Series(unique_counts, index=col_names)
+        if unique_counts is not None:
+            unique_counts = unique_counts.astype(int)
 
     logger.info(
         "✅ Stats done: ~%s rows over %s columns",
@@ -664,6 +821,7 @@ def build_column_tags_yaml_dask(
     progress_every: int = 10,
     approx_row_threshold: int = 2_000_000,
     debug: bool = False,
+    stats: ColumnStats | None = None,
 ) -> Tuple[Dict[str, Dict[str, str]], str]:
     """
     Classify columns and emit a YAML for tags (no UC/SQL).
@@ -675,21 +833,36 @@ def build_column_tags_yaml_dask(
       - DATETIME/DATE => categorical
       - Numeric => categorical if uniq <= max_card else continuous
       - fallback => categorical
+
+    If stats is provided, counts/uniques are reused to avoid recomputation.
     """
     cols = list(ddf.columns)
     id_set = {c.lower() for c in id_cols}
     kpi_set = {c.lower() for c in kpi_cols}
     miss_set = {c.lower() for c in (missing_indicator_cols or [])}
 
-    logger.info("[tags] computing non-null counts (and inferring row_count)...")
+    if stats is None:
+        logger.info("[tags] computing non-null counts (and inferring row_count)...")
+        stats = compute_column_stats(
+            ddf,
+            columns=cols,
+            use_approx_unique=use_approx_unique,
+            approx_row_threshold=approx_row_threshold,
+        )
+    else:
+        stats = stats.subset(cols)
+        logger.info(
+            "[tags] using precomputed stats (rows≈%s, cols=%s)",
+            f"{stats.row_count:,}",
+            len(cols),
+        )
 
-    counts = ddf[cols].count().compute()
-    if not isinstance(counts, pd.Series):
-        counts = pd.Series(counts, index=cols)
-
-    row_count = int(counts.max()) if len(counts) else 0
-    null_counts = row_count - counts
-    dtypes = ddf.dtypes
+    counts = stats.counts
+    row_count = stats.row_count
+    null_counts = stats.null_counts
+    dtypes = stats.dtypes
+    unique_counts = stats.unique_counts
+    stats_unique_is_approx = stats.unique_is_approx
 
     logger.info(
         "[tags] stats: rows≈%s, cols=%s, use_approx_unique=%s, approx_row_threshold=%s",
@@ -701,35 +874,22 @@ def build_column_tags_yaml_dask(
 
     use_approx = bool(use_approx_unique and row_count > approx_row_threshold)
 
-    if use_approx:
-        logger.info(
-            "[tags] using approximate uniques (per-column nunique_approx) for large table"
-        )
-
-        # IMPORTANT: DataFrame.nunique_approx() can return a scalar in some environments.
-        # Compute per-column to guarantee one value per column.
-        delayed_vals = [ddf[c].nunique_approx() for c in cols]
-        approx_vals = dd.compute(*delayed_vals)  # tuple of scalars aligned with cols
-        unique_counts = pd.Series(approx_vals, index=cols).astype(int)
-
-    else:
-        logger.info("[tags] computing exact uniques (nunique) for all columns...")
-        unique_counts = ddf[cols].nunique(dropna=True).compute()
-
-    # SAFETY: normalize shape (still useful for exact path or odd returns)
-    if isinstance(unique_counts, pd.DataFrame):
-        if unique_counts.shape[0] == 1:
-            unique_counts = unique_counts.iloc[0]
-        else:
-            raise TypeError(
-                f"Expected unique counts as Series/1-row DF; got DF shape={unique_counts.shape}"
+    if unique_counts is None or stats_unique_is_approx != use_approx:
+        if use_approx:
+            logger.info(
+                "[tags] using approximate uniques (per-column nunique_approx) for large table"
             )
-
-    if not isinstance(unique_counts, pd.Series):
-        raise TypeError(
-            f"Unique counts must be a pandas Series; got {type(unique_counts)}. "
-            "Refusing to broadcast a scalar across columns."
-        )
+            unique_counts = _compute_approx_unique_counts(ddf, cols)
+            stats_unique_is_approx = True
+        else:
+            logger.info("[tags] computing exact uniques (nunique) for all columns...")
+            unique_counts = _compute_exact_unique_counts(ddf, cols)
+            stats_unique_is_approx = False
+    else:
+        if use_approx:
+            logger.info("[tags] using precomputed approximate uniques")
+        else:
+            logger.info("[tags] using precomputed exact uniques")
 
     unique_counts = unique_counts.reindex(cols).fillna(0).astype(int)
 
@@ -2284,8 +2444,14 @@ def build_metadata(
         "OPENAI_API_KEY", ""
     ).startswith("sk-test")
 
-    # ---- tags ----
+    # ---- stats (shared by tags + data dictionary) ----
     tags_cfg = cfg.metadata.tags
+    stats = compute_column_stats(
+        ddf,
+        use_approx_unique=tags_cfg.use_approx_unique,
+    )
+
+    # ---- tags ----
     extra_all = tags_cfg.extra_tags_all or {}
     extra_by_col = tags_cfg.extra_tags_by_column or {}
     tags_by_col, tags_yaml = build_column_tags_yaml_dask(
@@ -2298,6 +2464,7 @@ def build_metadata(
         extra_tags_all=extra_all,
         extra_tags_by_column=extra_by_col,
         debug=cfg.logging.level == "debug",
+        stats=stats,
     )
 
     # ---- definitions (LLM) with fallback ----
@@ -2310,6 +2477,7 @@ def build_metadata(
             context=cfg.metadata.context,
             sample_rows=cfg.metadata.sample_rows,
             max_concurrency=cfg.metadata.max_concurrency,
+            stats=stats,
         )
     except Exception as exc:  # pragma: no cover - network/LLM failures
         logger.warning(
@@ -2405,6 +2573,8 @@ def build_table_comment(cfg):
 
 __all__ = [
     "SEGMENTER_CONFIG_DEFAULTS",
+    "ColumnStats",
+    "compute_column_stats",
     "create_intelligent_data_dictionary",
     "create_table_comment",
     "build_column_tags_yaml_dask",

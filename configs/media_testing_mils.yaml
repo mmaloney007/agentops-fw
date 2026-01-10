@@ -9,9 +9,9 @@ runtime:
     # worker_cpu: 8
     # worker_memory: 128GiB
     worker_vm_types:
-      - i3.4xlarge #- i3.2xlarge
+      - i3.2xlarge #- i3.2xlarge
     scheduler_vm_types:
-      - c5d.xlarge
+      - i3.2xlarge  # - c5d.xlarge
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -101,6 +101,7 @@ metadata:
         event_sum_column: months_subscribed
         event_sum_unit: months
     max_card: 25
+    use_approx_unique: true
   schema_alignment: true
   context: >
     VistaStream is a premium streaming platform dedicated to delivering an exceptional
