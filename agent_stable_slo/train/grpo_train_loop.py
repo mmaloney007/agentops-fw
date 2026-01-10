@@ -82,6 +82,25 @@ def _parse_json(text: str, schema: dict) -> Dict[str, Any]:
     return {}
 
 
+def _parse_hotpot_prompt(prompt: str) -> Tuple[str, str]:
+    """Extract question and context for HotpotQA-style prompts for faithfulness judging."""
+    if "Question:" not in prompt:
+        return "", prompt
+    parts = prompt.split("Question:", 1)
+    context = parts[0]
+    question = parts[1].strip()
+    if "Context:" in context:
+        context = context.split("Context:", 1)[1].strip()
+    return question, context
+
+
+def _canonical_json(obj: Dict[str, Any]) -> str:
+    """Canonical JSON string for equality checks in stability measurement."""
+    if not obj:
+        return ""
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
 def _load_dataset(tasks_path: str) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     with open(tasks_path, "r", encoding="utf-8") as f:
@@ -401,29 +420,83 @@ def train_loop(cfg: GRPOTrainConfig):
             input_ids = enc["input_ids"].to(device)
             attention_mask = enc["attention_mask"].to(device)
 
-            t0 = time.time()
-            with torch.no_grad():
-                gen = model.generate(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    max_new_tokens=cfg.max_new_tokens,
-                    do_sample=not cfg.deterministic,
-                    temperature=cfg.temperature,
-                    top_p=cfg.top_p,
-                    pad_token_id=tok.pad_token_id,
-                )
-            lat_ms = (time.time() - t0) * 1000.0
-            ttft_ms = lat_ms
+            # Multi-sample generation for stability measurement
+            all_outputs = []
+            for sample_idx in range(max(1, cfg.stability_samples)):
+                t0 = time.time()
+                with torch.no_grad():
+                    gen = model.generate(
+                        input_ids=input_ids,
+                        attention_mask=attention_mask,
+                        max_new_tokens=cfg.max_new_tokens,
+                        do_sample=not cfg.deterministic,
+                        temperature=cfg.temperature,
+                        top_p=cfg.top_p,
+                        pad_token_id=tok.pad_token_id,
+                    )
+                lat_ms = (time.time() - t0) * 1000.0
 
-            gen_ids = gen[:, input_ids.shape[1] :]
-            tokens_out = int(gen_ids.shape[1]) if gen_ids.numel() else 0
-            txt = tok.batch_decode(gen_ids, skip_special_tokens=True)[0].strip()
-            out_json = _parse_json(txt, schema)
+                gen_ids = gen[:, input_ids.shape[1] :]
+                tokens_out = int(gen_ids.shape[1]) if gen_ids.numel() else 0
+                txt = tok.batch_decode(gen_ids, skip_special_tokens=True)[0].strip()
+                out_json = _parse_json(txt, schema)
+
+                all_outputs.append({
+                    'json': out_json,
+                    'text': txt,
+                    'gen_ids': gen_ids,
+                    'latency_ms': lat_ms,
+                    'tokens_out': tokens_out,
+                })
+
+            # Compute disagreement rate across samples
+            canonical_jsons = [_canonical_json(o['json']) for o in all_outputs]
+            mode_json = max(set(canonical_jsons), key=canonical_jsons.count) if canonical_jsons else ""
+            disagreement_rate = 1.0 - canonical_jsons.count(mode_json) / len(canonical_jsons) if canonical_jsons else 0.0
+
+            # Select best output (schema-valid majority vote)
+            valid_outputs = [o for o, cj in zip(all_outputs, canonical_jsons)
+                             if schema_valid(o['json'], schema)]
+            if valid_outputs:
+                valid_canonicals = [_canonical_json(o['json']) for o in valid_outputs]
+                mode_valid = max(set(valid_canonicals), key=valid_canonicals.count)
+                best_output = next(o for o, cj in zip(valid_outputs, valid_canonicals) if cj == mode_valid)
+            else:
+                best_output = all_outputs[0]
+
+            # Unpack best output
+            txt = best_output['text']
+            out_json = best_output['json']
+            gen_ids = best_output['gen_ids']
+            lat_ms = best_output['latency_ms']
+            tokens_out = best_output['tokens_out']
+            ttft_ms = lat_ms  # Approximation
 
             blocked_now = _violates_blocklist([full_prompt, txt], blocked_terms)
             json_valid = schema_valid(out_json, schema)
             if blocked_now and cfg.reject_blocklisted:
                 json_valid = 0
+
+            # Faithfulness judge scoring (if enabled)
+            faithfulness_score = 1.0  # Default
+            if cfg.enable_faithfulness_judge:
+                from agent_stable_slo.eval.faithfulness_judge import score_faithfulness
+                question, context = _parse_hotpot_prompt(prompt)
+                if question and context:  # Only judge if we have both
+                    try:
+                        faith_result = score_faithfulness(
+                            base_url=cfg.judge_base_url,
+                            api_key=os.getenv("OPENAI_API_KEY", ""),
+                            model=cfg.judge_model,
+                            question=question,
+                            context=context,
+                            candidate_json=out_json,
+                            temperature=cfg.judge_temperature,
+                        )
+                        faithfulness_score = faith_result.faithfulness
+                    except Exception as e:
+                        # Log error but continue with default score
+                        faithfulness_score = 0.5  # Neutral on error
 
             reward = composite_reward(
                 out_json,
@@ -433,8 +506,10 @@ def train_loop(cfg: GRPOTrainConfig):
                 tokens=tokens_out,
                 lam_latency=lam,
                 mu_cost=mu,
-                disagreement_rate=0.0,
+                disagreement_rate=disagreement_rate,
                 gamma_stability=gamma,
+                faithfulness=faithfulness_score,
+                kappa_faithfulness=cfg.kappa_faithfulness,
             )
             if blocked_now and cfg.reject_blocklisted:
                 reward = 0.0
@@ -486,6 +561,9 @@ def train_loop(cfg: GRPOTrainConfig):
                 "tokens_out": tokens_out,
                 "schema_path": row["schema_path"],
                 "blocked": bool(blocked_now),
+                "faithfulness": float(faithfulness_score),
+                "disagreement_rate": float(disagreement_rate),
+                "stability_samples": cfg.stability_samples,
             }
             if gold is not None:
                 rec["gold"] = gold

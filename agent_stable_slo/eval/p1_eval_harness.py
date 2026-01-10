@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import time
+from pathlib import Path
 from dataclasses import asdict
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -102,6 +103,72 @@ def _canonical_json(obj: Optional[Dict[str, Any]]) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
+def _evaluate_tiers(summary: Dict[str, Any], crit) -> Dict[str, bool]:
+    """Check which tiers (Bronze/Silver/Gold) pass based on summary metrics."""
+    tiers = {"bronze": False, "silver": False, "gold": False}
+
+    # Bronze gates (structure + basic SLO)
+    bronze_pass = (
+        summary.get("json_valid_rate", 0.0) >= crit.structure.json_valid_min and
+        summary.get("schema_valid_rate", 0.0) >= crit.structure.schema_valid_min and
+        summary.get("p95_latency_ms", float('inf')) <= crit.slo.p95_ms_max
+    )
+    tiers["bronze"] = bronze_pass
+
+    if not bronze_pass:
+        return tiers  # Silver/Gold require Bronze
+
+    # Silver gates (extends Bronze: adds semantic correctness + stability)
+    disagreement = summary.get("stability", {}).get("disagreement_at_k", 1.0) if isinstance(summary.get("stability"), dict) else 1.0
+    silver_pass = (
+        summary.get("clinc_intent_macro_f1", 0.0) >= crit.accuracy.clinc_intent_macro_f1_min and
+        summary.get("hotpot_answer_f1_mean", 0.0) >= crit.accuracy.hotpot_answer_f1_min and
+        summary.get("hotpot_faithfulness_mean", 0.0) >= crit.faithfulness.hotpot_faithfulness_min and
+        disagreement <= crit.stability.disagreement_max
+    )
+    tiers["silver"] = silver_pass
+
+    if not silver_pass:
+        return tiers  # Gold requires Silver
+
+    # Gold gates (extends Silver: adds tool success + Success@SLO)
+    tool_success = summary.get("tool_success_rate", 0.0)  # Will be 0.0 if T3 not present
+    gold_pass = (
+        tool_success >= crit.tools.tool_success_rate_min and
+        summary.get("success_at_slo", 0.0) >= crit.slo.success_at_slo_min
+    )
+    tiers["gold"] = gold_pass
+
+    return tiers
+
+
+def _load_clinc_label_set() -> Optional[set[str]]:
+    labels_path = Path("tasks/clinc150_labels.json")
+    if not labels_path.exists():
+        return None
+    try:
+        labels = json.loads(labels_path.read_text(encoding="utf-8"))
+        return set(str(x) for x in labels)
+    except Exception:
+        return None
+
+
+def _clinc_label_match_rate(task_file: str, label_set: Optional[set[str]]) -> Optional[float]:
+    total = 0
+    match = 0
+    for rec in _read_jsonl(task_file):
+        gold = rec.get("gold") or {}
+        intent = gold.get("intent")
+        if intent is None:
+            continue
+        total += 1
+        if isinstance(intent, str) and (label_set is None or intent in label_set):
+            match += 1
+    if total == 0:
+        return None
+    return match / total
+
+
 def _parse_hotpot_prompt(prompt: str) -> Tuple[str, str]:
     if "Question:" not in prompt:
         return "", prompt
@@ -163,6 +230,21 @@ def run_eval(args: argparse.Namespace) -> None:
     suite = crit.suites.get(args.suite)
     if not suite:
         raise SystemExit(f"suite not found: {args.suite}")
+    if mode == DecodingMode.SPEC_DRIVEN_PLUS_SELFCONSISTENCY and args.self_consistency_samples < 2:
+        raise SystemExit("self-consistency mode requires --self-consistency-samples >= 2")
+    if args.repair_max_attempts < 0:
+        raise SystemExit("--repair-max-attempts must be >= 0")
+
+    clinc_label_set = _load_clinc_label_set()
+    clinc_label_type_match_rate: Optional[float] = None
+    for task in suite.tasks:
+        if task.id == "t1_clinc":
+            clinc_label_type_match_rate = _clinc_label_match_rate(task.task_file, clinc_label_set)
+            if clinc_label_type_match_rate is not None and clinc_label_type_match_rate < 1.0:
+                raise RuntimeError(
+                    f"CLINC label type mismatch: match_rate={clinc_label_type_match_rate:.3f}. "
+                    "Fix tasks/clinc_en.jsonl and tasks/schemas/clinc_nlu_schema.json before running."
+                )
 
     _maybe_set_env(args.provider, args.endpoint, args.model)
     if "MAX_THOUGHT_TOKENS" not in os.environ:
@@ -213,6 +295,7 @@ def run_eval(args: argparse.Namespace) -> None:
             "decode_mode": mode.value,
             "temperature": float(args.temperature),
             "max_retries": int(args.max_retries),
+            "repair_max_attempts": int(args.repair_max_attempts),
             "self_consistency_samples": int(args.self_consistency_samples),
             "self_consistency_max_ms": int(args.self_consistency_max_ms),
             "git_rev": env_snapshot_data.get("git_rev"),
@@ -244,6 +327,31 @@ def run_eval(args: argparse.Namespace) -> None:
         WL.log_artifact(wb_run, task.task_file, f"tasks-{task.id}", type_="tasks", aliases=alias)
         WL.log_artifact(wb_run, task.output_schema, f"schema-{task.id}", type_="schema", aliases=alias)
 
+    # Warmup requests to avoid cold-start latency contamination
+    warmup_count = crit.reproducibility.warmup_requests
+    if warmup_count > 0:
+        print(f"[P1] Running {warmup_count} warmup requests...")
+        warmup_schema = {"type": "object", "properties": {"warmup": {"type": "boolean"}}, "required": ["warmup"]}
+        for _ in range(warmup_count):
+            try:
+                _ = generate_with_mode(
+                    prompt="Warmup request",
+                    schema=warmup_schema,
+                    mode=mode,
+                    temperature=0.0,
+                    endpoint=args.endpoint,
+                    model=args.model,
+                    max_tokens=10,
+                    max_retries=0,
+                    repair_max_attempts=0,
+                    self_consistency_samples=1,
+                    self_consistency_max_ms=1000,
+                    self_consistency_selection="first",
+                )
+            except Exception:
+                pass  # Ignore warmup failures
+        print("[P1] Warmup complete, starting evaluation...")
+
     for task in suite.tasks:
         schema = _load_schema(task.output_schema)
         for idx, rec in enumerate(_read_jsonl(task.task_file), start=1):
@@ -261,6 +369,7 @@ def run_eval(args: argparse.Namespace) -> None:
                     temperature=float(args.temperature),
                     max_tokens=crit.slo.max_tokens_out,
                     max_retries=int(args.max_retries),
+                    repair_max_attempts=int(args.repair_max_attempts),
                     self_consistency_samples=int(args.self_consistency_samples),
                     self_consistency_max_ms=int(args.self_consistency_max_ms),
                     self_consistency_selection=str(args.self_consistency_selection),
@@ -373,6 +482,8 @@ def run_eval(args: argparse.Namespace) -> None:
                     "tokens_in": int(gen.total_tokens_in),
                     "tokens_out": int(gen.total_tokens_out),
                     "retry_count": int(gen.retry_count),
+                    "repair_count": int(gen.repair_count),
+                    "candidate_count": int(gen.candidate_count),
                     "raw_output": final.raw_text,
                     "parsed_output": final.parsed_json,
                     "parse_error": final.parse_error,
@@ -425,6 +536,19 @@ def run_eval(args: argparse.Namespace) -> None:
         "success_at_slo": float(np.mean([e["metrics"]["success_at_slo"] for e in episodes])) if episodes else 0.0,
         "stability": stability_summary,
         "task_fingerprints": task_fps,
+        "clinc_label_type_match_rate": clinc_label_type_match_rate,
+        "avg_retry_count": float(np.mean([e["retry_count"] for e in episodes])) if episodes else 0.0,
+        "avg_repair_count": float(np.mean([e["repair_count"] for e in episodes])) if episodes else 0.0,
+        "avg_candidate_count": float(np.mean([e["candidate_count"] for e in episodes])) if episodes else 0.0,
+        "retry_rate": float(np.mean([1.0 if e["retry_count"] > 0 else 0.0 for e in episodes])) if episodes else 0.0,
+        "repair_rate": float(np.mean([1.0 if e["repair_count"] > 0 else 0.0 for e in episodes])) if episodes else 0.0,
+        "candidate_rate": float(np.mean([1.0 if e["candidate_count"] > 1 else 0.0 for e in episodes])) if episodes else 0.0,
+        "latency_boundary": {
+            "client_observed_policy_call": True,
+            "includes_retries": True,
+            "includes_judge_latency": False,
+            "concurrency": "single_client",
+        },
     }
 
     macro_f1 = _macro_f1(clinc_gold, clinc_pred)
@@ -438,6 +562,12 @@ def run_eval(args: argparse.Namespace) -> None:
     summary["hotpot_answer_f1_mean"] = float(np.mean(hotpot_f1s)) if hotpot_f1s else None
     summary["hotpot_faithfulness_mean"] = float(np.mean(faith_scores)) if faith_scores else None
     summary["hotpot_contradiction_rate_mean"] = float(np.mean(contra_rates)) if contra_rates else None
+
+    # Tier evaluation
+    tier_results = _evaluate_tiers(summary, crit)
+    summary["tier_bronze"] = tier_results["bronze"]
+    summary["tier_silver"] = tier_results["silver"]
+    summary["tier_gold"] = tier_results["gold"]
 
     with open(episodes_path, "w", encoding="utf-8") as f:
         for ep in episodes:
