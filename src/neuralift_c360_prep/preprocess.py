@@ -286,16 +286,19 @@ def missing_report_and_fill_dask(
     string_modes: dict[str, Any] = {}
     if fill and str_cols and fill_strings_with == "mode":
         _log_step(
-            f"[missing/modes] computing string modes for {len(str_cols)} columns..."
+            f"[missing/modes] computing string modes for {len(str_cols)} columns (batched)..."
         )
-        for i, col in enumerate(str_cols, start=1):
-            if i == 1 or i % progress_every == 0 or i == len(str_cols):
-                _log_step(f"[missing/modes] {i}/{len(str_cols)}: {col}")
-            vc = ddf[col].dropna().value_counts().head(1).compute()
+        # OPTIMIZATION: Batch all value_counts computations into a single dask_compute call
+        # This reduces scheduler round-trips from O(n) to O(1)
+        mode_tasks = [ddf[col].dropna().value_counts().head(1) for col in str_cols]
+        mode_results = dask_compute(*mode_tasks)
+
+        for col, vc in zip(str_cols, mode_results):
             if len(vc):
                 string_modes[col] = vc.index[0]
             else:
                 string_modes[col] = fill_strings_const
+        _log_step(f"[missing/modes] computed modes for {len(str_cols)} columns")
 
     suggestions: list[dict[str, Any]] = []
     fill_map: dict[str, Any] = {}
@@ -421,40 +424,59 @@ def preprocess_dask_scaled(
                 f"[preprocess] early drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}"
             )
 
+    # OPTIMIZATION: Fuse bool-fix and sanitize into a single map_partitions call
+    # to reduce task overhead when both are enabled
+    boolfix_obj_cols: list[str] = []
+    sanitize_obj_cols: list[str] = []
+
     if apply_boolfix:
         obj_like = [
             c for c in out.columns if str(out.dtypes[c]) in {"object", "category"}
         ]
         if boolfix_cols is not None:
-            obj_cols = [c for c in obj_like if c in boolfix_cols]
+            boolfix_obj_cols = [c for c in obj_like if c in boolfix_cols]
         else:
-            obj_cols = obj_like
-
+            boolfix_obj_cols = obj_like
         _log_step(
-            f"[preprocess] step 2/5: bool-fix on {len(obj_cols)} object/category cols"
+            f"[preprocess] step 2/5: bool-fix on {len(boolfix_obj_cols)} object/category cols"
         )
-        if obj_cols:
-            out = out.map_partitions(_boolfix_partition, obj_cols, meta=out)
     else:
         _log_step("[preprocess] step 2/5: bool-fix disabled")
 
     if sanitize_values:
         obj_all = [c for c in out.columns if str(out.dtypes[c]) == "object"]
         if sanitize_cols is not None:
-            obj_cols = [c for c in obj_all if c in sanitize_cols]
+            sanitize_obj_cols = [c for c in obj_all if c in sanitize_cols]
         else:
-            obj_cols = obj_all
-
-        _log_step(f"[preprocess] step 3/5: sanitizing {len(obj_cols)} object cols")
-        if len(obj_cols) > 100:
+            sanitize_obj_cols = obj_all
+        _log_step(
+            f"[preprocess] step 3/5: sanitizing {len(sanitize_obj_cols)} object cols"
+        )
+        if len(sanitize_obj_cols) > 100:
             logger.warning(
                 "[preprocess] WARNING: %s object cols; consider restricting sanitize_cols=[...]",
-                len(obj_cols),
+                len(sanitize_obj_cols),
             )
-        if obj_cols:
-            out = out.map_partitions(_clean_value_partition, obj_cols, meta=out)
     else:
         _log_step("[preprocess] step 3/5: sanitize disabled")
+
+    # Apply fused partition function if both operations are needed
+    if boolfix_obj_cols and sanitize_obj_cols:
+
+        def _fused_boolfix_and_sanitize(
+            pdf: pd.DataFrame, bf_cols: list[str], san_cols: list[str]
+        ) -> pd.DataFrame:
+            pdf = _boolfix_partition(pdf, bf_cols)
+            pdf = _clean_value_partition(pdf, san_cols)
+            return pdf
+
+        out = out.map_partitions(
+            _fused_boolfix_and_sanitize, boolfix_obj_cols, sanitize_obj_cols, meta=out
+        )
+    elif boolfix_obj_cols:
+        out = out.map_partitions(_boolfix_partition, boolfix_obj_cols, meta=out)
+    elif sanitize_obj_cols:
+        out = out.map_partitions(_clean_value_partition, sanitize_obj_cols, meta=out)
 
     _log_step("[preprocess] computing non-null counts (for nulls & drop_empty)...")
     counts = out.count().compute()
@@ -687,22 +709,22 @@ def _fit_zsml_edges_numeric_dask(
 ) -> Dict[str, Any]:
     positive = numeric[numeric > zero_threshold].dropna()
 
+    # OPTIMIZATION: Batch all quantile computations into a single dask_compute call
+    # This reduces graph traversal overhead significantly
+    all_quantiles = list(quantiles)
     if clip_high_quantile is not None:
-        min_val, max_val, q_vals, cap_val, count_pos = dask_compute(
-            positive.min(),
-            positive.max(),
-            positive.quantile(list(quantiles)),
-            positive.quantile(clip_high_quantile),
-            positive.count(),
-        )
-    else:
-        min_val, max_val, q_vals, count_pos = dask_compute(
-            positive.min(),
-            positive.max(),
-            positive.quantile(list(quantiles)),
-            positive.count(),
-        )
-        cap_val = None
+        all_quantiles.append(clip_high_quantile)
+
+    min_val, max_val, all_q_vals, count_pos = dask_compute(
+        positive.min(),
+        positive.max(),
+        positive.quantile(all_quantiles),
+        positive.count(),
+    )
+
+    # Extract individual quantile values from the batched result
+    q_vals = all_q_vals.iloc[: len(quantiles)]
+    cap_val = float(all_q_vals.iloc[-1]) if clip_high_quantile is not None else None
 
     if count_pos == 0:
         return {
@@ -719,7 +741,7 @@ def _fit_zsml_edges_numeric_dask(
     q1_f, q2_f = float(q_vals.iloc[0]), float(q_vals.iloc[1])
 
     if cap_val is not None and strict_clip:
-        cap = float(cap_val)
+        cap = cap_val
         positive_clipped = positive.clip(upper=cap)
         min_val2, max_val2, q_vals2 = dask_compute(
             positive_clipped.min(),
@@ -730,7 +752,7 @@ def _fit_zsml_edges_numeric_dask(
         max_pos_f = float(max_val2)
         q1_f, q2_f = float(q_vals2.iloc[0]), float(q_vals2.iloc[1])
     elif cap_val is not None and not strict_clip:
-        cap = float(cap_val)
+        cap = cap_val
         if cap < max_pos_f:
             max_pos_f = cap
         if q2_f > max_pos_f:

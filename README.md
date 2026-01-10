@@ -63,6 +63,29 @@ pixi run points_and_labels --volume s3://bucket/prefix --runtime coiled
 pixi run points_and_labels --volume s3://bucket/prefix --input-subdir segmented_data --output-subdir segmented_data
 ```
 
+## Testing
+
+Run the test suite locally:
+
+```bash
+# Run all tests
+pixi run -e dev test
+
+# Run with coverage report
+pixi run -e dev pytest --cov=src/neuralift_c360_prep --cov-report=term-missing
+
+# Run specific test file
+pixi run -e dev pytest tests/neuralift_c360_prep/test_pipeline.py
+
+# Run integration tests (requires credentials)
+NL_INTEGRATION=1 pixi run -e dev pytest -m integration
+```
+
+Test suite includes:
+- 36+ unit tests across core modules (ingest, preprocess, write, metadata, pipeline, config)
+- Feature tests (birthday, zip enrichment, state mapping)
+- Integration tests (marked with `@pytest.mark.integration`, require external services)
+
 ### Environment credentials
 
 Set these in a local `.env` file; they are loaded automatically and passed to Coiled workers.

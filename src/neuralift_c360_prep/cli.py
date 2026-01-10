@@ -54,7 +54,11 @@ def main() -> None:
     if args.log_level:
         cfg.logging.level = args.log_level
 
-    setup_logging(cfg.logging.level)
+    setup_logging(
+        cfg.logging.level,
+        dask_level=cfg.logging.dask_level,
+        llm_level=cfg.logging.llm_level,
+    )
     run_from_config(cfg)
 
 

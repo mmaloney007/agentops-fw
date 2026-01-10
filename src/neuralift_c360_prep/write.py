@@ -264,7 +264,14 @@ def write_ddf_and_yaml_to_s3(
     force_npartitions: int | None = None,  # if set, force exact nparts (min 2)
     target_mb_per_part: int = 256,  # DEFAULT = 256MB (Dask parquet guidance is 100–300 MiB)
     write_index: bool = False,
-    shuffle_before_partition_on: bool = True,  # default True because you asked for it
+    shuffle_before_partition_on: bool = True,  # default True to reduce file explosion
+    # Performance toggles (configurable via OutputConfig)
+    persist_before_write: bool = True,
+    rebalance_before_write: bool = True,
+    # Dtype casting toggles
+    cast_bool_to_int8: bool = True,
+    cast_category_to_string: bool = True,
+    cast_object_to_string: bool = True,
 ) -> str:
     """
     Write Parquet under <s3_base>/input_data/ and config/metadata files at <s3_base>.
@@ -295,18 +302,6 @@ def write_ddf_and_yaml_to_s3(
 
     ddf_to_write = ddf
 
-    # 1) BOOL -> int8 (for parquet / downstream systems that dislike bool)
-    bool_cols = []
-    for c, dt in ddf_to_write.dtypes.items():
-        dt_l = str(dt).lower()
-        # catches numpy bool, pandas BooleanDtype, and many backends
-        if dt_l in {"bool", "boolean"}:
-            bool_cols.append(c)
-
-    if bool_cols:
-        logger.info(f"[cast] converting boolean cols to int8: {bool_cols}")
-        ddf_to_write = ddf_to_write.astype({c: "int8" for c in bool_cols})
-
     # Prefer pyarrow-backed strings for cross-environment pickle stability.
     string_dtype = "string"
     try:
@@ -316,21 +311,36 @@ def write_ddf_and_yaml_to_s3(
     except Exception:
         string_dtype = "string"
 
+    # 1) BOOL -> int8 (for parquet / downstream systems that dislike bool)
+    if cast_bool_to_int8:
+        bool_cols = []
+        for c, dt in ddf_to_write.dtypes.items():
+            dt_l = str(dt).lower()
+            # catches numpy bool, pandas BooleanDtype, and many backends
+            if dt_l in {"bool", "boolean"}:
+                bool_cols.append(c)
+
+        if bool_cols:
+            logger.info(f"[cast] converting boolean cols to int8: {bool_cols}")
+            ddf_to_write = ddf_to_write.astype({c: "int8" for c in bool_cols})
+
     # 2) category -> string
-    cat_cols = [
-        c for c, dt in ddf_to_write.dtypes.items() if "category" in str(dt).lower()
-    ]
-    if cat_cols:
-        logger.info(f"[cast] converting categoricals to {string_dtype}: {cat_cols}")
-        ddf_to_write = ddf_to_write.astype({c: string_dtype for c in cat_cols})
+    if cast_category_to_string:
+        cat_cols = [
+            c for c, dt in ddf_to_write.dtypes.items() if "category" in str(dt).lower()
+        ]
+        if cat_cols:
+            logger.info(f"[cast] converting categoricals to {string_dtype}: {cat_cols}")
+            ddf_to_write = ddf_to_write.astype({c: string_dtype for c in cat_cols})
 
     # 3) object -> string
-    obj_cols = [
-        c for c, dt in ddf_to_write.dtypes.items() if "object" in str(dt).lower()
-    ]
-    if obj_cols:
-        logger.info(f"[cast] converting object cols to {string_dtype}: {obj_cols}")
-        ddf_to_write = ddf_to_write.astype({c: string_dtype for c in obj_cols})
+    if cast_object_to_string:
+        obj_cols = [
+            c for c, dt in ddf_to_write.dtypes.items() if "object" in str(dt).lower()
+        ]
+        if obj_cols:
+            logger.info(f"[cast] converting object cols to {string_dtype}: {obj_cols}")
+            ddf_to_write = ddf_to_write.astype({c: string_dtype for c in obj_cols})
 
     current_parts = ddf_to_write.npartitions
     logger.info(f"[stats] current nparts={current_parts}")
@@ -407,14 +417,21 @@ def write_ddf_and_yaml_to_s3(
 
     # --- Persist + rebalance ONCE, after shuffle, right before writing (cluster-only) ---
     if client is not None:
-        logger.info(
-            "[write] persisting before to_parquet to distribute partitions across workers"
-        )
-        ddf_to_write = client.persist(ddf_to_write)
-        try:
-            client.rebalance(ddf_to_write)
-        except Exception:
-            pass
+        if persist_before_write:
+            logger.info(
+                "[write] persisting before to_parquet to distribute partitions across workers"
+            )
+            ddf_to_write = client.persist(ddf_to_write)
+
+            if rebalance_before_write:
+                try:
+                    client.rebalance(ddf_to_write)
+                except Exception:
+                    pass
+        else:
+            logger.info(
+                "[write] persist_before_write=False; skipping persist/rebalance"
+            )
 
     logger.info(f"[s3] preparing Parquet write to {parquet_path} (overwrite=True)...")
 
@@ -491,6 +508,16 @@ def write_outputs(ddf, cfg, meta_json_text: str, config_text: str, partition_on=
         target_mb_per_part=cfg.output.target_mb_per_part,
         force_npartitions=cfg.output.force_npartitions,
         write_index=cfg.output.write_index,
+        # Performance toggles from config
+        shuffle_before_partition_on=getattr(
+            cfg.output, "shuffle_before_partition_on", True
+        ),
+        persist_before_write=getattr(cfg.output, "persist_before_write", True),
+        rebalance_before_write=getattr(cfg.output, "rebalance_before_write", True),
+        # Dtype casting toggles from config
+        cast_bool_to_int8=getattr(cfg.output, "cast_bool_to_int8", True),
+        cast_category_to_string=getattr(cfg.output, "cast_category_to_string", True),
+        cast_object_to_string=getattr(cfg.output, "cast_object_to_string", True),
     )
 
 

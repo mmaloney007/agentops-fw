@@ -29,8 +29,12 @@ def _library_log_level(levelno: int) -> int:
     return max(levelno, logging.WARNING)
 
 
-def _set_library_loggers(levelno: int) -> None:
-    lib_level = _library_log_level(levelno)
+def _set_library_loggers(app_levelno: int, dask_levelno: int | None = None) -> None:
+    lib_level = (
+        _library_log_level(app_levelno)
+        if dask_levelno is None
+        else _coerce_level(dask_levelno)
+    )
     for name in (
         "dask",
         "distributed",
@@ -38,6 +42,12 @@ def _set_library_loggers(levelno: int) -> None:
         "distributed.worker",
     ):
         logging.getLogger(name).setLevel(lib_level)
+
+
+def _handler_level(app_levelno: int, dask_levelno: int | None = None) -> int:
+    if dask_levelno is None:
+        return app_levelno
+    return min(app_levelno, _coerce_level(dask_levelno))
 
 
 class _DaskWorkerShutdownFilter(logging.Filter):
@@ -86,48 +96,80 @@ def set_worker_shutdown_flag(enabled: bool) -> None:
 def setup_logging(
     level: str | int,
     *,
+    dask_level: str | int | None = None,
+    llm_level: str | int | None = None,
     fmt: str = DEFAULT_LOG_FORMAT,
     datefmt: str = DEFAULT_DATEFMT,
     force: bool = True,
 ) -> int:
     """
     Configure root logging once; safe to call multiple times.
+
+    Args:
+        level: Root logger level (app-wide default)
+        dask_level: Separate level for dask/distributed loggers
+        llm_level: Separate level for LLM operation loggers (neuralift_c360_prep.llm)
+        fmt: Log format string
+        datefmt: Date format string
+        force: Force reconfiguration
     """
     global _LOG_CONFIGURED
     levelno = _coerce_level(level)
+    dask_levelno = _coerce_level(dask_level) if dask_level is not None else None
+    llm_levelno = _coerce_level(llm_level) if llm_level is not None else levelno
+    handler_level = _handler_level(levelno, dask_levelno)
     if not _LOG_CONFIGURED:
         logging.basicConfig(level=levelno, format=fmt, datefmt=datefmt, force=force)
         _LOG_CONFIGURED = True
     else:
         root = logging.getLogger()
         root.setLevel(levelno)
-        for handler in root.handlers:
-            handler.setLevel(levelno)
 
-    _set_library_loggers(levelno)
+    root = logging.getLogger()
+    for handler in root.handlers:
+        handler.setLevel(handler_level)
+
+    _set_library_loggers(levelno, dask_levelno)
+
+    # Configure LLM logger separately
+    llm_logger = logging.getLogger("neuralift_c360_prep.llm")
+    llm_logger.setLevel(llm_levelno)
+
     logging.captureWarnings(True)
     return levelno
 
 
-def configure_remote_logging(level: str | int) -> None:
+def configure_remote_logging(
+    level: str | int,
+    dask_level: str | int | None = None,
+    llm_level: str | int | None = None,
+) -> None:
     """
     Ensure worker/scheduler logging is configured without clobbering handlers.
     """
     levelno = _coerce_level(level)
+    dask_levelno = _coerce_level(dask_level) if dask_level is not None else None
+    llm_levelno = _coerce_level(llm_level) if llm_level is not None else levelno
+    handler_level = _handler_level(levelno, dask_levelno)
     root = logging.getLogger()
     root.setLevel(levelno)
     formatter = logging.Formatter(DEFAULT_LOG_FORMAT, DEFAULT_DATEFMT)
     if not root.handlers:
         handler = logging.StreamHandler()
-        handler.setLevel(levelno)
+        handler.setLevel(handler_level)
         handler.setFormatter(formatter)
         root.addHandler(handler)
     else:
         for handler in root.handlers:
-            handler.setLevel(levelno)
+            handler.setLevel(handler_level)
             if handler.formatter is None:
                 handler.setFormatter(formatter)
-    _set_library_loggers(levelno)
+    _set_library_loggers(levelno, dask_levelno)
+
+    # Configure LLM logger separately
+    llm_logger = logging.getLogger("neuralift_c360_prep.llm")
+    llm_logger.setLevel(llm_levelno)
+
     _ensure_worker_shutdown_filter()
 
 
@@ -189,6 +231,8 @@ def configure_dask_logging(
     client: Any,
     *,
     level: str | int,
+    dask_level: str | int | None = None,
+    llm_level: str | int | None = None,
     name_prefix: str | None = "neuralift_c360_prep",
     forward_to_scheduler: bool = True,
 ) -> None:
@@ -196,12 +240,16 @@ def configure_dask_logging(
     Configure scheduler/worker logging and forward driver logs to scheduler.
     """
     levelno = _coerce_level(level)
+    dask_levelno = _coerce_level(dask_level) if dask_level is not None else None
+    llm_levelno = _coerce_level(llm_level) if llm_level is not None else None
     try:
-        client.run(configure_remote_logging, levelno)
+        client.run(configure_remote_logging, levelno, dask_levelno, llm_levelno)
     except Exception:
         pass
     try:
-        client.run_on_scheduler(configure_remote_logging, levelno)
+        client.run_on_scheduler(
+            configure_remote_logging, levelno, dask_levelno, llm_levelno
+        )
     except Exception:
         pass
     if forward_to_scheduler:

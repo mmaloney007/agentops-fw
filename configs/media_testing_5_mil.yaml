@@ -4,18 +4,20 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep
+    software_env: neuralift_c360_prep_test
     n_workers: 6
-    # worker_cpu: 8
-    # worker_memory: 128GiB
     worker_vm_types:
-      - i3.2xlarge #- i3.2xlarge
+      - i7i.8xlarge       # 32 vCPU / 256 GiB / NVMe (best for shuffle+spill)
+      # - i4i.8xlarge      # fallback if i7i unavailable
     scheduler_vm_types:
-      - i3.2xlarge  # - c5d.xlarge
+      - m7i.large         # keep scheduler small
+      # - m7i.xlarge       # use if scheduler CPU pegs / huge task graphs
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
     op_timeout: 45m
+    env:
+      DASK_DATAFRAME__QUERY_PLANNING: "0"
 
 input:
   source: uc_table

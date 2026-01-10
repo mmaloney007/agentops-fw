@@ -1,15 +1,15 @@
 logging:
-  level: info
+  level: debug
 
 runtime:
   engine: coiled
   coiled:
     software_env: neuralift_c360_prep_test
-    n_workers: 2
+    n_workers: 12
     worker_vm_types:
-      - i3.2xlarge #- i3.2xlarge
+      - i3.2xlarge        # scale out; good if you can parallelize well
     scheduler_vm_types:
-      - c5d.xlarge
+      - m7i.large
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -19,9 +19,9 @@ runtime:
 
 input:
   source: uc_table
-  uc_table: staging-sports-and-concerts-source.default.sports_lp
+  uc_table: staging-media-source.default.media_demo_50m
   columns: null
-  id_cols: ["customer_id"]
+  id_cols: ["Customer_ID"]
   snapshot:
     enabled: false
 
@@ -30,8 +30,7 @@ input:
 #   - Format: "module:function". Runs in order, 0..N entries. Side-effect free; no compute/persist.
 #   - Example: add age/generation from a birth year column:
 #       neuralift_c360_prep.features.birthday:add_age_from_year
-# feature_functions:
-#   - neuralift_c360_prep.features.birthday:add_age_from_year
+feature_functions: []
 
 # kpi_functions:
 #   - Runs AFTER feature_functions, BEFORE preprocessing. Supports multiple ZSML definitions.
@@ -40,7 +39,16 @@ input:
 #       source_col: <col>
 #       out_col: <optional, defaults to <source_col>_tier>
 #       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
-# kpi_functions: []
+kpi_functions:
+  - type: zsml
+    source_col: Total_Spent
+    out_col: Total_Spent_Tier
+    zero_threshold: 0.0
+    quantiles: [0.33, 0.66]
+    clip_high_quantile: 0.95
+    unit: "$"
+    range_style: text
+    add_prefix: true
 
 preprocessing:
   rename_to_snake: true
@@ -49,56 +57,63 @@ preprocessing:
   drop_constant: true
   missing_fill: auto
   # zsml:
-  #   enabled: false
-  #   source_col: null
-  #   out_col: null
+  #   enabled: true
+  #   source_col: Total_Spent
+  #   out_col: Total_Spent_Tier
   #   zero_threshold: 0.0
   #   quantiles: [0.33, 0.66]
   #   clip_high_quantile: 0.95
-  #   unit: ""
+  #   unit: "$"
   #   range_style: text
   #   add_prefix: true
 
 # drop_columns:
 #   - Applied LAST, after preprocessing/renames (snake-case is allowed).
-# drop_columns:
-#   - CustomerJoinDate
+drop_columns:
+  - Country
+  - State
+  - Zip
+  - Cancellation_Date
+  - Subscription_Start_Date
+  - Subscription_End_Date
+  - Last_Login_Date
 
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 25
+  max_concurrency: 50
   tags:
+    use_approx_unique: false
     id_cols: ["customer_id"]
     kpi_cols:
-      - average_event_spend
-      - parking_user
-      - app_user
-      - new_this_year
+      - at_risk
+      - is_new_customer
+      - is_churned
+      - is_cycler
+      - is_active
+      - total_spent_tier
     missing_indicator_cols: []
     extra_tags_all: null
     extra_tags_by_column:
-      average_event_spend:
-        value_sum_column: total_dollar_spend_all_events_all_years
+      total_spent_tier:
+        value_sum_column: total_spent
         value_sum_unit: USD
-        event_sum_column: total_events_all_categories_all_years
-        event_sum_unit: events
+        event_sum_column: months_subscribed
+        event_sum_unit: months
     max_card: 25
     use_approx_unique: true
   schema_alignment: true
-  context: |
-    Granite Pulse Arena stands as New Hampshire’s premier destination for live entertainment,
-    bringing together the energy of professional hockey, the thrill of basketball, and the excitement of world-class concerts
-    and family events like the Harlem Globetrotters and Disney on Ice. As one of the New England region’s flagship venue,
-    Granite Pulse Arena serves a diverse community of fans and families, uniting audiences with unforgettable experiences in a state-of-the-art,
-    multi-purpose environment.
+  context: >
+    VistaStream is a premium streaming platform dedicated to delivering an exceptional
+    entertainment experience to a diverse and discerning subscriber base.
   op_timeout: 45m
+
 output:
   uc_catalog: staging-c360
-  uc_schema: sports-and-concerts
-  uc_volume_name: sports_and_concert_demo_lp
-  uc_table: sports_and_concert_demo_lp
-  run_name: sports_and_concert_demo_lp
-  # s3_base: s3://dummy-bucket/wine/
+  uc_schema: media
+  uc_volume_name: media_demo_50m
+  run_name: media_demo_50m
+  uc_table: media_demo_50m
+  # s3_base: s3://dummy-bucket/media_dask_test_54k/
   partitions: []
   target_mb_per_part: 512

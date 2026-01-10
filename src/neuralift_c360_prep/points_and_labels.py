@@ -57,8 +57,21 @@ def _format_uri(protocol: str | None, path: str) -> str:
 
 
 def _part_index(name: str) -> int | None:
-    match = re.search(r"part-(\d+)", name)
-    return int(match.group(1)) if match else None
+    """Extract numeric index from parquet file name, supporting multiple naming conventions."""
+    # Try multiple common patterns in order of specificity
+    patterns = [
+        r"part-(\d+)",  # Dask/Spark default: part-00000.parquet
+        r"part\.(\d+)",  # Dask alternate: part.0.parquet
+        r"part(\d+)",  # No separator: part00000.parquet
+        r"_(\d+)\.parquet$",  # Trailing underscore: data_00000.parquet
+        r"-(\d+)\.parquet$",  # Trailing hyphen: data-00000.parquet
+        r"(\d+)\.parquet$",  # Just number: 00000.parquet
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, name, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def _parquet_sort_key(path: str) -> tuple[int, int, str]:
@@ -92,6 +105,27 @@ def _list_parquet_files(input_uri: str, storage_options: dict) -> list[str]:
     ]
     if not parquet_paths:
         raise FileNotFoundError(f"No parquet files found under {input_uri}")
+
+    # Check if file naming follows a recognized pattern
+    sample_files = parquet_paths[: min(5, len(parquet_paths))]
+    unrecognized = [p for p in sample_files if _part_index(Path(p).name) is None]
+    if unrecognized:
+        if len(unrecognized) == len(sample_files):
+            # None of the sampled files have recognized naming
+            logger.warning(
+                "[order] Parquet files don't follow a recognized naming pattern "
+                "(e.g., part-00000.parquet). Falling back to alphabetical sort. "
+                "Row order may differ from other parquet readers. "
+                "Sample files: %s",
+                [Path(p).name for p in unrecognized[:3]],
+            )
+        else:
+            # Mixed naming - some recognized, some not
+            logger.warning(
+                "[order] Mixed parquet file naming detected. "
+                "Files without part numbers will sort after numbered files: %s",
+                [Path(p).name for p in unrecognized],
+            )
 
     parquet_paths.sort(key=_parquet_sort_key)
     return [_format_uri(protocol, path) for path in parquet_paths]

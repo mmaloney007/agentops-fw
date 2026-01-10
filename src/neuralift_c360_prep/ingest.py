@@ -36,6 +36,7 @@ import os
 import re
 from typing import Any, Mapping, Sequence
 
+import dask
 import dask.dataframe as dd
 import fsspec
 import pandas as pd
@@ -462,7 +463,7 @@ def load_lazy_dask(
     row_limit: int | None = None,
     columns: Sequence[str] | None = None,
     prefer_delta: bool = True,
-    read_blocksize_mb: int = 512,
+    read_blocksize_mb: int = 128,  # Reduced from 512 for better parallelism
     conn_params: Mapping[str, Any] | None = None,
     allow_dbsql_fallback: bool = True,
     require_logical_names: bool = True,
@@ -470,6 +471,8 @@ def load_lazy_dask(
     debug_head_rows: int = 0,
     max_expected_columns: int = 512,
     filters: Any | None = None,
+    # --- performance options ---
+    use_pyarrow_strings: bool = True,  # Use PyArrow-backed strings for ~50% memory reduction
     # --- snapshot options ---
     snapshot_uri: str | None = None,
     snapshot_mode: str = "off",  # "off" | "read" | "read_or_build" | "refresh"
@@ -485,6 +488,16 @@ def load_lazy_dask(
     if read_blocksize_mb <= 0:
         raise ValueError("read_blocksize_mb must be positive")
     blocksize = f"{int(read_blocksize_mb)}MB"
+
+    # OPTIMIZATION: Enable PyArrow-backed strings for ~50% memory reduction
+    if use_pyarrow_strings:
+        try:
+            import pyarrow  # noqa: F401
+
+            dask.config.set({"dataframe.convert-string": True})
+            logger.info("[perf] PyArrow-backed strings enabled for memory optimization")
+        except ImportError:
+            logger.warning("[perf] PyArrow not available; using default string dtype")
 
     # Snapshot short-circuit: read existing snapshot if requested
     use_snapshot = snapshot_uri is not None and snapshot_mode in {
@@ -832,13 +845,16 @@ def load_ddf(cfg):
         id_cols=cfg.input.id_cols,
         columns=cfg.input.columns,
         dtype_overrides=cfg.input.dtype_overrides,
-        read_blocksize_mb=cfg.output.target_mb_per_part,
+        read_blocksize_mb=getattr(
+            cfg.input, "read_blocksize_mb", cfg.output.target_mb_per_part
+        ),
         snapshot_mode="off",
         require_logical_names=cfg.input.require_logical_names,
         debug_rename_map=cfg.logging.level == "debug",
         debug_head_rows=cfg.logging.debug_head_rows
         if cfg.logging.level == "debug"
         else 0,
+        use_pyarrow_strings=getattr(cfg.input, "use_pyarrow_strings", True),
     )
 
 

@@ -125,7 +125,13 @@ def run_from_config(cfg: BundleConfig) -> str:
     """
     Execute the pipeline and return the output base URI.
     """
-    setup_logging(cfg.logging.level)
+    # Re-setup logging in case run_from_config() is called directly (e.g., from tests)
+    # This is idempotent, so it's safe even if cli.py already called it
+    setup_logging(
+        cfg.logging.level,
+        dask_level=cfg.logging.dask_level,
+        llm_level=cfg.logging.llm_level,
+    )
 
     with get_client(cfg):
         logger.info("Starting pipeline (engine=%s)", cfg.runtime.engine)
