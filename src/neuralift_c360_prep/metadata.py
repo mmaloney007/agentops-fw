@@ -337,6 +337,9 @@ def compute_column_stats(
 
     OPTIMIZATION: Batches count + approx uniques in a single dask_compute() call
     when use_approx_unique=True, reducing scheduler round-trips from 2 to 1.
+
+    Note: The pipeline prefers _compute_stats_and_sample() to batch stats + sample
+    in a single pass. This remains for compatibility and direct callers.
     """
     cols = list(columns) if columns is not None else list(ddf.columns)
     dtypes = ddf.dtypes.reindex(cols)
@@ -418,6 +421,146 @@ def compute_column_stats(
         unique_counts=unique_counts,
         unique_is_approx=use_approx,
     )
+
+
+def _build_partition_sample(
+    ddf: dd.DataFrame,
+    *,
+    sample_rows: int,
+    sample_cols: Sequence[str],
+    random_state: int = 42,
+) -> dd.DataFrame | None:
+    if sample_rows <= 0 or not sample_cols:
+        return None
+
+    cols = [c for c in sample_cols if c in ddf.columns]
+    if not cols:
+        return None
+
+    n_parts = max(1, int(ddf.npartitions))
+    per_part = max(1, int(math.ceil(sample_rows / float(n_parts))))
+
+    def _sample_partition(pdf: pd.DataFrame) -> pd.DataFrame:
+        subset = pdf[cols]
+        if subset.empty:
+            return subset.head(0)
+        n = min(len(subset), per_part)
+        if len(subset) <= n:
+            return subset
+        return subset.sample(n=n, random_state=random_state)
+
+    return ddf.map_partitions(_sample_partition, meta=ddf[cols]._meta)
+
+
+def _compute_stats_and_sample(
+    ddf: dd.DataFrame,
+    *,
+    columns: Sequence[str] | None = None,
+    sample_rows: int = 0,
+    sample_cols: Sequence[str] | None = None,
+    compute_unique_counts: bool = True,
+    use_approx_unique: bool = True,
+    approx_row_threshold: int | None = 2_000_000,
+) -> tuple[ColumnStats, pd.DataFrame | None]:
+    cols = list(columns) if columns is not None else list(ddf.columns)
+    dtypes = ddf.dtypes.reindex(cols)
+
+    if not cols:
+        empty = _empty_int_series(cols)
+        stats = ColumnStats(
+            columns=cols,
+            row_count=0,
+            counts=empty,
+            null_counts=empty,
+            dtypes=dtypes,
+            unique_counts=empty if compute_unique_counts else None,
+            unique_is_approx=False,
+        )
+        return stats, None
+
+    counts_delayed = ddf[cols].count()
+    tasks: list[Any] = [counts_delayed]
+
+    unique_counts = None
+    unique_is_approx = False
+    approx_tasks: list[Any] = []
+    if compute_unique_counts:
+        if use_approx_unique:
+            approx_tasks = [ddf[c].nunique_approx() for c in cols]
+            tasks.extend(approx_tasks)
+            unique_is_approx = True
+        else:
+            tasks.append(ddf[cols].nunique(dropna=True))
+
+    sample_ddf = _build_partition_sample(
+        ddf,
+        sample_rows=sample_rows,
+        sample_cols=sample_cols or cols,
+    )
+    if sample_ddf is not None:
+        tasks.append(sample_ddf)
+
+    results = dask_compute(*tasks)
+    idx = 0
+
+    counts = results[idx]
+    idx += 1
+
+    if not isinstance(counts, pd.Series):
+        counts = pd.Series(counts, index=cols)
+    counts = counts.reindex(cols).fillna(0).astype(int)
+    row_count = int(counts.max()) if len(counts) else 0
+    null_counts = (row_count - counts).astype(int)
+
+    if compute_unique_counts:
+        if use_approx_unique:
+            approx_vals = results[idx : idx + len(cols)]
+            idx += len(cols)
+            unique_counts = pd.Series(approx_vals, index=cols).astype(int)
+        else:
+            exact_res = results[idx]
+            idx += 1
+            if isinstance(exact_res, pd.DataFrame):
+                if exact_res.shape[0] == 1:
+                    exact_res = exact_res.iloc[0]
+                else:
+                    raise TypeError(
+                        "Expected unique counts as Series/1-row DF; got "
+                        f"DF shape={exact_res.shape}"
+                    )
+            if not isinstance(exact_res, pd.Series):
+                exact_res = pd.Series(exact_res, index=cols)
+            unique_counts = exact_res.reindex(cols).fillna(0).astype(int)
+
+    sample_pdf = results[idx] if sample_ddf is not None else None
+    if sample_pdf is not None and sample_rows > 0 and len(sample_pdf) > sample_rows:
+        sample_pdf = sample_pdf.sample(n=sample_rows, random_state=42)
+
+    if (
+        compute_unique_counts
+        and use_approx_unique
+        and approx_row_threshold is not None
+        and row_count > 0
+        and row_count <= approx_row_threshold
+    ):
+        logger.info(
+            "[stats] row_count=%s < threshold=%s; computing exact uniques...",
+            f"{row_count:,}",
+            f"{approx_row_threshold:,}",
+        )
+        unique_counts = _compute_exact_unique_counts(ddf, cols)
+        unique_is_approx = False
+
+    stats = ColumnStats(
+        columns=cols,
+        row_count=row_count,
+        counts=counts,
+        null_counts=null_counts,
+        dtypes=dtypes,
+        unique_counts=unique_counts if compute_unique_counts else None,
+        unique_is_approx=unique_is_approx,
+    )
+    return stats, sample_pdf
 
 
 # ---------------------------------------------------------------------------
@@ -536,6 +679,7 @@ def create_intelligent_data_dictionary(
     use_cache: bool = False,
     cache_dir: str | Path = ".nl_dd_cache",
     stats: ColumnStats | None = None,
+    sample_pdf: pd.DataFrame | None = None,
     debug: bool = False,
     use_approx_unique: bool = True,
     use_sample_for_uniques: bool = False,
@@ -659,11 +803,18 @@ def create_intelligent_data_dictionary(
         f"{row_count:,}",
         len(col_names),
     )
-    logger.info("🎯 Building sample via ddf.sample(...) (no head())...")
-
-    sample_frac = min(1.0, sample_rows / max(row_count, 1))
-    sample_ddf = ddf[col_names].sample(frac=sample_frac, random_state=42)
-    sample_pdf = sample_ddf.compute()
+    if sample_rows <= 0:
+        sample_pdf = pd.DataFrame(columns=col_names)
+    elif sample_pdf is None:
+        logger.info("🎯 Building sample via ddf.sample(...) (no head())...")
+        sample_frac = min(1.0, sample_rows / max(row_count, 1))
+        sample_ddf = ddf[col_names].sample(frac=sample_frac, random_state=42)
+        sample_pdf = sample_ddf.compute()
+    else:
+        logger.info("🎯 Using precomputed sample (%s rows)...", len(sample_pdf))
+        sample_pdf = sample_pdf.reindex(columns=col_names)
+        if len(sample_pdf) > sample_rows:
+            sample_pdf = sample_pdf.sample(n=sample_rows, random_state=42)
 
     if use_sample_for_uniques or unique_counts is None:
         unique_counts = sample_pdf.nunique(dropna=True)
@@ -1087,15 +1238,31 @@ def build_column_tags_yaml_dask(
     # Optional exact uniques for gray-band columns when using approx
     if use_approx and approx_gray_band >= 0:
         gray_cols: list[str] = []
+        gray_col_info: dict[str, int] = {}  # col -> approx unique count
         for c in cols:
             est = int(unique_counts.get(c, 0))
             if abs(est - max_card) <= approx_gray_band:
                 gray_cols.append(c)
+                gray_col_info[c] = est
         if exact_unique_limit is not None:
             gray_cols = gray_cols[:exact_unique_limit]
+            gray_col_info = {c: gray_col_info[c] for c in gray_cols}
 
         if gray_cols:
-            logger.info("[tags] exact uniques for gray-band cols: %s", gray_cols)
+            logger.warning(
+                "[tags] gray-band exact uniques for %d column(s) trigger an extra compute pass; "
+                "set metadata.tags.approx_gray_band=-1 to keep approximate uniques only.",
+                len(gray_cols),
+            )
+            # Log detailed info about which columns and why
+            detail_lines = [
+                f"  - {c}: ~{gray_col_info[c]} approx uniques (within {approx_gray_band} of max_card={max_card})"
+                for c in gray_cols
+            ]
+            logger.info(
+                "[tags] gray-band columns being recomputed for exact uniques:\n%s",
+                "\n".join(detail_lines),
+            )
             exact_uniques = ddf[gray_cols].nunique(dropna=True).compute()
             if isinstance(exact_uniques, pd.DataFrame) and exact_uniques.shape[0] == 1:
                 exact_uniques = exact_uniques.iloc[0]
@@ -1681,6 +1848,7 @@ def infer_column_roles_from_data_dict(
     ddf: dd.DataFrame,
     *,
     max_card_for_cat: int = 20,
+    row_count: int | None = None,
 ) -> Tuple[List[str], List[str], List[str], List[str], Dict[str, int]]:
     """Infer column roles and collect categorical cardinalities.
 
@@ -1688,13 +1856,56 @@ def infer_column_roles_from_data_dict(
       data_dict["columns"] is expected to be compatible with either:
         - tags YAML produced by build_column_tags_yaml_dask() (fields: name, type, dtype, unique_count)
         - data dictionary JSON produced by build_data_dictionary_json() (fields: column_name, column_type, data_type, ...)
+      row_count can be provided to avoid a full ddf row count pass.
 
     Returns:
       (id_cols, kpi_cols, cat_cols, cont_cols, cat_cardinalities_by_col)
     """
     cols_meta = data_dict.get("columns") or []
 
-    n_rows = _safe_row_count(ddf)
+    n_rows = int(row_count) if row_count is not None else _safe_row_count(ddf)
+
+    unique_by_col: Dict[str, int | None] = {}
+    missing_unique_cols: list[str] = []
+    for col_meta in cols_meta:
+        name = (
+            col_meta.get("name")
+            or col_meta.get("column_name")
+            or col_meta.get("Column Name")
+        )
+        if not name:
+            continue
+
+        if "unique_count" in col_meta:
+            raw_unique = col_meta.get("unique_count")
+        elif "nunique" in col_meta:
+            raw_unique = col_meta.get("nunique")
+        else:
+            raw_unique = None
+
+        try:
+            uniq_int = int(raw_unique) if raw_unique is not None else None
+        except Exception:
+            uniq_int = None
+
+        unique_by_col[name] = uniq_int
+        if uniq_int is None:
+            missing_unique_cols.append(name)
+
+    missing_unique_cols = [c for c in missing_unique_cols if c in ddf.columns]
+    approx_uniques: dict[str, int] = {}
+    if missing_unique_cols:
+        logger.info(
+            "[config] missing unique_count for %d column(s); computing approximate uniques for config heuristics.",
+            len(missing_unique_cols),
+        )
+        logger.debug(
+            "[config] missing unique_count columns (%d): %s",
+            len(missing_unique_cols),
+            ", ".join(missing_unique_cols),
+        )
+        approx_series = _compute_approx_unique_counts(ddf, missing_unique_cols)
+        approx_uniques = approx_series.to_dict()
 
     id_cols: List[str] = []
     kpi_cols: List[str] = []
@@ -1739,17 +1950,15 @@ def infer_column_roles_from_data_dict(
                 cat_cols.append(name)
             else:
                 # Prefer unique_count from tags if present
-                uniq = col_meta.get("unique_count") or col_meta.get("nunique")
-                try:
-                    uniq_int = int(uniq) if uniq is not None else None
-                except Exception:
-                    uniq_int = None
+                uniq_int = unique_by_col.get(name)
+                if uniq_int is None:
+                    uniq_int = approx_uniques.get(name)
+                if uniq_int is None:
+                    raise RuntimeError(
+                        f"Missing unique_count for column '{name}' in config heuristics."
+                    )
 
-                card = (
-                    uniq_int
-                    if uniq_int is not None
-                    else _approx_nunique_dask(ddf, name, n_rows=n_rows)
-                )
+                card = uniq_int
                 if int(card) <= int(max_card_for_cat):
                     cat_cols.append(name)
                 else:
@@ -1757,12 +1966,14 @@ def infer_column_roles_from_data_dict(
 
         # Track categorical cardinality for embedding heuristics
         if name in cat_cols:
-            uniq = col_meta.get("unique_count") or col_meta.get("nunique")
-            try:
-                cat_cards[name] = int(uniq)
-            except Exception:
-                # If missing, compute approximate
-                cat_cards[name] = _approx_nunique_dask(ddf, name, n_rows=n_rows)
+            uniq_int = unique_by_col.get(name)
+            if uniq_int is None:
+                uniq_int = approx_uniques.get(name)
+            if uniq_int is None:
+                raise RuntimeError(
+                    f"Missing unique_count for categorical column '{name}'."
+                )
+            cat_cards[name] = int(uniq_int)
 
     def dedupe_keep_order(xs: List[str]) -> List[str]:
         seen = set()
@@ -2108,6 +2319,7 @@ def build_pretty_config_from_data_dict(
     target_steps_per_epoch: Tuple[int, int] = (10, 20),
     target_segments_range: Tuple[int, int] = (5, 20),
     return_rationale: bool = False,
+    row_count: int | None = None,
 ) -> Any:
     """Build a schema-aligned config for Neuralift segmentation.
 
@@ -2142,11 +2354,20 @@ def build_pretty_config_from_data_dict(
     If return_rationale=True, returns (config, rationale_dict) where rationale_dict maps
     'yaml.path.key' -> explanation string.
     """
-    n_rows = _safe_row_count(ddf)
+    cols_meta = data_dict.get("columns") or []
+    row_source = "precomputed" if row_count is not None else "computed"
+    t0 = time.time()
+    logger.info(
+        "[config] building segmenter config (columns=%s, row_count_source=%s)",
+        len(cols_meta),
+        row_source,
+    )
+
+    n_rows = int(row_count) if row_count is not None else _safe_row_count(ddf)
 
     id_cols, kpi_cols, cat_cols, cont_cols, cat_cards_by_col = (
         infer_column_roles_from_data_dict(
-            data_dict, ddf, max_card_for_cat=max_card_for_cat
+            data_dict, ddf, max_card_for_cat=max_card_for_cat, row_count=row_count
         )
     )
     n_features = int(len(cat_cols) + len(cont_cols))
@@ -2505,7 +2726,10 @@ def build_pretty_config_from_data_dict(
         rationale = _filter_rationale(rationale, config)
 
     if return_rationale:
+        logger.info("[config] segmenter config built in %.2fs", time.time() - t0)
         return config, rationale
+
+    logger.info("[config] segmenter config built in %.2fs", time.time() - t0)
     return config
 
 
@@ -2654,11 +2878,24 @@ def build_metadata(
             "[stats] skip_unique_counts=True; computing counts only (fast mode)"
         )
 
-    stats = compute_column_stats(
+    max_cols = getattr(cfg.metadata, "max_columns_for_comment", None)
+    llm_cols = list(ddf.columns[:max_cols]) if max_cols else list(ddf.columns)
+    sample_rows = cfg.metadata.sample_rows if not skip_llm else 0
+    stats, sample_pdf = _compute_stats_and_sample(
         ddf,
+        columns=list(ddf.columns),
+        sample_rows=sample_rows,
+        sample_cols=llm_cols,
+        compute_unique_counts=not skip_unique_counts,
         use_approx_unique=tags_cfg.use_approx_unique,
         approx_row_threshold=getattr(tags_cfg, "approx_row_threshold", 2_000_000),
-        compute_unique_counts=not skip_unique_counts,
+    )
+    logger.info(
+        "[stats] single-pass stats complete (rows≈%s, cols=%s, sample_rows=%s, approx_uniques=%s)",
+        f"{stats.row_count:,}",
+        len(stats.columns),
+        sample_rows,
+        stats.unique_is_approx,
     )
 
     # ---- tags ----
@@ -2680,6 +2917,7 @@ def build_metadata(
     )
 
     # ---- definitions (LLM) with fallback ----
+    logger.info("[meta] building data dictionary definitions...")
     try:
         if skip_llm:
             raise RuntimeError("LLM skipped by config")
@@ -2690,11 +2928,16 @@ def build_metadata(
             sample_rows=cfg.metadata.sample_rows,
             max_concurrency=cfg.metadata.max_concurrency,
             stats=stats,
+            sample_pdf=sample_pdf,
             # LLM cache settings from config
             use_cache=getattr(cfg.metadata, "use_llm_cache", False),
             cache_dir=getattr(cfg.metadata, "llm_cache_dir", ".nl_dd_cache"),
             # Limit columns for LLM if configured
-            max_cols=getattr(cfg.metadata, "max_columns_for_comment", None),
+            max_cols=max_cols,
+        )
+        logger.info(
+            "[meta] data dictionary definitions ready (%s columns)",
+            len(definitions),
         )
     except Exception as exc:  # pragma: no cover - network/LLM failures
         logger.warning(
@@ -2713,9 +2956,14 @@ def build_metadata(
             sort_keys=False,
             allow_unicode=False,
         )
+        logger.info(
+            "[meta] data dictionary definitions ready (%s columns, fallback)",
+            len(definitions),
+        )
 
     # ---- table comment (LLM) with fallback ----
     skip_table_comment = getattr(cfg.metadata, "skip_table_comment", False)
+    logger.info("[meta] building table comment...")
     try:
         if skip_llm or skip_table_comment:
             raise RuntimeError("Table comment skipped by config")
@@ -2725,6 +2973,7 @@ def build_metadata(
             file_context=cfg.metadata.context,
             yaml_dd=dd_yaml,
         )
+        logger.info("[meta] table comment ready")
     except Exception as exc:  # pragma: no cover - network/LLM failures
         logger.warning(
             "[meta] table comment generation skipped/failed (%s); using fallback", exc
@@ -2734,8 +2983,10 @@ def build_metadata(
             or getattr(cfg.output, "run_name", None)
             or f"Table {table_name}"
         )
+        logger.info("[meta] table comment ready (fallback)")
 
     # ---- JSON data dictionary ----
+    logger.info("[meta] building data dictionary JSON...")
     meta_json, meta_json_text = build_data_dictionary_json(
         table_name=table_name,
         table_comment=table_comment,
@@ -2743,6 +2994,10 @@ def build_metadata(
         column_tags=tags_by_col,
         column_dtypes=dtypes_out,
         column_order=ddf.columns,
+    )
+    logger.info(
+        "[meta] data dictionary JSON ready (%s columns)",
+        len(meta_json.get("columns", [])),
     )
     if cfg.logging.level == "debug":
         json_cols = {c["column_name"]: c for c in meta_json.get("columns", [])}
@@ -2759,6 +3014,7 @@ def build_metadata(
 
     meta_with_table = dict(meta_json)
     meta_with_table["table"] = table_name
+    meta_with_table["_row_count"] = stats.row_count
     columns_map: Dict[str, dict] = {}
     for col in meta_json.get("columns", []):
         name = col.get("column_name")

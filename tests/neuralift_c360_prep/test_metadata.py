@@ -3,6 +3,7 @@ import pandas as pd
 import dask.dataframe as dd
 
 from neuralift_c360_prep.config import BundleConfig
+from neuralift_c360_prep import metadata as metadata_mod
 from neuralift_c360_prep.metadata import (
     build_metadata,
     build_table_comment,
@@ -112,3 +113,27 @@ def test_wandb_nulls_artifact_filenames():
     )
     assert debug_config["labels_file_name"] is None
     assert debug_config["ranked_points_file_name"] is None
+
+
+def test_build_pretty_config_uses_row_count(monkeypatch):
+    pdf = pd.DataFrame({"id": [1, 2], "x": [1.0, 2.0]})
+    ddf = dd.from_pandas(pdf, npartitions=1)
+    data_dict = {
+        "columns": [
+            {"name": "id", "type": "id", "unique_count": 2},
+            {"name": "x", "type": "continuous", "unique_count": 2},
+        ]
+    }
+
+    def _boom(_ddf):
+        raise AssertionError("_safe_row_count should not be called when row_count is provided")
+
+    monkeypatch.setattr(metadata_mod, "_safe_row_count", _boom)
+
+    config = build_pretty_config_from_data_dict(
+        data_dict=data_dict,
+        ddf=ddf,
+        use_wandb=False,
+        row_count=2,
+    )
+    assert config["dae"]["data_module"]["batch_size"] > 0

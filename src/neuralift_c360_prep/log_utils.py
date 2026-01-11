@@ -50,6 +50,11 @@ def _set_library_loggers(
     worker_level = max(lib_level, logging.WARNING) if suppress_worker_info else lib_level
     logging.getLogger("distributed.worker").setLevel(worker_level)
 
+    # Suppress noisy shutdown/teardown messages from nanny and batched comms
+    # These log ERROR-level tracebacks during normal worker lifecycle events
+    for noisy_logger in ("distributed.nanny", "distributed.batched"):
+        logging.getLogger(noisy_logger).setLevel(logging.CRITICAL)
+
 
 def _handler_level(app_levelno: int, dask_levelno: int | None = None) -> int:
     if dask_levelno is None:
@@ -246,7 +251,7 @@ def configure_dask_logging(
     llm_level: str | int | None = None,
     name_prefix: str | None = "neuralift_c360_prep",
     forward_to_scheduler: bool = True,
-    forward_level: str | int = logging.INFO,
+    forward_level: str | int = logging.WARNING,
 ) -> None:
     """
     Configure scheduler/worker logging and forward driver logs to scheduler.

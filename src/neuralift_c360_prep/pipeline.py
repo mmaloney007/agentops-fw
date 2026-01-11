@@ -24,7 +24,6 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -177,6 +176,9 @@ def run_from_config(cfg: BundleConfig) -> str:
 
         # Persist after preprocessing to avoid re-computing during metadata generation
         if getattr(cfg.output, "persist_after_preprocess", True):
+            logger.warning(
+                "[persist] persist_after_preprocess=True can destabilize large Coiled runs; disable if the cluster dies post-LLM."
+            )
             try:
                 from dask.distributed import get_client as get_dask_client, wait
                 import time
@@ -194,19 +196,41 @@ def run_from_config(cfg: BundleConfig) -> str:
                 # No distributed client (local mode)
                 logger.debug("[persist] no distributed client; skipping persist_after_preprocess")
 
+        # Verify cluster is still alive before starting expensive metadata computation
+        try:
+            from dask.distributed import get_client as get_dask_client
+            client = get_dask_client()
+            n_workers = len(client.scheduler_info().get("workers", {}))
+            if n_workers == 0:
+                raise RuntimeError(
+                    "Cluster has no workers available. Check Coiled dashboard for cluster status."
+                )
+            logger.debug("[cluster] verified %d workers available before metadata computation", n_workers)
+        except ValueError:
+            pass  # No distributed client (local mode)
+
         table_name = resolve_output_table_name(cfg)
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
-        meta_json = json.loads(meta_text)
+        columns_meta = meta.get("columns", {})
+        if isinstance(columns_meta, dict):
+            config_columns = list(columns_meta.values())
+        elif isinstance(columns_meta, list):
+            config_columns = columns_meta
+        else:
+            config_columns = []
+        config_data_dict = {"columns": config_columns}
+        row_count = meta.get("_row_count")
         wandb_project = _resolve_wandb_project(cfg, cfg.output.run_name or table_name)
         pretty_config = build_pretty_config_from_data_dict(
-            data_dict=meta_json,
+            data_dict=config_data_dict,
             ddf=ddf,
             use_gpu=cfg.metadata.use_gpu,
             use_wandb=cfg.metadata.use_wandb,
             config_debug=cfg.metadata.config_debug,
             wandb_project=wandb_project,
             max_card_for_cat=cfg.metadata.tags.max_card,
+            row_count=row_count if isinstance(row_count, int) else None,
         )
         pretty_config_text = render_config_yaml_with_comments(
             pretty_config,
@@ -270,6 +294,16 @@ def run_from_config(cfg: BundleConfig) -> str:
             target_mb_per_part=cfg.output.target_mb_per_part,
             force_npartitions=cfg.output.force_npartitions,
             write_index=cfg.output.write_index,
+            shuffle_before_partition_on=getattr(
+                cfg.output, "shuffle_before_partition_on", True
+            ),
+            persist_before_write=getattr(cfg.output, "persist_before_write", True),
+            rebalance_before_write=getattr(cfg.output, "rebalance_before_write", True),
+            cast_bool_to_int8=getattr(cfg.output, "cast_bool_to_int8", True),
+            cast_category_to_string=getattr(
+                cfg.output, "cast_category_to_string", True
+            ),
+            cast_object_to_string=getattr(cfg.output, "cast_object_to_string", True),
         )
 
         if volume_tags:

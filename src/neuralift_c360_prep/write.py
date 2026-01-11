@@ -262,7 +262,7 @@ def write_ddf_and_yaml_to_s3(
     aws_key_env: str = "AWS_ACCESS_KEY_ID",
     aws_secret_env: str = "AWS_SECRET_ACCESS_KEY",
     force_npartitions: int | None = None,  # if set, force exact nparts (min 2)
-    target_mb_per_part: int = 256,  # DEFAULT = 256MB (Dask parquet guidance is 100–300 MiB)
+    target_mb_per_part: int = 512,  # DEFAULT = 512MB (tune for downstream IO)
     write_index: bool = False,
     shuffle_before_partition_on: bool = True,  # default True to reduce file explosion
     # Performance toggles (configurable via OutputConfig)
@@ -425,6 +425,9 @@ def write_ddf_and_yaml_to_s3(
     # --- Persist + rebalance ONCE, after shuffle, right before writing (cluster-only) ---
     if client is not None:
         if persist_before_write:
+            logger.warning(
+                "[persist] persist_before_write=True materializes the full dataset; disable if memory pressure or cluster instability occurs."
+            )
             logger.info(
                 "[persist] materializing dataframe to cluster memory (all lazy operations execute now - this may take several minutes)..."
             )

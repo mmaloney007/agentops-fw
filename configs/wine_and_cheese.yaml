@@ -1,10 +1,10 @@
 logging:
-  level: info
+  level: debug
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_test
+    software_env: neuralift_c360_prep_test_11
     n_workers: 2
     # worker_cpu: 4
     # worker_memory: 16GiB

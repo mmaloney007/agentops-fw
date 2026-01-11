@@ -220,7 +220,7 @@ class TagConfig(BaseModel):
     max_card: int = 25
     use_approx_unique: bool = True
     approx_row_threshold: int = 2_000_000
-    approx_gray_band: int = 5
+    approx_gray_band: int = 5  # Set to -1 to skip gray-band exact uniques.
     skip_unique_counts: bool = (
         False  # Skip unique count computation entirely (fast mode)
     )
@@ -253,15 +253,15 @@ class OutputConfig(BaseModel):
     uc_volume_name: str | None = None
     s3_base: str | None = None
     partitions: List[str] = Field(default_factory=list)
-    target_mb_per_part: int = 128  # Reduced from 512; Dask guidance is 100-300 MiB
+    target_mb_per_part: int = 512  # Target write size; tune with force_npartitions when needed.
     force_npartitions: Optional[int] = None
     write_index: bool = False
     include_c360_tag: bool = True
     # Performance toggles
-    persist_after_preprocess: bool = True  # Persist after preprocessing to avoid recomputing for metadata
+    persist_after_preprocess: bool = False  # Avoid pre-LLM persist to reduce memory pressure.
     shuffle_before_partition_on: bool = True
-    persist_before_write: bool = True
-    rebalance_before_write: bool = True
+    persist_before_write: bool = False
+    rebalance_before_write: bool = False
     count_output_files: bool = True
     # Dtype casting toggles
     cast_bool_to_int8: bool = True
