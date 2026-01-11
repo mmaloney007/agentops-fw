@@ -1,5 +1,5 @@
 logging:
-  level: debug
+  level: info
   dask_level: info
   llm_level: info
 
@@ -87,7 +87,7 @@ drop_columns:
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 100
+  max_concurrency: 75
   tags:
     id_cols: ["customer_id"]
     kpi_cols:
