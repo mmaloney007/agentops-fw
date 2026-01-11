@@ -44,7 +44,7 @@ import dask.dataframe as dd
 import fsspec
 import yaml
 from databricks import sql  # type: ignore
-from dask.distributed import as_completed, get_client
+from dask.distributed import as_completed, get_client, wait
 
 try:
     from uuid6 import uuid7  # type: ignore
@@ -378,7 +378,10 @@ def write_ddf_and_yaml_to_s3(
                 "to avoid single-worker OOM. Fix partitioning at read time or use force_npartitions."
             )
         else:
+            logger.info(f"[repartition] measuring partition sizes and repartitioning to {part_size} (this may take time)...")
+            t_repartition = time.time()
             ddf_to_write = ddf_to_write.repartition(partition_size=part_size)
+            logger.info(f"[repartition] ✅ complete in {time.time() - t_repartition:.2f}s")
 
         current_parts = ddf_to_write.npartitions
         if current_parts < min_npartitions:
@@ -402,32 +405,43 @@ def write_ddf_and_yaml_to_s3(
 
         if shuffle_before_partition_on:
             logger.info(
-                "[shuffle] shuffling on partition_on columns to reduce per-key file explosion (this is a real shuffle)."
+                "[shuffle] shuffling on partition_on columns to reduce per-key file explosion (this is a real shuffle, may take time)..."
             )
+            t_shuffle = time.time()
             ddf_to_write = ddf_to_write.shuffle(on=part_cols)
+            logger.info(f"[shuffle] ✅ complete in {time.time() - t_shuffle:.2f}s")
 
             # After shuffle, sizes may change; if you're in local mode or already have many partitions,
             # it can be helpful to re-apply partition_size gently. Keep guarded to avoid OOM.
             if client is None or ddf_to_write.npartitions > 8:
                 part_size = f"{int(target_mb_per_part)}MB"
                 logger.info(
-                    f"[shuffle] optional post-shuffle repartition(partition_size={part_size})"
+                    f"[shuffle] post-shuffle repartition to {part_size} (measuring sizes)..."
                 )
+                t_post_shuffle = time.time()
                 ddf_to_write = ddf_to_write.repartition(partition_size=part_size)
+                logger.info(f"[shuffle] ✅ post-shuffle repartition complete in {time.time() - t_post_shuffle:.2f}s")
 
     # --- Persist + rebalance ONCE, after shuffle, right before writing (cluster-only) ---
     if client is not None:
         if persist_before_write:
             logger.info(
-                "[write] persisting before to_parquet to distribute partitions across workers"
+                "[persist] materializing dataframe to cluster memory (all lazy operations execute now - this may take several minutes)..."
             )
+            t_persist = time.time()
             ddf_to_write = client.persist(ddf_to_write)
+            # Wait for persist to actually complete (persist() is async)
+            wait(ddf_to_write)
+            logger.info(f"[persist] ✅ dataframe materialized in {time.time() - t_persist:.2f}s")
 
             if rebalance_before_write:
+                logger.info("[rebalance] redistributing partitions across workers...")
+                t_rebalance = time.time()
                 try:
                     client.rebalance(ddf_to_write)
-                except Exception:
-                    pass
+                    logger.info(f"[rebalance] ✅ complete in {time.time() - t_rebalance:.2f}s")
+                except Exception as e:
+                    logger.warning(f"[rebalance] failed: {e}")
         else:
             logger.info(
                 "[write] persist_before_write=False; skipping persist/rebalance"

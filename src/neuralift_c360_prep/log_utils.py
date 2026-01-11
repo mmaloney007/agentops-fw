@@ -29,7 +29,11 @@ def _library_log_level(levelno: int) -> int:
     return max(levelno, logging.WARNING)
 
 
-def _set_library_loggers(app_levelno: int, dask_levelno: int | None = None) -> None:
+def _set_library_loggers(
+    app_levelno: int,
+    dask_levelno: int | None = None,
+    suppress_worker_info: bool = False,
+) -> None:
     lib_level = (
         _library_log_level(app_levelno)
         if dask_levelno is None
@@ -39,9 +43,12 @@ def _set_library_loggers(app_levelno: int, dask_levelno: int | None = None) -> N
         "dask",
         "distributed",
         "distributed.scheduler",
-        "distributed.worker",
     ):
         logging.getLogger(name).setLevel(lib_level)
+
+    # distributed.worker can be noisy with INFO messages when forwarding logs
+    worker_level = max(lib_level, logging.WARNING) if suppress_worker_info else lib_level
+    logging.getLogger("distributed.worker").setLevel(worker_level)
 
 
 def _handler_level(app_levelno: int, dask_levelno: int | None = None) -> int:
@@ -164,7 +171,8 @@ def configure_remote_logging(
             handler.setLevel(handler_level)
             if handler.formatter is None:
                 handler.setFormatter(formatter)
-    _set_library_loggers(levelno, dask_levelno)
+    # Suppress worker INFO noise from out-of-band functions
+    _set_library_loggers(levelno, dask_levelno, suppress_worker_info=True)
 
     # Configure LLM logger separately
     llm_logger = logging.getLogger("neuralift_c360_prep.llm")
@@ -215,6 +223,9 @@ def attach_scheduler_log_forwarder(
 ) -> None:
     """
     Forward driver logs into scheduler logs so Coiled captures them.
+
+    Note: Only logs at the specified level or higher are forwarded to reduce
+    scheduler traffic. Consider using WARNING+ to minimize overhead.
     """
     global _FORWARD_HANDLER
     root = logging.getLogger()
@@ -235,9 +246,19 @@ def configure_dask_logging(
     llm_level: str | int | None = None,
     name_prefix: str | None = "neuralift_c360_prep",
     forward_to_scheduler: bool = True,
+    forward_level: str | int = logging.INFO,
 ) -> None:
     """
     Configure scheduler/worker logging and forward driver logs to scheduler.
+
+    Args:
+        client: Dask client
+        level: Root logger level
+        dask_level: Separate level for dask/distributed loggers
+        llm_level: Separate level for LLM operation loggers
+        name_prefix: Only forward logs from loggers with this prefix
+        forward_to_scheduler: Whether to forward driver logs to scheduler
+        forward_level: Minimum level for forwarded logs (default: WARNING to reduce overhead)
     """
     levelno = _coerce_level(level)
     dask_levelno = _coerce_level(dask_level) if dask_level is not None else None
@@ -253,7 +274,10 @@ def configure_dask_logging(
     except Exception:
         pass
     if forward_to_scheduler:
-        attach_scheduler_log_forwarder(client, level=levelno, name_prefix=name_prefix)
+        forward_levelno = _coerce_level(forward_level)
+        attach_scheduler_log_forwarder(
+            client, level=forward_levelno, name_prefix=name_prefix
+        )
 
 
 __all__ = [

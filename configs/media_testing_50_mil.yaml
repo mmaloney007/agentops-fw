@@ -1,21 +1,21 @@
 logging:
-  level: debug
+  level: info
 
 runtime:
   engine: coiled
   coiled:
     software_env: neuralift_c360_prep_test
-    n_workers: 12
+    n_workers: 5
     worker_vm_types:
-      - i3.2xlarge        # scale out; good if you can parallelize well
+      - i7i.8xlarge # scale out; good if you can parallelize well
     scheduler_vm_types:
-      - m7i.large
+      - i7i.8xlarge
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
     op_timeout: 45m
-    env:
-      DASK_DATAFRAME__QUERY_PLANNING: "0"
+    # env:
+    #   DASK_DATAFRAME__QUERY_PLANNING: "0"
 
 input:
   source: uc_table
@@ -83,7 +83,6 @@ metadata:
   sample_rows: 5000
   max_concurrency: 50
   tags:
-    use_approx_unique: false
     id_cols: ["customer_id"]
     kpi_cols:
       - at_risk

@@ -1,5 +1,5 @@
 logging:
-  level: debug
+  level: info
 
 runtime:
   engine: coiled
@@ -8,8 +8,8 @@ runtime:
     n_workers: 2
     # worker_cpu: 4
     # worker_memory: 16GiB
-    worker_vm_types: [m4.xlarge]
-    scheduler_vm_types: [c5d.xlarge]
+    worker_vm_types: [m7i.large]
+    scheduler_vm_types: [m7i.large]
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m

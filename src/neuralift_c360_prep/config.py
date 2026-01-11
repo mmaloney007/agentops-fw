@@ -258,6 +258,7 @@ class OutputConfig(BaseModel):
     write_index: bool = False
     include_c360_tag: bool = True
     # Performance toggles
+    persist_after_preprocess: bool = True  # Persist after preprocessing to avoid recomputing for metadata
     shuffle_before_partition_on: bool = True
     persist_before_write: bool = True
     rebalance_before_write: bool = True

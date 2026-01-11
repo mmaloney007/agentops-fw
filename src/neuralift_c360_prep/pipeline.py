@@ -175,6 +175,25 @@ def run_from_config(cfg: BundleConfig) -> str:
 
         ddf = preprocess(ddf, cfg)
 
+        # Persist after preprocessing to avoid re-computing during metadata generation
+        if getattr(cfg.output, "persist_after_preprocess", True):
+            try:
+                from dask.distributed import get_client as get_dask_client, wait
+                import time
+                client = get_dask_client()
+                logger.info(
+                    "[persist] persisting preprocessed dataframe to cluster memory "
+                    "(avoids re-computing preprocessing for every metadata stat)..."
+                )
+                t_persist = time.time()
+                ddf = client.persist(ddf)
+                # Wait for persist to actually complete (persist() is async)
+                wait(ddf)
+                logger.info(f"[persist] ✅ preprocessed dataframe persisted in {time.time() - t_persist:.2f}s")
+            except ValueError:
+                # No distributed client (local mode)
+                logger.debug("[persist] no distributed client; skipping persist_after_preprocess")
+
         table_name = resolve_output_table_name(cfg)
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
