@@ -126,7 +126,9 @@ def test_build_pretty_config_uses_row_count(monkeypatch):
     }
 
     def _boom(_ddf):
-        raise AssertionError("_safe_row_count should not be called when row_count is provided")
+        raise AssertionError(
+            "_safe_row_count should not be called when row_count is provided"
+        )
 
     monkeypatch.setattr(metadata_mod, "_safe_row_count", _boom)
 

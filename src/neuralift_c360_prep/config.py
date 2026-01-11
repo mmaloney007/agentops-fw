@@ -253,12 +253,16 @@ class OutputConfig(BaseModel):
     uc_volume_name: str | None = None
     s3_base: str | None = None
     partitions: List[str] = Field(default_factory=list)
-    target_mb_per_part: int = 512  # Target write size; tune with force_npartitions when needed.
+    target_mb_per_part: int = (
+        512  # Target write size; tune with force_npartitions when needed.
+    )
     force_npartitions: Optional[int] = None
     write_index: bool = False
     include_c360_tag: bool = True
     # Performance toggles
-    persist_after_preprocess: bool = False  # Avoid pre-LLM persist to reduce memory pressure.
+    persist_after_preprocess: bool = (
+        False  # Avoid pre-LLM persist to reduce memory pressure.
+    )
     shuffle_before_partition_on: bool = True
     persist_before_write: bool = False
     rebalance_before_write: bool = False

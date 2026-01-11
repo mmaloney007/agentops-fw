@@ -182,6 +182,7 @@ def run_from_config(cfg: BundleConfig) -> str:
             try:
                 from dask.distributed import get_client as get_dask_client, wait
                 import time
+
                 client = get_dask_client()
                 logger.info(
                     "[persist] persisting preprocessed dataframe to cluster memory "
@@ -191,21 +192,29 @@ def run_from_config(cfg: BundleConfig) -> str:
                 ddf = client.persist(ddf)
                 # Wait for persist to actually complete (persist() is async)
                 wait(ddf)
-                logger.info(f"[persist] ✅ preprocessed dataframe persisted in {time.time() - t_persist:.2f}s")
+                logger.info(
+                    f"[persist] ✅ preprocessed dataframe persisted in {time.time() - t_persist:.2f}s"
+                )
             except ValueError:
                 # No distributed client (local mode)
-                logger.debug("[persist] no distributed client; skipping persist_after_preprocess")
+                logger.debug(
+                    "[persist] no distributed client; skipping persist_after_preprocess"
+                )
 
         # Verify cluster is still alive before starting expensive metadata computation
         try:
             from dask.distributed import get_client as get_dask_client
+
             client = get_dask_client()
             n_workers = len(client.scheduler_info().get("workers", {}))
             if n_workers == 0:
                 raise RuntimeError(
                     "Cluster has no workers available. Check Coiled dashboard for cluster status."
                 )
-            logger.debug("[cluster] verified %d workers available before metadata computation", n_workers)
+            logger.debug(
+                "[cluster] verified %d workers available before metadata computation",
+                n_workers,
+            )
         except ValueError:
             pass  # No distributed client (local mode)
 

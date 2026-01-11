@@ -47,7 +47,9 @@ def _set_library_loggers(
         logging.getLogger(name).setLevel(lib_level)
 
     # distributed.worker can be noisy with INFO messages when forwarding logs
-    worker_level = max(lib_level, logging.WARNING) if suppress_worker_info else lib_level
+    worker_level = (
+        max(lib_level, logging.WARNING) if suppress_worker_info else lib_level
+    )
     logging.getLogger("distributed.worker").setLevel(worker_level)
 
     # Suppress noisy shutdown/teardown messages from nanny and batched comms

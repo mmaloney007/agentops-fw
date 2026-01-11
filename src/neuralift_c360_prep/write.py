@@ -376,10 +376,14 @@ def write_ddf_and_yaml_to_s3(
                 "to avoid single-worker OOM. Fix partitioning at read time or use force_npartitions."
             )
         else:
-            logger.info(f"[repartition] measuring partition sizes and repartitioning to {part_size} (this may take time)...")
+            logger.info(
+                f"[repartition] measuring partition sizes and repartitioning to {part_size} (this may take time)..."
+            )
             t_repartition = time.time()
             ddf_to_write = ddf_to_write.repartition(partition_size=part_size)
-            logger.info(f"[repartition] ✅ complete in {time.time() - t_repartition:.2f}s")
+            logger.info(
+                f"[repartition] ✅ complete in {time.time() - t_repartition:.2f}s"
+            )
 
         current_parts = ddf_to_write.npartitions
         if current_parts < min_npartitions:
@@ -418,7 +422,9 @@ def write_ddf_and_yaml_to_s3(
                 )
                 t_post_shuffle = time.time()
                 ddf_to_write = ddf_to_write.repartition(partition_size=part_size)
-                logger.info(f"[shuffle] ✅ post-shuffle repartition complete in {time.time() - t_post_shuffle:.2f}s")
+                logger.info(
+                    f"[shuffle] ✅ post-shuffle repartition complete in {time.time() - t_post_shuffle:.2f}s"
+                )
 
     # --- Persist + rebalance ONCE, after shuffle, right before writing (cluster-only) ---
     if client is not None:
@@ -433,14 +439,18 @@ def write_ddf_and_yaml_to_s3(
             ddf_to_write = client.persist(ddf_to_write)
             # Wait for persist to actually complete (persist() is async)
             wait(ddf_to_write)
-            logger.info(f"[persist] ✅ dataframe materialized in {time.time() - t_persist:.2f}s")
+            logger.info(
+                f"[persist] ✅ dataframe materialized in {time.time() - t_persist:.2f}s"
+            )
 
             if rebalance_before_write:
                 logger.info("[rebalance] redistributing partitions across workers...")
                 t_rebalance = time.time()
                 try:
                     client.rebalance(ddf_to_write)
-                    logger.info(f"[rebalance] ✅ complete in {time.time() - t_rebalance:.2f}s")
+                    logger.info(
+                        f"[rebalance] ✅ complete in {time.time() - t_rebalance:.2f}s"
+                    )
                 except Exception as e:
                     logger.warning(f"[rebalance] failed: {e}")
         else:

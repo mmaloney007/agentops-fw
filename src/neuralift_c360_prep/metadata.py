@@ -1863,8 +1863,6 @@ def infer_column_roles_from_data_dict(
     """
     cols_meta = data_dict.get("columns") or []
 
-    n_rows = int(row_count) if row_count is not None else _safe_row_count(ddf)
-
     unique_by_col: Dict[str, int | None] = {}
     missing_unique_cols: list[str] = []
     for col_meta in cols_meta:

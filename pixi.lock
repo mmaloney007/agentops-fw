@@ -5228,13 +5228,8 @@ packages:
   timestamp: 1738196177597
 - pypi: ./
   name: neuralift-c360-prep
-  version: 0.1.1.dev14+gde6df99fc.d20260110
-  sha256: e145c9f1f2a730efbeeb161aad2f58b9e1f3e475d32053361533d4f34c422049
-  requires_python: '>=3.12,<3.13'
-- pypi: ./
-  name: neuralift-c360-prep
-  version: 0.1.1.dev15+g553220662.d20260111
-  sha256: e145c9f1f2a730efbeeb161aad2f58b9e1f3e475d32053361533d4f34c422049
+  version: 0.1.1.dev24+gcc6fbe766.d20260111
+  sha256: 1f0a868c60ab94c6ad905271682190da927cebf887972dec19f9f34f2940ea20
   requires_python: '>=3.12,<3.13'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/nlohmann_json-3.12.0-h54a6638_1.conda
   sha256: fd2cbd8dfc006c72f45843672664a8e4b99b2f8137654eaae8c3d46dca776f63

@@ -14,6 +14,8 @@ runtime:
     no_client_timeout: 2h
     create_timeout: 15m
     op_timeout: 45m
+    env:
+      DASK_DATAFRAME__QUERY_PLANNING: "0"
 
 input:
   source: uc_table
@@ -91,4 +93,4 @@ output:
   run_name: wine_cheese_test
   # s3_base: s3://dummy-bucket/wine/
   partitions: []
-  target_mb_per_part: 512
+  target_mb_per_part: 256

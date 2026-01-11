@@ -4,7 +4,7 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_test_11
+    software_env: neuralift_c360_prep_pr-3
     n_workers: 4
     worker_vm_types:
       #- i7i.8xlarge
@@ -17,8 +17,8 @@ runtime:
     no_client_timeout: 2h
     create_timeout: 15m
     op_timeout: 45m
-    # env:
-    #   DASK_DATAFRAME__QUERY_PLANNING: "0"
+    env:
+      DASK_DATAFRAME__QUERY_PLANNING: "0"
 
 input:
   source: uc_table
@@ -115,9 +115,9 @@ output:
   persist_after_preprocess: false # Disable to test if persist is causing cluster death
   uc_catalog: staging-c360
   uc_schema: media
-  uc_volume_name: media_demo_5m_512mb
-  run_name: media_demo_5m_512mb
-  uc_table: media_demo_5m_512mb
+  uc_volume_name: media_demo_5m
+  run_name: media_demo_5m
+  uc_table: media_demo_5m
   # s3_base: s3://dummy-bucket/media_dask_test_54k/
   partitions: []
-  target_mb_per_part: 512
+  target_mb_per_part: 256
