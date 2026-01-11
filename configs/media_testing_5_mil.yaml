@@ -1,10 +1,12 @@
 logging:
   level: debug
+  dask_level: info
+  llm_level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_test_11
+    software_env: neuralift_c360_prep_pr-4
     n_workers: 4
     worker_vm_types:
       #- i7i.8xlarge
@@ -85,7 +87,7 @@ drop_columns:
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 50
+  max_concurrency: 100
   tags:
     id_cols: ["customer_id"]
     kpi_cols:

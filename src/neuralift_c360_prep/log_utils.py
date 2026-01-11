@@ -43,6 +43,9 @@ def _set_library_loggers(
         "dask",
         "distributed",
         "distributed.scheduler",
+        "coiled",
+        "botocore",
+        "boto3",
     ):
         logging.getLogger(name).setLevel(lib_level)
 

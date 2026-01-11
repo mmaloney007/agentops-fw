@@ -1,10 +1,12 @@
 logging:
-  level: info
+  level: debug
+  dask_level: info
+  llm_level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_test
+    software_env: neuralift_c360_prep_pr-4
     n_workers: 5
     worker_vm_types:
       - i7i.8xlarge # scale out; good if you can parallelize well

@@ -1,13 +1,13 @@
 logging:
   level: debug
+  dask_level: info
+  llm_level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_test_11
-    n_workers: 2
-    # worker_cpu: 4
-    # worker_memory: 16GiB
+    software_env: neuralift_c360_prep_pr-4
+    n_workers: 1
     worker_vm_types: [m7i.large]
     scheduler_vm_types: [m7i.large]
     idle_timeout: 2h
