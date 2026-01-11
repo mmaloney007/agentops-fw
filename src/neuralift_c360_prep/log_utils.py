@@ -15,6 +15,7 @@ _DASK_SHUTDOWN_NOISE = "Failed to communicate with scheduler during heartbeat"
 _LOG_CONFIGURED = False
 _FORWARD_HANDLER: logging.Handler | None = None
 _WORKER_SHUTDOWN_IN_PROGRESS = False
+_COILED_STATUS_HANDLER: logging.Handler | None = None
 
 
 def _coerce_level(level: str | int) -> int:
@@ -43,11 +44,14 @@ def _set_library_loggers(
         "dask",
         "distributed",
         "distributed.scheduler",
-        "coiled",
         "botocore",
         "boto3",
     ):
         logging.getLogger(name).setLevel(lib_level)
+
+    # Allow coiled status lines to be surfaced even at INFO.
+    coiled_level = logging.DEBUG if lib_level > logging.DEBUG else lib_level
+    logging.getLogger("coiled").setLevel(coiled_level)
 
     # distributed.worker can be noisy with INFO messages when forwarding logs
     worker_level = (
@@ -105,6 +109,41 @@ def _ensure_worker_shutdown_filter() -> None:
     worker_logger.addFilter(_DaskWorkerShutdownFilter())
 
 
+class _CoiledStatusFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not record.name.startswith("coiled"):
+            return False
+        msg = record.getMessage().strip()
+        if msg.startswith("|"):
+            return True
+        return msg.startswith(
+            (
+                "Scheduler:",
+                "Workers:",
+                "Network Infrastructure",
+                "Ensuring network infrastructure",
+                "Downloading Environment",
+            )
+        )
+
+
+def _ensure_coiled_status_handler(handler_level: int) -> None:
+    global _COILED_STATUS_HANDLER
+    coiled_logger = logging.getLogger("coiled")
+    if handler_level <= logging.DEBUG:
+        if _COILED_STATUS_HANDLER is not None:
+            coiled_logger.removeHandler(_COILED_STATUS_HANDLER)
+            _COILED_STATUS_HANDLER = None
+        return
+    if _COILED_STATUS_HANDLER is None:
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT, DEFAULT_DATEFMT))
+        handler.addFilter(_CoiledStatusFilter())
+        coiled_logger.addHandler(handler)
+        _COILED_STATUS_HANDLER = handler
+
+
 def set_worker_shutdown_flag(enabled: bool) -> None:
     global _WORKER_SHUTDOWN_IN_PROGRESS
     _WORKER_SHUTDOWN_IN_PROGRESS = enabled
@@ -147,6 +186,7 @@ def setup_logging(
         handler.setLevel(handler_level)
 
     _set_library_loggers(levelno, dask_levelno)
+    _ensure_coiled_status_handler(handler_level)
 
     # Configure LLM logger separately
     llm_logger = logging.getLogger("neuralift_c360_prep.llm")

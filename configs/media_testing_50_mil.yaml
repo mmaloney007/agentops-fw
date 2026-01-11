@@ -7,11 +7,11 @@ runtime:
   engine: coiled
   coiled:
     software_env: neuralift_c360_prep_pr-4
-    n_workers: 5
+    n_workers: 6
     worker_vm_types:
-      - i7i.8xlarge # scale out; good if you can parallelize well
+      - i3.4xlarge # scale out; good if you can parallelize well
     scheduler_vm_types:
-      - i7i.8xlarge
+      - i3.4xlarge
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
