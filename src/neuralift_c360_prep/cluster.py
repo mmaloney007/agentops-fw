@@ -41,7 +41,6 @@ logger = logging.getLogger(__name__)
 # Default Dask performance settings applied to all clusters
 DASK_PERF_DEFAULTS = {
     "dataframe.convert-string": True,  # Use PyArrow-backed strings
-    "dataframe.query-planning": False,  # Disable query planning by default
     "distributed.scheduler.work-stealing": True,
     "distributed.worker.memory.target": 0.6,
     "distributed.worker.memory.spill": 0.7,
@@ -146,7 +145,6 @@ def coiled_client(cfg: BundleConfig) -> Iterator[Client]:
         "DASK_DISTRIBUTED__WORKER__MEMORY__SPILL": "0.7",
         "DASK_DISTRIBUTED__WORKER__MEMORY__PAUSE": "0.8",
         "DASK_DISTRIBUTED__WORKER__MEMORY__TERMINATE": "0.95",
-        "DASK_DATAFRAME__QUERY_PLANNING": "0",
     }
     env_vars = {**perf_env_vars, **dotenv_env_vars(), **c.env}
 

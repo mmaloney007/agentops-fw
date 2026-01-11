@@ -105,7 +105,6 @@ Optional:
 - `WANDB_API_KEY` (only if `metadata.use_wandb: true`)
 - `NL_SKIP_LLM=1` (skip LLM metadata; uses deterministic fallbacks)
 - `NL_DEVICE_MEM_GB` or `NL_GPU_MEM_GB` (batch-size heuristic for config generation)
-- `DASK_DATAFRAME__QUERY_PLANNING=0` (disable query planning for large Dask plans)
 
 ### Dask behavior highlights
 
@@ -135,7 +134,7 @@ Optional:
   ZSML KPI; drops PII-like columns; writes to `staging-c360.media` (volume name
   `media_dask_test_54k`).
 - `configs/media_testing_mils.yaml`: Coiled UC table `staging-media-source.default.media_demo_5m`;
-  ZSML KPI; `use_approx_unique: false`; sets `DASK_DATAFRAME__QUERY_PLANNING=0`; writes to
+  ZSML KPI; `use_approx_unique: false`; writes to
   `staging-c360.media.media_demo_5m_512mb`.
 - `configs/sports_and_concert.yaml`: Coiled UC table
   `staging-sports-and-concerts-source.default.sports_lp`; sports KPI tags; writes to

@@ -1,5 +1,5 @@
 logging:
-  level: debug
+  level: info
   dask_level: info
   llm_level: info
 
@@ -16,8 +16,6 @@ runtime:
     no_client_timeout: 2h
     create_timeout: 15m
     op_timeout: 45m
-    env:
-      DASK_DATAFRAME__QUERY_PLANNING: "0"
 
 input:
   source: uc_table
