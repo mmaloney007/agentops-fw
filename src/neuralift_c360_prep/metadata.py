@@ -34,38 +34,38 @@ Copyright © 2025 Neuralift, Inc.
 from __future__ import annotations
 
 import gc
-import math
 import json
 import logging
+import math
 import os
 import re
 import statistics
+import tempfile
 import textwrap
 import threading
 import time
-import tempfile
 import unicodedata
-from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import blake2b
 from pathlib import Path
-from uuid import uuid4
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from uuid import uuid4
 
 import dask.dataframe as dd
-from dask import compute as dask_compute
 import openai
 import pandas as pd
 import yaml
+from dask import compute as dask_compute
 from instructor import Mode, from_openai  # type: ignore
 from pandas.api.types import (
     is_bool_dtype,
+    is_datetime64_any_dtype,
     is_float_dtype,
     is_integer_dtype,
-    is_string_dtype,
-    is_datetime64_any_dtype,
     is_numeric_dtype,
+    is_string_dtype,
 )
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
@@ -2112,7 +2112,8 @@ def suggest_backbone_type(
     cat_ratio = n_categorical / float(n_features)
 
     if n_rows >= 1_000_000 and n_features >= 200 and cat_ratio >= 0.25:
-        return "ft_transformer"
+        # return "ft_transformer"
+        return "mlp"
     return "mlp"
 
 
