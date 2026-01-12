@@ -1,288 +1,228 @@
+% SpecSLOEval / Piece I -- curated bibliography (biblatex-compatible)
+
 @article{dean2013tail,
-  title={The Tail at Scale},
-  author={Dean, Jeffrey and Barroso, Luiz},
-  journal={Communications of the ACM},
-  year={2013},
-  url={https://cacm.acm.org/research/the-tail-at-scale/}
+  title        = {The Tail at Scale},
+  author       = {Dean, Jeffrey and Barroso, Luiz Andr{\'e}},
+  journal      = {Communications of the ACM},
+  volume       = {56},
+  number       = {2},
+  pages        = {74--80},
+  year         = {2013},
+  doi          = {10.1145/2408776.2408794}
 }
 
-@article{kwon2023vllm,
-  title={Efficient Memory Management for Large Language Model Serving with {vLLM}},
-  author={Kwon, Youngmin and others},
-  year={2023},
-  eprint={2309.06180},
-  archivePrefix={arXiv},
-  primaryClass={cs.LG},
-  url={https://arxiv.org/abs/2309.06180}
+@misc{kwon2023vllm,
+  title        = {Efficient Memory Management for Large Language Model Serving with PagedAttention},
+  author       = {Kwon, Woosuk and others},
+  year         = {2023},
+  eprint       = {2309.06180},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
-@article{zheng2023sglang,
-  title={{SGLang}: Efficient Serving of {LLM} Applications},
-  author={Zheng, Lianmin and others},
-  year={2023},
-  eprint={2312.07104},
-  archivePrefix={arXiv},
-  primaryClass={cs.LG},
-  url={https://arxiv.org/abs/2312.07104}
-}
-
-@article{leviathan2023speculative,
-  title={Fast Inference from Transformers via Speculative Decoding},
-  author={Leviathan, Yaniv and others},
-  year={2023},
-  eprint={2211.17192},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2211.17192}
-}
-
-@article{dao2023flashattention2,
-  title={FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning},
-  author={Dao, Tri and others},
-  year={2023},
-  eprint={2307.08691},
-  archivePrefix={arXiv},
-  primaryClass={cs.LG},
-  url={https://arxiv.org/abs/2307.08691}
-}
-
-@article{deepspeedFastGen,
-  title={{DeepSpeed-FastGen}: High Throughput Text Generation for {LLMs}},
-  author={Microsoft DeepSpeed Team},
-  year={2024},
-  eprint={2401.08671},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2401.08671}
-}
-
-@article{prabhu2024vattention,
-  title={v{A}ttention: Dynamic Sparse Attention with Low-rank Projections},
-  author={Prabhu, Ameya and others},
-  year={2024},
-  eprint={2405.04437},
-  archivePrefix={arXiv},
-  primaryClass={cs.LG},
-  url={https://arxiv.org/abs/2405.04437}
-}
-
-@article{geng2025jsonschemabench,
-  title={JSONSchemaBench: Evaluating Structured Output for {LLMs}},
-  author={Geng, Xi and others},
-  year={2025},
-  eprint={2501.10868},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2501.10868}
-}
-
-@article{letmespeakfreely,
-  title={Let Me Speak Freely: Lessons from Free-form Generation with Structure},
-  author={Anonymous},
-  year={2024},
-  eprint={2408.02442},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2408.02442}
-}
-
-@article{structuredRAG,
-  title={Structured {RAG}: Structured Outputs for Retrieval-Augmented Generation},
-  author={Anonymous},
-  year={2024},
-  eprint={2408.11061},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2408.11061}
-}
-
-@misc{outlinesDocs,
-  title={Outlines: Structured Generation with {LLMs}},
-  howpublished={\url{https://dottxt-ai.github.io/outlines/}},
-  year={2024}
-}
-
-@misc{llamaCppGrammar,
-  title={{llama.cpp} Grammars},
-  howpublished={\url{https://github.com/ggml-org/llama.cpp/blob/master/grammars/README.md}},
-  year={2024}
-}
-
-@misc{lmstudioTools,
-  title={{LM} Studio OpenAI-Compatible Tools},
-  howpublished={\url{https://lmstudio.ai/docs/developer/openai-compat/tools}},
-  year={2024}
-}
-
-@misc{openaiStructured,
-  title={Introducing Structured Outputs in the API},
-  howpublished={\url{https://openai.com/index/introducing-structured-outputs-in-the-api/}},
-  year={2023}
-}
-
-@misc{ollamaStructured,
-  title={Structured Outputs in Ollama},
-  howpublished={\url{https://blog.danielclayton.co.uk/posts/ollama-structured-outputs/}},
-  year={2024}
-}
-
-@misc{fireworksStructured,
-  title={Why Do All {LLMs} Need Structured Output Modes?},
-  howpublished={\url{https://fireworks.ai/blog/why-do-all-LLMs-need-structured-output-modes}},
-  year={2024}
-}
-
-@article{liu2022structured,
-  title={Structured Decoding for Large Language Models},
-  author={Liu, X. and others},
-  year={2022},
-  eprint={2203.11171},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2203.11171}
-}
-
-@misc{instructorLlamaCpp,
-  title={Instructor + {llama.cpp}},
-  howpublished={\url{https://python.useinstructor.com/integrations/llama-cpp-python/}},
-  year={2024}
-}
-
-@misc{modalVllm,
-  title={Deploying v{LLM} on Modal},
-  howpublished={\url{https://modal.com/docs/examples/vllm_inference}},
-  year={2024}
-}
-
-@misc{wandbQuickstart,
-  title={Weights \& Biases Models Quickstart},
-  howpublished={\url{https://docs.wandb.ai/models/quickstart}},
-  year={2024}
-}
-
-@misc{wandbArtifacts,
-  title={Weights \& Biases Artifacts},
-  howpublished={\url{https://docs.wandb.ai/models/artifacts}},
-  year={2024}
-}
-
-@misc{wandbEvaluate,
-  title={Evaluate Models with Weights \& Biases},
-  howpublished={\url{https://docs.wandb.ai/models/evaluate-models}},
-  year={2024}
+@misc{zheng2023sglang,
+  title        = {SGLang: Efficient Execution of Structured Language Model Programs},
+  author       = {Zheng, Zhiqiang and others},
+  year         = {2023},
+  eprint       = {2312.07104},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
 @misc{agrawal2024sarathi,
-  title={Sarathi-Serve: High Throughput Inference for Large Language Models},
-  author={Agrawal, A. and others},
-  year={2024},
-  howpublished={\url{https://www.usenix.org/system/files/osdi24-agrawal.pdf}},
-  note={OSDI'24}
+  title        = {Sarathi-Serve: High-throughput and Memory-efficient LLM Serving with Partitioned Attention},
+  author       = {Agrawal, Amey and others},
+  year         = {2024},
+  eprint       = {2403.02310},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
-@article{oss204667,
-  title={Open-Source Serving Techniques for {LLMs}},
-  author={Anonymous},
-  year={2024},
-  eprint={2408.04667},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2408.04667}
+@misc{dao2023flashattention2,
+  title        = {FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning},
+  author       = {Dao, Tri and others},
+  year         = {2023},
+  eprint       = {2307.08691},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
-@misc{qwenDocs,
-  title={{Qwen} Documentation},
-  howpublished={\url{https://qwen.readthedocs.io/en/latest/getting_started/quickstart.html}},
-  year={2024}
+@misc{prabhu2024vattention,
+  title        = {vAttention: Dynamic Memory Management for Serving LLMs without PagedAttention},
+  author       = {Prabhu, Sumanth and others},
+  year         = {2024},
+  eprint       = {2405.04437},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
-@misc{lmstudioCatalog,
-  title={{LM} Studio Model Catalog},
-  howpublished={\url{https://lmstudio.ai/models}},
-  year={2024}
+@misc{geng2025jsonschemabench,
+  title        = {JSONSchemaBench: A Comprehensive Benchmark for Structured JSON Generation},
+  author       = {Geng, Saibo and Antoniak, Maria and Wang, Haoyu and Han, Qian and Haddow, Barry and Birch, Alexandra},
+  year         = {2025},
+  eprint       = {2501.10868},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
 }
 
-@article{es2023ragas,
-  title={{RAGAS}: Automated Evaluation of Retrieval-Augmented Generation},
-  author={Es, Tanay and others},
-  year={2023},
-  eprint={2309.15217},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2309.15217}
+@misc{letmespeakfreely,
+  title        = {Let Me Speak Freely: A Study on Constrained Decoding and Output Format Constraints},
+  author       = {Elazar, Amine and Choi, Yejin and others},
+  year         = {2024},
+  eprint       = {2408.02442},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
 }
 
-@article{atomicFacts2024,
-  title={Evaluating Atomic Facts in LLM Outputs},
-  author={Anonymous},
-  year={2024},
-  eprint={2408.15171},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2408.15171}
+@misc{es2023ragas,
+  title        = {RAGAS: Automated Evaluation of Retrieval Augmented Generation},
+  author       = {Es, Shahul and others},
+  year         = {2023},
+  eprint       = {2309.15217},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
 }
 
-@article{schulman2017ppo,
-  title={Proximal Policy Optimization Algorithms},
-  author={Schulman, John and others},
-  year={2017},
-  eprint={1707.06347},
-  archivePrefix={arXiv},
-  primaryClass={cs.LG},
-  url={https://arxiv.org/abs/1707.06347}
+@misc{atomicFacts2024,
+  title        = {FactScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation},
+  author       = {Min, Sewon and Krishna, Kalpesh and Lyu, Xinxi and Wang, Hanlin and Yih, Wen-tau and Choi, Yejin and Hajishirzi, Hannaneh},
+  year         = {2023},
+  eprint       = {2305.14251},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
 }
 
-@article{grpo,
-  title={{GRPO}: Generalized Reinforcement Policy Optimization},
-  author={Anonymous},
-  year={2022},
-  eprint={2203.02155},
-  archivePrefix={arXiv},
-  primaryClass={cs.LG},
-  url={https://arxiv.org/abs/2203.02155}
+@misc{chen2024humans,
+  title        = {Humans or LLMs as the Judge? A Study on Evaluation Methods for Text Summarization},
+  author       = {Chen, Yujia and others},
+  year         = {2024},
+  eprint       = {2402.10669},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
 }
 
-@article{llmjudgebias,
-  title={Are Large Language Models Fair Evaluators?},
-  author={Anonymous},
-  year={2023},
-  eprint={2305.17926},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2305.17926}
+@misc{dettmers2023qlora,
+  title        = {QLoRA: Efficient Finetuning of Quantized LLMs},
+  author       = {Dettmers, Tim and others},
+  year         = {2023},
+  eprint       = {2305.14314},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
-@article{llmStability,
-  title={On Stability and Variance in LLM Evaluations},
-  author={Anonymous},
-  year={2024},
-  eprint={2408.04667},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2408.04667}
+@misc{schulman2017ppo,
+  title        = {Proximal Policy Optimization Algorithms},
+  author       = {Schulman, John and others},
+  year         = {2017},
+  eprint       = {1707.06347},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
-@inproceedings{achiam2017cpo,
-  title={Constrained Policy Optimization},
-  author={Achiam, Joshua and others},
-  booktitle={Proceedings of the 34th International Conference on Machine Learning},
-  year={2017},
-  url={https://proceedings.mlr.press/v70/achiam17a.html}
+@misc{achiam2017cpo,
+  title        = {Constrained Policy Optimization},
+  author       = {Achiam, Joshua and others},
+  year         = {2017},
+  eprint       = {1705.10528},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
 }
 
 @book{altman1999cmdp,
-  title={Constrained Markov Decision Processes},
-  author={Altman, Eitan},
-  publisher={Chapman and Hall/CRC},
-  year={1999}
+  title        = {Constrained Markov Decision Processes},
+  author       = {Altman, Eitan},
+  year         = {1999},
+  publisher    = {Chapman and Hall/CRC},
+  address      = {Boca Raton, FL}
 }
 
-@article{dettmers2023qlora,
-  title={{QLoRA}: Efficient Finetuning of Quantized {LLMs}},
-  author={Dettmers, Tim and others},
-  year={2023},
-  eprint={2305.14314},
-  archivePrefix={arXiv},
-  primaryClass={cs.LG},
-  url={https://arxiv.org/abs/2305.14314}
+@misc{openaiStructuredOutputs,
+  title        = {Structured Outputs (OpenAI documentation)},
+  author       = {{OpenAI}},
+  year         = {2024},
+  howpublished = {\url{https://openai.com/index/introducing-structured-outputs-in-the-api/}},
+  note         = {Accessed: 2025-12-22}
+}
+
+@inproceedings{larson2019clinc150,
+  title        = {An Evaluation Dataset for Intent Classification and Out-of-Scope Prediction},
+  author       = {Larson, Stefan and Mahendran, Anish and Peper, Joseph J. and Clarke, Christopher and Lee, Andrew and Hill, Parker and Kummerfeld, Jonathan K. and Leach, Kevin and Laurenzano, Michael A. and Tang, Lingjia and Mars, Jason},
+  booktitle    = {Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year         = {2019},
+  eprint       = {1909.02027},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@inproceedings{yang2018hotpotqa,
+  title        = {{HotpotQA}: A Dataset for Diverse, Explainable Multi-hop Question Answering},
+  author       = {Yang, Zhilin and Qi, Peng and Zhang, Saizheng and Bengio, Yoshua and Cohen, William W. and Salakhutdinov, Ruslan and Manning, Christopher D.},
+  booktitle    = {Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year         = {2018},
+  eprint       = {1809.09600},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@article{williams1992reinforce,
+  title        = {Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning},
+  author       = {Williams, Ronald J.},
+  journal      = {Machine Learning},
+  volume       = {8},
+  number       = {3-4},
+  pages        = {229--256},
+  year         = {1992},
+  publisher    = {Springer}
+}
+
+@misc{hu2021lora,
+  title        = {{LoRA}: Low-Rank Adaptation of Large Language Models},
+  author       = {Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},
+  year         = {2021},
+  eprint       = {2106.09685},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@misc{ouyang2022rlhf,
+  title        = {Training language models to follow instructions with human feedback},
+  author       = {Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo and others},
+  year         = {2022},
+  eprint       = {2203.02155},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@misc{rafailov2023dpo,
+  title        = {Direct Preference Optimization: Your Language Model is Secretly a Reward Model},
+  author       = {Rafailov, Rafael and Sharma, Archit and Mitchell, Eric and Ermon, Stefano and Manning, Christopher D. and Finn, Chelsea},
+  year         = {2023},
+  eprint       = {2305.18290},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@misc{mangrulkar2022peft,
+  title        = {{PEFT}: Parameter-Efficient Fine-Tuning of Billion-Scale Models on Low-Resource Hardware},
+  author       = {Mangrulkar, Sourab and Packers, Sylvain and others},
+  year         = {2022},
+  howpublished = {\url{https://github.com/huggingface/peft}},
+  note         = {HuggingFace PEFT library}
+}
+
+@misc{min2023factscore,
+  title        = {{FActScore}: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation},
+  author       = {Min, Sewon and Krishna, Kalpesh and Lyu, Xinxi and Lewis, Mike and Yih, Wen-tau and Koh, Pang Wei and Iyyer, Mohit and Zettlemoyer, Luke and Hajishirzi, Hannaneh},
+  year         = {2023},
+  eprint       = {2305.14251},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@misc{ray2019benchmarking,
+  title        = {Benchmarking Safe Exploration in Deep Reinforcement Learning},
+  author       = {Ray, Alex and Achiam, Joshua and Amodei, Dario},
+  year         = {2019},
+  howpublished = {\url{https://cdn.openai.com/safexp-short.pdf}},
+  note         = {OpenAI Safety Team}
 }

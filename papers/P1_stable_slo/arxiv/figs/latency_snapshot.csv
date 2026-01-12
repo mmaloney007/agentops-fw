@@ -1,0 +1,2 @@
+setting,json_valid_pct,success_at_slo_pct,deadline_ms,ttft_mean_ms,p95_ms,p99_ms,notes
+Long-context spec-driven run (single RTX 4090),99.7,0.0,1200,1882,3099,3136,Illustrative artifact for Claim A1; see logs for full distributions.

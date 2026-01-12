@@ -36,6 +36,7 @@ documentation:
   typical_models:
     - "qwen/* (policy models)"
     - "openai/gpt-oss-20b (good candidate judge model)"
+    - "mistralai/ministral-3-3b (policy model)"
 
 # Suites define what tasks run. P3 later can add more suites without changing the evaluator core.
 suites:

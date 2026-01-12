@@ -42,24 +42,24 @@
 \maketitle
 
 \begin{abstract}
-LLM agents are increasingly deployed as \emph{services} embedded in larger software systems.
-In that setting, correctness is not a single benchmark score: agents must satisfy \emph{contracts} (e.g., JSON Schemas and tool signatures) and also meet tail-latency service-level objectives (\pninetyfive/\pninetynine), where users experience the tail, not the mean.
-We introduce \emph{SpecSLOEval}, a spec-driven, SLO-aware framework for serving and evaluating contract-first agents on realistic single-node deployments (RTX~4090-class GPUs and Apple Silicon).
-SpecSLOEval compiles a single abstract contract into backend-specific constraint artifacts (provider schemas/tools or grammars), hardens outputs via fail-closed validation and bounded repair, and evaluates configurations with a criteria-as-policy surface (\texttt{criteria.yaml}) that enforces strict lexicographic gates over structure, task accuracy, faithfulness, tool reliability, stability, and latency.
-\textbf{Claim A1:} spec-first evaluation exposes a coupling between structural enforcement and tail latency: configurations can be nearly perfectly schema-valid yet unusable under real SLO budgets.
-In our current single-GPU run, we observe 99.7\% schema-valid outputs but 0.0\% Success@\slo under a 1.2\,s deadline, motivating Success@\slo (quality gates \& deadline) as the deployment metric.
+LLM agents are increasingly deployed as services embedded in larger software systems.
+In production, correctness is not a single benchmark score: agents must satisfy contracts (JSON Schemas, tool signatures) while meeting tail-latency service-level objectives (\pninetyfive/\pninetynine)---because users experience the tail, not the mean.
+We introduce \emph{SpecSLOEval}, a framework for serving and evaluating contract-first agents on single-GPU deployments (RTX~4090 or Apple Silicon).
+The framework compiles contracts into backend-specific constraints, hardens outputs via fail-closed validation with bounded repair, and evaluates configurations using a versioned criteria file (\texttt{criteria.yaml}) that enforces lexicographic gates over structure, accuracy, faithfulness, tools, stability, and latency.
+Our key finding: spec-first evaluation exposes a coupling between structural enforcement and tail latency.
+In single-GPU experiments, we observe 99.7\% schema-valid outputs but 0.0\% Success@\slo under a 1.2\,s deadline---nearly perfect structure, yet unusable under real SLO budgets.
+This motivates Success@\slo (quality gates $\wedge$ deadline) as the right deployment metric.
 \end{abstract}
 
 \section{Introduction}
 
 LLM agents are moving from prototypes to production services.
-In production, an agent is not merely a model that produces text---it is a \emph{contracted component} in a larger system that must (i) emit \emph{structured outputs} that downstream software can parse and validate, (ii) remain \emph{faithful} to provided context (retrieved passages, records, logs, or tool outputs), and (iii) satisfy latency \emph{service-level objectives} (\slo s), where users experience tail latency (\pninetyfive/\pninetynine), not averages~\citep{dean2013tail}.
-When these requirements are violated, failures are not cosmetic: malformed JSON breaks ETL and dashboards; subtly unsupported claims about metrics trigger incorrect business actions; heavy-tailed response times collapse throughput and user trust.
+In production, an agent is not just a model that produces text---it is a contracted component that must (i) emit structured outputs downstream software can parse and validate, (ii) remain faithful to provided context (retrieved passages, records, logs, tool outputs), and (iii) satisfy latency service-level objectives, where users experience tail latency (\pninetyfive/\pninetynine), not averages~\citep{dean2013tail}.
+When these requirements fail, the failures are not cosmetic: malformed JSON breaks ETL pipelines and dashboards; unsupported claims about metrics trigger wrong business decisions; heavy-tailed response times collapse throughput and erode user trust.
 
-These requirements are especially acute in the increasingly common \emph{single-GPU deployment} regime:
-teams run open-weight models behind OpenAI-compatible local servers (e.g., LM Studio, Ollama, vLLM) to control cost and keep sensitive data on-premise.
-Single-node deployments have tight resource envelopes and sharply visible tail behavior under load, yet they still face the same production realities as cloud deployments: strict schema contracts, tool-call correctness, and faithfulness to internal data.
-In practice, many teams will accept slightly higher latency to enforce correctness, but they still need predictable \pninetyfive/\pninetynine bounds to avoid operational instability.
+These requirements are especially acute in single-GPU deployments, an increasingly common regime where teams run open-weight models behind OpenAI-compatible local servers (LM Studio, Ollama, vLLM) to control cost and keep sensitive data on-premise.
+Single-node setups have tight resource envelopes and sharply visible tail behavior under load, yet they face the same production realities as cloud deployments: strict schema contracts, tool-call correctness, and faithfulness to internal data.
+Many teams will accept slightly higher latency to enforce correctness, but they still need predictable \pninetyfive/\pninetynine bounds to avoid operational instability.
 
 Existing work addresses parts of this problem in isolation.
 Systems research and serving runtimes target throughput and tail latency for Transformer inference~\citep{kwon2023vllm,zheng2023sglang,agrawal2024sarathi}, but typically treat the model as a black box producing unconstrained text.

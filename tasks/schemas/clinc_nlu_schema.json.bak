@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "intent": { "type": "string" },
+    "domain": { "type": "string" },
+    "is_oos": { "type": "boolean" }
+  },
+  "required": ["intent", "is_oos"],
+  "additionalProperties": false
+}

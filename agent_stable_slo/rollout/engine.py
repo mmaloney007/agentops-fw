@@ -15,6 +15,8 @@ class DecodingMode(str, Enum):
     PROVIDER_STRUCTURED = "PROVIDER_STRUCTURED"
     PROVIDER_STRUCTURED_PLUS_VALIDATE = "PROVIDER_STRUCTURED_PLUS_VALIDATE"
     SPEC_DRIVEN = "SPEC_DRIVEN"
+    SPEC_DRIVEN_PLUS_REPAIR = "SPEC_DRIVEN_PLUS_REPAIR"
+    SPEC_DRIVEN_PLUS_SELFCONSISTENCY = "SPEC_DRIVEN_PLUS_SELFCONSISTENCY"
 
     @classmethod
     def from_str(cls, value: str) -> "DecodingMode":
@@ -24,6 +26,8 @@ class DecodingMode(str, Enum):
             "P": cls.PROVIDER_STRUCTURED,
             "PV": cls.PROVIDER_STRUCTURED_PLUS_VALIDATE,
             "S": cls.SPEC_DRIVEN,
+            "SR": cls.SPEC_DRIVEN_PLUS_REPAIR,
+            "SSC": cls.SPEC_DRIVEN_PLUS_SELFCONSISTENCY,
         }
         if value in aliases:
             return aliases[value]
@@ -48,6 +52,8 @@ class GenerationResult:
     final: Attempt
     attempts: List[Attempt]
     retry_count: int
+    repair_count: int
+    candidate_count: int
     total_latency_ms: float
     total_tokens_in: int
     total_tokens_out: int
@@ -150,6 +156,7 @@ def generate_with_mode(
     temperature: float,
     max_tokens: Optional[int],
     max_retries: int,
+    repair_max_attempts: int,
     self_consistency_samples: int,
     self_consistency_max_ms: int,
     self_consistency_selection: str = "majority_vote",
@@ -157,6 +164,8 @@ def generate_with_mode(
 ) -> GenerationResult:
     attempts: List[Attempt] = []
     retry_count = 0
+    repair_count = 0
+    candidate_count = 1
     total_tokens_in = 0
     total_tokens_out = 0
     total_latency_ms = 0.0
@@ -195,7 +204,16 @@ def generate_with_mode(
         record_attempt(att)
         request_end = time.perf_counter()
         return GenerationResult(
-            att, attempts, retry_count, total_latency_ms, total_tokens_in, total_tokens_out, request_start, request_end
+            att,
+            attempts,
+            retry_count,
+            repair_count,
+            candidate_count,
+            total_latency_ms,
+            total_tokens_in,
+            total_tokens_out,
+            request_start,
+            request_end,
         )
 
     if mode == DecodingMode.PROVIDER_STRUCTURED:
@@ -203,7 +221,16 @@ def generate_with_mode(
         record_attempt(att)
         request_end = time.perf_counter()
         return GenerationResult(
-            att, attempts, retry_count, total_latency_ms, total_tokens_in, total_tokens_out, request_start, request_end
+            att,
+            attempts,
+            retry_count,
+            repair_count,
+            candidate_count,
+            total_latency_ms,
+            total_tokens_in,
+            total_tokens_out,
+            request_start,
+            request_end,
         )
 
     def run_with_retries() -> Attempt:
@@ -227,10 +254,65 @@ def generate_with_mode(
         final = run_with_retries()
         request_end = time.perf_counter()
         return GenerationResult(
-            final, attempts, retry_count, total_latency_ms, total_tokens_in, total_tokens_out, request_start, request_end
+            final,
+            attempts,
+            retry_count,
+            repair_count,
+            candidate_count,
+            total_latency_ms,
+            total_tokens_in,
+            total_tokens_out,
+            request_start,
+            request_end,
         )
 
-    # SPEC_DRIVEN: self-consistency over validated outputs
+    if mode == DecodingMode.SPEC_DRIVEN:
+        final = run_with_retries()
+        request_end = time.perf_counter()
+        return GenerationResult(
+            final,
+            attempts,
+            retry_count,
+            repair_count,
+            candidate_count,
+            total_latency_ms,
+            total_tokens_in,
+            total_tokens_out,
+            request_start,
+            request_end,
+        )
+
+    if mode == DecodingMode.SPEC_DRIVEN_PLUS_REPAIR:
+        final = run_with_retries()
+        if final.parsed_json is None or final.schema_error is not None or final.parse_error is not None:
+            err = final.parse_error or final.schema_error or "unknown_error"
+            for _ in range(repair_max_attempts):
+                repair_count += 1
+                repair_prompt = (
+                    "Fix the JSON to match the schema. Return ONLY valid JSON.\n"
+                    f"Error: {err}\n"
+                    f"Invalid JSON:\n{final.raw_text}"
+                )
+                repaired = call_provider(repair_prompt, "structured")
+                record_attempt(repaired)
+                if repaired.parsed_json is not None and repaired.schema_error is None and repaired.parse_error is None:
+                    final = repaired
+                    break
+        request_end = time.perf_counter()
+        return GenerationResult(
+            final,
+            attempts,
+            retry_count,
+            repair_count,
+            candidate_count,
+            total_latency_ms,
+            total_tokens_in,
+            total_tokens_out,
+            request_start,
+            request_end,
+        )
+
+    # SPEC_DRIVEN_PLUS_SELFCONSISTENCY: self-consistency over validated outputs
     t0 = time.perf_counter()
     candidates: List[Attempt] = []
     while len(candidates) < self_consistency_samples:
@@ -239,20 +321,39 @@ def generate_with_mode(
             break
         candidate = run_with_retries()
         candidates.append(candidate)
+    candidate_count = len(candidates)
 
     valid = [c for c in candidates if c.parsed_json is not None and c.schema_error is None and c.parse_error is None]
     if not valid:
         final = candidates[-1] if candidates else run_with_retries()
         request_end = time.perf_counter()
         return GenerationResult(
-            final, attempts, retry_count, total_latency_ms, total_tokens_in, total_tokens_out, request_start, request_end
+            final,
+            attempts,
+            retry_count,
+            repair_count,
+            candidate_count,
+            total_latency_ms,
+            total_tokens_in,
+            total_tokens_out,
+            request_start,
+            request_end,
         )
 
     if self_consistency_selection != "majority_vote":
         final = valid[0]
         request_end = time.perf_counter()
         return GenerationResult(
-            final, attempts, retry_count, total_latency_ms, total_tokens_in, total_tokens_out, request_start, request_end
+            final,
+            attempts,
+            retry_count,
+            repair_count,
+            candidate_count,
+            total_latency_ms,
+            total_tokens_in,
+            total_tokens_out,
+            request_start,
+            request_end,
         )
 
     canon = [_canonical_json(v.parsed_json) for v in valid]
@@ -265,6 +366,8 @@ def generate_with_mode(
                 final,
                 attempts,
                 retry_count,
+                repair_count,
+                candidate_count,
                 total_latency_ms,
                 total_tokens_in,
                 total_tokens_out,
@@ -275,5 +378,14 @@ def generate_with_mode(
     final = valid[0]
     request_end = time.perf_counter()
     return GenerationResult(
-        final, attempts, retry_count, total_latency_ms, total_tokens_in, total_tokens_out, request_start, request_end
+        final,
+        attempts,
+        retry_count,
+        repair_count,
+        candidate_count,
+        total_latency_ms,
+        total_tokens_in,
+        total_tokens_out,
+        request_start,
+        request_end,
     )

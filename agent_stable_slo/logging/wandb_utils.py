@@ -9,6 +9,9 @@ def _active() -> bool:
 
 def ensure_online(require_online: bool = True) -> None:
     mode = os.getenv("WANDB_MODE", "").strip().lower()
+    # Temporarily allow offline mode for faster data collection
+    if mode == "offline":
+        return  # Skip online enforcement in offline mode
     if require_online:
         if mode and mode != "online":
             raise RuntimeError(f"WANDB_MODE must be 'online' for this run. Got {mode!r}")
@@ -76,6 +79,9 @@ def log(run, metrics: dict, step: Optional[int] = None):
 def log_artifact(run, path: str, name: str, type_: str = "dataset", aliases: Optional[Iterable[str]] = None):
     if run is None:
         return
+    # Skip artifact upload when WANDB_SKIP_ARTIFACTS is set for faster runs
+    if os.getenv("WANDB_SKIP_ARTIFACTS", "").lower() in ("1", "true", "yes"):
+        return
     try:
         import wandb
 
@@ -105,6 +111,8 @@ def create_episode_table():
             "tokens_in",
             "tokens_out",
             "retry_count",
+            "repair_count",
+            "candidate_count",
             "json_valid",
             "schema_valid",
             "clinc_intent_accuracy",
@@ -134,6 +142,8 @@ def add_episode_row(table, episode: Dict[str, Any]) -> None:
         episode.get("tokens_in"),
         episode.get("tokens_out"),
         episode.get("retry_count"),
+        episode.get("repair_count"),
+        episode.get("candidate_count"),
         metrics.get("json_valid"),
         metrics.get("schema_valid"),
         metrics.get("clinc_intent_accuracy"),

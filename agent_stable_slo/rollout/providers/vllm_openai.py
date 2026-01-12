@@ -24,6 +24,29 @@ def _default_base():
     return os.getenv("VLLM_API_BASE") or os.getenv("OPENAI_API_BASE", "http://localhost:8000/v1")
 
 
+def _parse_version(version: str) -> tuple[int, ...]:
+    parts = []
+    for chunk in version.replace("-", ".").split("."):
+        if chunk.isdigit():
+            parts.append(int(chunk))
+        else:
+            break
+    return tuple(parts)
+
+
+def _use_structured_outputs() -> bool:
+    flag = os.getenv("VLLM_STRUCTURED_OUTPUTS", "").strip().lower()
+    if flag:
+        return flag in {"1", "true", "yes", "on"}
+    version = os.getenv("VLLM_VERSION", "").strip()
+    if not version:
+        return False
+    try:
+        return _parse_version(version) >= (0, 12, 0)
+    except Exception:
+        return False
+
+
 def generate_raw(
     prompt: str,
     schema: dict,
@@ -41,13 +64,22 @@ def generate_raw(
     r = None
     try:
         if mode == "structured":
-            r = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
-                response_format={"type": "json_schema", "json_schema": {"name": "spec", "schema": schema}},
-                temperature=temperature,
-                max_tokens=max_new,
-            )
+            if _use_structured_outputs():
+                r = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
+                    extra_body={"structured_outputs": {"json_schema": {"name": "spec", "schema": schema}}},
+                    temperature=temperature,
+                    max_tokens=max_new,
+                )
+            else:
+                r = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
+                    response_format={"type": "json_schema", "json_schema": {"name": "spec", "schema": schema}},
+                    temperature=temperature,
+                    max_tokens=max_new,
+                )
         else:
             r = client.chat.completions.create(
                 model=model,

@@ -34,6 +34,7 @@ def _download_wandb_artifact(artifact: str, target_dir: Path) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--episodes", default="", help="Path to local episodes.jsonl (optional).")
+    ap.add_argument("--episodes-dir", default="", help="Directory containing one or more episodes.jsonl files.")
     ap.add_argument("--artifact", default="", help="W&B artifact name (entity/project/name:alias).")
     ap.add_argument("--out-dir", default="papers/p1/figs")
     args = ap.parse_args()
@@ -41,18 +42,20 @@ def main() -> None:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if args.episodes:
-        episodes_path = Path(args.episodes)
+    episodes: List[Dict[str, Any]] = []
+    if args.episodes_dir:
+        for path in Path(args.episodes_dir).rglob("episodes.jsonl"):
+            episodes.extend(_load_episodes(path))
+    elif args.episodes:
+        episodes = _load_episodes(Path(args.episodes))
     elif args.artifact:
         download_dir = _download_wandb_artifact(args.artifact, Path("out/wandb_artifacts"))
         candidates = list(download_dir.rglob("episodes.jsonl"))
         if not candidates:
             raise SystemExit("episodes.jsonl not found in artifact")
-        episodes_path = candidates[0]
+        episodes = _load_episodes(candidates[0])
     else:
-        raise SystemExit("Provide --episodes or --artifact.")
-
-    episodes = _load_episodes(episodes_path)
+        raise SystemExit("Provide --episodes, --episodes-dir, or --artifact.")
     if not episodes:
         raise SystemExit("No episodes loaded.")
 

@@ -196,6 +196,11 @@ def _tool_success(pred: Dict[str, Any], gold: Dict[str, Any]) -> int:
 
 def _enforce_wandb_online() -> None:
     mode = os.getenv("WANDB_MODE", "").strip().lower()
+    # Temporarily allow offline mode for faster data collection
+    # TODO: Re-enable online requirement before final paper submission
+    if mode == "offline":
+        print("[P1] WARNING: Running in offline mode - W&B artifacts won't be uploaded immediately")
+        return
     if mode and mode != "online":
         raise RuntimeError(f"WANDB_MODE must be 'online' for P1 runs. Got {mode!r}")
     os.environ["WANDB_MODE"] = "online"
@@ -302,7 +307,12 @@ def run_eval(args: argparse.Namespace) -> None:
         },
         require_online=True,
     )
+    import sys
+    print("[P1] DEBUG: Creating episode table...", flush=True)
+    sys.stderr.write("[P1] DEBUG: Creating episode table (stderr)...\n")
+    sys.stderr.flush()
     wb_table = WL.create_episode_table() if wb_run else None
+    print("[P1] DEBUG: Episode table created", flush=True)
 
     episodes: List[Dict[str, Any]] = []
     latencies: List[float] = []
@@ -318,14 +328,17 @@ def run_eval(args: argparse.Namespace) -> None:
     judge_trace_limit = 50
 
     alias = [crit.reporting.wandb.artifact_alias] if crit.reporting.wandb.artifact_alias else None
+    print("[P1] DEBUG: Logging artifacts...")
     WL.log_artifact(wb_run, args.criteria, f"criteria-{crit.criteria_id}", type_="criteria", aliases=alias)
 
     task_fps = []
     for task in suite.tasks:
+        print(f"[P1] DEBUG: Fingerprinting {task.task_file}...")
         task_fp = fingerprint_tasks(task.task_file)
         task_fps.append(task_fp.as_dict())
         WL.log_artifact(wb_run, task.task_file, f"tasks-{task.id}", type_="tasks", aliases=alias)
         WL.log_artifact(wb_run, task.output_schema, f"schema-{task.id}", type_="schema", aliases=alias)
+    print("[P1] DEBUG: All artifacts logged")
 
     # Warmup requests to avoid cold-start latency contamination
     warmup_count = crit.reproducibility.warmup_requests
@@ -352,11 +365,15 @@ def run_eval(args: argparse.Namespace) -> None:
                 pass  # Ignore warmup failures
         print("[P1] Warmup complete, starting evaluation...")
 
+    total_examples = sum(min(args.max_examples or 999999, sum(1 for _ in _read_jsonl(t.task_file))) for t in suite.tasks)
+    processed = 0
     for task in suite.tasks:
         schema = _load_schema(task.output_schema)
         for idx, rec in enumerate(_read_jsonl(task.task_file), start=1):
             if args.max_examples and idx > args.max_examples:
                 break
+            processed += 1
+            print(f"[P1] Progress: {processed}/{total_examples} ({task.id} #{idx})", flush=True)
             prompt = rec.get("prompt", "")
             prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
             task_instance_id = rec.get("id") or f"{task.id}:{idx}"

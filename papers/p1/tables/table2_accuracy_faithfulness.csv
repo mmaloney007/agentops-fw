@@ -1,2 +1,0 @@
-model,decode_mode,clinc_intent_accuracy,hotpot_answer_exact_match,hotpot_answer_f1,hotpot_faithfulness,hotpot_contradiction_rate,tool_success_rate,clinc_intent_macro_f1
-qwen/qwen3-vl-4b,SPEC_DRIVEN,0.0,0.4,0.48,0.36666666666666664,0.0,0.8,0.0

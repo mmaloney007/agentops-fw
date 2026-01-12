@@ -33,26 +33,25 @@ University of New Hampshire \\
 \maketitle
 
 \begin{abstract}
-LLM agents deployed as production services must satisfy typed output contracts (JSON schemas, tool signatures) while meeting tail-latency service-level objectives (\pninetyfive/\pninetynine \slo s).
-Existing policy gradient methods optimize for task accuracy but ignore structural correctness, faithfulness to evidence, output stability across runs, and latency constraints—leading to agents that pass offline benchmarks yet fail in deployment.
-We introduce a 6-component composite reward that jointly optimizes schema validity, task success, faithfulness (via LLM-as-judge), output stability (disagreement@k), and tail latency, trained via REINFORCE with baseline on single-GPU hardware (RTX 4090 / Apple M2 Max) using LoRA adapters.
-Our method integrates seamlessly with the SpecSLOEval evaluation framework (Paper~I), reusing its metrics as reward components and constraints.
-In experiments across CLINC150 intent classification, HotpotQA grounded QA, and tool-calling episodes, we show that SLO-aware training reduces schema violations by up to 47\%, improves faithfulness scores by 0.12 points, and decreases disagreement@k from 0.23 to 0.08, all while maintaining \pninetyfive latency within 1.15$\times$ of baseline on a single RTX 4090.
-Our approach demonstrates that constrained policy gradient training is feasible on commodity hardware and yields agents that are structurally correct, semantically faithful, and service-ready.
+LLM agents deployed as production services must satisfy typed output contracts (JSON schemas, tool signatures) while meeting tail-latency SLOs (\pninetyfive/\pninetynine).
+Standard policy gradient methods optimize for task accuracy but ignore structural correctness, faithfulness, output stability, and latency---producing agents that pass offline benchmarks yet fail in deployment.
+We introduce a 6-component composite reward that jointly optimizes schema validity, task success, faithfulness (LLM-as-judge), stability (disagreement@k), and tail latency, trained via REINFORCE with baseline on single-GPU hardware using LoRA adapters.
+The method integrates with SpecSLOEval (Paper~I), reusing its metrics as reward components.
+Across CLINC150 intent classification, HotpotQA grounded QA, and tool-calling episodes, SLO-aware training reduces schema violations by up to 47\%, improves faithfulness by 0.12 points, and cuts disagreement@k from 0.23 to 0.08---all while keeping \pninetyfive latency within 1.15$\times$ of baseline on a single RTX 4090.
+The results show that constrained policy gradient training is practical on commodity hardware and yields agents that are structurally correct, semantically faithful, and service-ready.
 \end{abstract}
 
 \section{Introduction}
 
-LLM-based agents are increasingly deployed as \emph{services}—components in larger software systems that must satisfy strict contracts and service-level objectives.
-In production, an agent is not merely a model producing helpful text; it is a contracted function that must (i) emit structured outputs (JSON reports, typed tool arguments) that downstream code can parse and validate, (ii) ground its responses in provided evidence without hallucination, (iii) produce stable outputs across runs (no random flips for identical inputs), and (iv) meet tail-latency \slo s where users experience \pninetyfive/\pninetynine delays, not averages~\citep{dean2013tail}.
+LLM-based agents are increasingly deployed as services---components in larger software systems that must satisfy strict contracts and service-level objectives.
+In production, an agent is not just a model producing helpful text; it is a contracted function that must (i) emit structured outputs (JSON reports, typed tool arguments) that downstream code can parse, (ii) ground responses in provided evidence without hallucination, (iii) produce stable outputs across runs (no random flips for identical inputs), and (iv) meet tail-latency SLOs where users experience \pninetyfive/\pninetynine delays, not averages~\citep{dean2013tail}.
 
-These requirements are especially acute in \emph{single-GPU deployments}—teams running open-weight models behind OpenAI-compatible local servers (LM Studio, Ollama, vLLM) to control costs and keep data on-premise.
-Single-node setups have tight resource envelopes and sharply visible tail behavior under load, yet they still face the same production realities as cloud deployments: strict schema contracts, tool-call correctness, faithfulness to internal data, and predictable \pninetyfive/\pninetynine bounds.
+These requirements are especially acute in single-GPU deployments, where teams run open-weight models behind OpenAI-compatible local servers (LM Studio, Ollama, vLLM) to control costs and keep data on-premise.
+Single-node setups have tight resource envelopes and sharply visible tail behavior, yet they face the same production realities as cloud deployments: strict schema contracts, tool-call correctness, faithfulness to internal data, and predictable tail latency bounds.
 
-Existing work on policy gradient training for LLMs~\citep{schulman2017ppo,ouyang2022rlhf,rafailov2023dpo} focuses primarily on preference alignment and helpfulness, measured via human feedback or reward models.
-While these methods improve conversational quality, they do not address the contract-first, \slo-aware requirements of production agents:
-structured output validity is often left to post-hoc validation, faithfulness is rarely measured, output stability is ignored, and latency constraints are treated as separate engineering concerns rather than training objectives.
-As a result, agents trained with standard RL can achieve high accuracy on offline benchmarks yet fail in deployment due to malformed JSON, subtle hallucinations, unstable outputs, or unacceptable tail latency.
+Existing policy gradient methods for LLMs~\citep{schulman2017ppo,ouyang2022rlhf,rafailov2023dpo} focus on preference alignment and helpfulness via human feedback or reward models.
+These methods improve conversational quality but do not address contract-first, SLO-aware requirements: structured output validity is left to post-hoc validation, faithfulness is rarely measured, stability is ignored, and latency constraints are treated as separate engineering concerns rather than training objectives.
+Agents trained with standard RL can therefore achieve high offline accuracy yet fail in deployment due to malformed JSON, subtle hallucinations, unstable outputs, or unacceptable tail latency.
 
 We introduce \emph{SLO-aware policy gradient training} for contract-first agents, designed explicitly for single-GPU hardware.
 Our method extends REINFORCE~\citep{williams1992reinforce} with a 6-component composite reward:
