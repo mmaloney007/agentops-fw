@@ -66,6 +66,10 @@ class CoiledConfig(BaseModel):
     create_timeout: str = "15m"
     op_timeout: str = "45m"
     env: dict[str, str] = Field(default_factory=dict)
+    submit_batch: bool = True
+    use_existing: bool = False
+    batch_region: str | None = None
+    batch_vm_type: str | None = None
 
     @model_validator(mode="after")
     def _validate_resources(self) -> "CoiledConfig":

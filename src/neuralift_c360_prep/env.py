@@ -14,6 +14,10 @@ from pathlib import Path
 
 from dotenv import dotenv_values, find_dotenv, load_dotenv
 
+COILED_ENV_PREFIXES = ("DATABRICKS_", "OPENAI_", "WANDB_", "AWS_", "NL_")
+BATCH_ENV_FLAG = "NL_C360_PREP_BATCH"
+CONFIG_B64_ENV_KEY = "NL_C360_PREP_CONFIG_B64"
+
 
 def _find_dotenv_path(dotenv_path: str | Path | None = None) -> Path | None:
     if dotenv_path:
@@ -48,4 +52,23 @@ def dotenv_env_vars(dotenv_path: str | Path | None = None) -> dict[str, str]:
     return env_vars
 
 
-__all__ = ["dotenv_env_vars", "load_dotenv_file"]
+def collect_coiled_env_vars(
+    extra: dict[str, str] | None = None,
+) -> dict[str, str]:
+    env_vars = dotenv_env_vars()
+    for key, value in os.environ.items():
+        if any(key.startswith(prefix) for prefix in COILED_ENV_PREFIXES):
+            env_vars.setdefault(key, value)
+    if extra:
+        env_vars.update({k: v for k, v in extra.items() if v is not None})
+    return {k: v for k, v in env_vars.items() if v not in (None, "")}
+
+
+__all__ = [
+    "BATCH_ENV_FLAG",
+    "COILED_ENV_PREFIXES",
+    "CONFIG_B64_ENV_KEY",
+    "collect_coiled_env_vars",
+    "dotenv_env_vars",
+    "load_dotenv_file",
+]

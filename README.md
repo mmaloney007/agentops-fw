@@ -16,11 +16,20 @@ Local run (Pixi) meaning local dask and file writing:
 pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime local
 ```
 
-Coiled run (requires Coiled auth + a software env; see setup below):
+Coiled run (submits a Coiled batch job by default; logs stream in Coiled):
 
 ```bash
 pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime coiled
 ```
+
+Run the driver locally against a Coiled cluster (legacy behavior):
+
+```bash
+pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime coiled --no-batch
+```
+
+Batch helper:
+- `scripts/run_coiled_configs.sh` submits batch jobs by default; add `--local-driver` to capture local logs and summary output.
 
 ### Coiled software env setup (regular + Docker)
 
@@ -45,6 +54,10 @@ docker build -t ghcr.io/neuralift-ai/neuralift-c360-prep:cpu .
 docker push ghcr.io/neuralift-ai/neuralift-c360-prep:cpu
 pixi run coiled env create --workspace neuralift-dev --name neuralift_c360_prep_cpu --container ghcr.io/neuralift-ai/neuralift-c360-prep:cpu --ignore-container-entrypoint
 ```
+
+Batch notes:
+- `runtime.coiled.submit_batch` defaults to `true` (CLI uses batch unless `--no-batch`).
+- Batch runs use `runtime.coiled.software_env` for the Coiled software environment.
 
 ### Points + labels helper (segmenter)
 

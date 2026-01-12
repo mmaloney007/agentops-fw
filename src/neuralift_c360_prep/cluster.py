@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Iterator
@@ -33,7 +34,7 @@ import dask
 from dask.distributed import Client, LocalCluster
 
 from .config import BundleConfig
-from .env import dotenv_env_vars
+from .env import BATCH_ENV_FLAG, collect_coiled_env_vars
 from .log_utils import configure_dask_logging, set_worker_shutdown_flag
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,10 @@ def _generate_unique_cluster_name(base_name: str) -> str:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     short_uuid = str(uuid.uuid4())[:8]
     return f"{base_name}-{timestamp}-{short_uuid}"
+
+
+def _in_coiled_batch() -> bool:
+    return os.getenv(BATCH_ENV_FLAG) == "1"
 
 
 _DASK_SHUTDOWN_NOISE = "Failed to communicate with scheduler during heartbeat"
@@ -122,6 +127,47 @@ def local_client(cfg: BundleConfig) -> Iterator[Client]:
         logger.info("Closed local Dask cluster")
 
 
+def build_coiled_cluster_kwargs(
+    cfg: BundleConfig,
+    *,
+    cluster_name: str | None = None,
+    include_software: bool = True,
+) -> dict:
+    c = cfg.runtime.coiled
+    name = cluster_name or _generate_unique_cluster_name(c.name)
+    perf_env_vars = {
+        "DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING": "true",
+        "DASK_DISTRIBUTED__WORKER__MEMORY__TARGET": "0.6",
+        "DASK_DISTRIBUTED__WORKER__MEMORY__SPILL": "0.7",
+        "DASK_DISTRIBUTED__WORKER__MEMORY__PAUSE": "0.8",
+        "DASK_DISTRIBUTED__WORKER__MEMORY__TERMINATE": "0.95",
+    }
+    coiled_env = collect_coiled_env_vars(c.env)
+    env_vars = {**perf_env_vars, **coiled_env}
+
+    cluster_kwargs: dict = {
+        "name": name,
+        "n_workers": c.n_workers,
+        "idle_timeout": c.idle_timeout,
+        "no_client_timeout": c.no_client_timeout,
+        "shutdown_on_close": True,
+        "environ": env_vars,
+    }
+    if include_software:
+        cluster_kwargs["software"] = c.software_env
+    if c.worker_vm_types:
+        cluster_kwargs["worker_vm_types"] = c.worker_vm_types
+    else:
+        cluster_kwargs["worker_cpu"] = c.worker_cpu
+        cluster_kwargs["worker_memory"] = c.worker_memory
+    if c.scheduler_vm_types:
+        cluster_kwargs["scheduler_vm_types"] = c.scheduler_vm_types
+    else:
+        cluster_kwargs["scheduler_cpu"] = c.scheduler_cpu
+        cluster_kwargs["scheduler_memory"] = c.scheduler_memory
+    return cluster_kwargs
+
+
 @contextlib.contextmanager
 def coiled_client(cfg: BundleConfig) -> Iterator[Client]:
     try:
@@ -134,39 +180,45 @@ def coiled_client(cfg: BundleConfig) -> Iterator[Client]:
 
     c = cfg.runtime.coiled
 
-    # Generate unique cluster name for better monitoring/debugging
-    cluster_name = _generate_unique_cluster_name(c.name)
+    in_batch = _in_coiled_batch()
+    use_existing = c.use_existing or in_batch
+    if use_existing:
+        try:
+            client = coiled.get_dask_client_from_batch_node()
+        except Exception as exc:
+            if in_batch or c.use_existing:
+                raise RuntimeError(
+                    "Failed to attach to existing Coiled batch cluster"
+                ) from exc
+            logger.warning(
+                "Unable to attach to batch cluster; falling back to new cluster: %s",
+                exc,
+            )
+        else:
+            configure_dask_logging(
+                client,
+                level=cfg.logging.level,
+                dask_level=cfg.logging.dask_level,
+                llm_level=cfg.logging.llm_level,
+                forward_to_scheduler=False,
+            )
+            _ensure_shutdown_filter()
+            logger.info("Attached to Coiled batch cluster")
+            try:
+                yield client
+            finally:
+                _set_shutdown_flag(True)
+                try:
+                    client.run(set_worker_shutdown_flag, True)
+                except Exception:
+                    pass
+                client.close()
+                _set_shutdown_flag(False)
+                logger.info("Closed Coiled batch client")
+            return
 
-    # Merge performance env vars with user-specified env vars
-    # User env vars take precedence (applied second)
-    perf_env_vars = {
-        "DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING": "true",
-        "DASK_DISTRIBUTED__WORKER__MEMORY__TARGET": "0.6",
-        "DASK_DISTRIBUTED__WORKER__MEMORY__SPILL": "0.7",
-        "DASK_DISTRIBUTED__WORKER__MEMORY__PAUSE": "0.8",
-        "DASK_DISTRIBUTED__WORKER__MEMORY__TERMINATE": "0.95",
-    }
-    env_vars = {**perf_env_vars, **dotenv_env_vars(), **c.env}
-
-    cluster_kwargs: dict = {
-        "name": cluster_name,
-        "software": c.software_env,
-        "n_workers": c.n_workers,
-        "idle_timeout": c.idle_timeout,
-        "no_client_timeout": c.no_client_timeout,
-        "shutdown_on_close": True,
-        "environ": env_vars,
-    }
-    if c.worker_vm_types:
-        cluster_kwargs["worker_vm_types"] = c.worker_vm_types
-    else:
-        cluster_kwargs["worker_cpu"] = c.worker_cpu
-        cluster_kwargs["worker_memory"] = c.worker_memory
-    if c.scheduler_vm_types:
-        cluster_kwargs["scheduler_vm_types"] = c.scheduler_vm_types
-    else:
-        cluster_kwargs["scheduler_cpu"] = c.scheduler_cpu
-        cluster_kwargs["scheduler_memory"] = c.scheduler_memory
+    cluster_kwargs = build_coiled_cluster_kwargs(cfg)
+    cluster_name = cluster_kwargs["name"]
 
     logger.info("Creating Coiled cluster '%s' (base: '%s')...", cluster_name, c.name)
     coiled_cluster = coiled.Cluster(**cluster_kwargs)
@@ -206,5 +258,4 @@ def get_client(cfg: BundleConfig) -> contextlib.AbstractContextManager[Client]:
         return coiled_client(cfg)
     return local_client(cfg)
 
-
-__all__ = ["get_client"]
+__all__ = ["build_coiled_cluster_kwargs", "get_client"]

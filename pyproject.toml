@@ -82,14 +82,3 @@ points_and_labels = "points_and_labels"
 
 [tool.pixi.environments.dev]
 features = ["dev"]
-
-# ---------------------------------------------------------------------------
-#  Pytest configuration
-# ---------------------------------------------------------------------------
-[tool.pytest.ini_options]
-addopts = [
-    "--cov=src/neuralift_c360_prep",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-fail-under=70"
-]

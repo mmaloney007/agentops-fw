@@ -1,3 +1,4 @@
+import logging
 import os
 
 import pytest
@@ -22,4 +23,6 @@ def _env_guard(monkeypatch):
     for key, value in defaults.items():
         if os.getenv(key) is None:
             monkeypatch.setenv(key, value)
+    logging.getLogger("distributed.shuffle").setLevel(logging.ERROR)
+    logging.getLogger("distributed.shuffle._scheduler_plugin").setLevel(logging.ERROR)
     yield
