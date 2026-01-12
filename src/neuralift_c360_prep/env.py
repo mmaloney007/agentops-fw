@@ -15,8 +15,6 @@ from pathlib import Path
 from dotenv import dotenv_values, find_dotenv, load_dotenv
 
 COILED_ENV_PREFIXES = ("DATABRICKS_", "OPENAI_", "WANDB_", "AWS_", "NL_")
-BATCH_ENV_FLAG = "NL_C360_PREP_BATCH"
-CONFIG_B64_ENV_KEY = "NL_C360_PREP_CONFIG_B64"
 
 
 def _find_dotenv_path(dotenv_path: str | Path | None = None) -> Path | None:
@@ -65,9 +63,7 @@ def collect_coiled_env_vars(
 
 
 __all__ = [
-    "BATCH_ENV_FLAG",
     "COILED_ENV_PREFIXES",
-    "CONFIG_B64_ENV_KEY",
     "collect_coiled_env_vars",
     "dotenv_env_vars",
     "load_dotenv_file",

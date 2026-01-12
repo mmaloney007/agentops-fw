@@ -34,7 +34,7 @@ import dask
 from dask.distributed import Client, LocalCluster
 
 from .config import BundleConfig
-from .env import BATCH_ENV_FLAG, collect_coiled_env_vars
+from .env import collect_coiled_env_vars
 from .log_utils import configure_dask_logging, set_worker_shutdown_flag
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,8 @@ def _generate_unique_cluster_name(base_name: str) -> str:
 
 
 def _in_coiled_batch() -> bool:
-    return os.getenv(BATCH_ENV_FLAG) == "1"
+    """Detect if running inside a Coiled batch job."""
+    return os.getenv("COILED_BATCH_TASK_ID") is not None
 
 
 _DASK_SHUTDOWN_NOISE = "Failed to communicate with scheduler during heartbeat"
@@ -175,52 +176,38 @@ def coiled_client(cfg: BundleConfig) -> Iterator[Client]:
     except Exception as exc:  # pragma: no cover - missing optional dep
         raise RuntimeError("Coiled is required for coiled runtime") from exc
 
-    # Apply performance defaults before creating cluster
     _apply_dask_perf_defaults()
 
-    c = cfg.runtime.coiled
-
-    in_batch = _in_coiled_batch()
-    use_existing = c.use_existing or in_batch
-    if use_existing:
+    # Inside batch job - attach to existing cluster
+    if _in_coiled_batch():
+        client = coiled.get_dask_client_from_batch_node()
+        configure_dask_logging(
+            client,
+            level=cfg.logging.level,
+            dask_level=cfg.logging.dask_level,
+            llm_level=cfg.logging.llm_level,
+            forward_to_scheduler=False,
+        )
+        _ensure_shutdown_filter()
+        logger.info("Attached to Coiled batch cluster")
         try:
-            client = coiled.get_dask_client_from_batch_node()
-        except Exception as exc:
-            if in_batch or c.use_existing:
-                raise RuntimeError(
-                    "Failed to attach to existing Coiled batch cluster"
-                ) from exc
-            logger.warning(
-                "Unable to attach to batch cluster; falling back to new cluster: %s",
-                exc,
-            )
-        else:
-            configure_dask_logging(
-                client,
-                level=cfg.logging.level,
-                dask_level=cfg.logging.dask_level,
-                llm_level=cfg.logging.llm_level,
-                forward_to_scheduler=False,
-            )
-            _ensure_shutdown_filter()
-            logger.info("Attached to Coiled batch cluster")
+            yield client
+        finally:
+            _set_shutdown_flag(True)
             try:
-                yield client
-            finally:
-                _set_shutdown_flag(True)
-                try:
-                    client.run(set_worker_shutdown_flag, True)
-                except Exception:
-                    pass
-                client.close()
-                _set_shutdown_flag(False)
-                logger.info("Closed Coiled batch client")
-            return
+                client.run(set_worker_shutdown_flag, True)
+            except Exception:
+                pass
+            client.close()
+            _set_shutdown_flag(False)
+            logger.info("Closed Coiled batch client")
+        return
 
+    # Outside batch - create new cluster
     cluster_kwargs = build_coiled_cluster_kwargs(cfg)
     cluster_name = cluster_kwargs["name"]
 
-    logger.info("Creating Coiled cluster '%s' (base: '%s')...", cluster_name, c.name)
+    logger.info("Creating Coiled cluster '%s'...", cluster_name)
     coiled_cluster = coiled.Cluster(**cluster_kwargs)
     client = Client(coiled_cluster)
     configure_dask_logging(
