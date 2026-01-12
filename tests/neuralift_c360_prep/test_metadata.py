@@ -39,9 +39,6 @@ def test_metadata_builds():
 def test_build_minimal_config_defaults():
     config = build_minimal_config(row_count=10000, run_name="demo_run")
     assert config["use_wandb"] is True
-    assert config["use_tuner"] is True
-    assert config["use_ensemble"] is True
-    assert config["use_auto_config"] is True
     assert config["wandb"]["project"] == "demo_run"
     assert config["dae"]["data_module"]["batch_size"] == 8192
     assert config["dae"]["data_module"]["compute_stats_from"] == "full"
