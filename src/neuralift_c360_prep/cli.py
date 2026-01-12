@@ -62,6 +62,7 @@ def _submit_coiled_batch(cfg: BundleConfig, *, config_path: Path) -> None:
     batch_env[CONFIG_B64_ENV_KEY] = _encode_config(config_path)
 
     cmd = [
+        "/app/entrypoint.sh",
         "python",
         "-m",
         "neuralift_c360_prep.batch_entrypoint",
