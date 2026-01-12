@@ -67,6 +67,7 @@ def submit_batch(cfg: BundleConfig, *, config_path: Path) -> None:
         "buffers_to_upload": [
             {"relative_path": "config.yaml", "buffer": config_buffer}
         ],
+        "command_as_script": True,  # Suppress file detection warnings
     }
 
     # Use worker VM type for batch if available

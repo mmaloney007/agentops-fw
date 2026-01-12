@@ -1565,9 +1565,9 @@ def build_minimal_config(
     project_name = run_name if run_name else None
     return {
         "use_wandb": True,
-        "use_tuner": True,
-        "use_ensemble": True,
-        "use_auto_config": True,
+        # "use_tuner": True,
+        # "use_ensemble": True,
+        # "use_auto_config": True,
         "wandb": {
             "project": project_name,
         },
