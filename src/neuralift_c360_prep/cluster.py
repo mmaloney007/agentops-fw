@@ -258,4 +258,5 @@ def get_client(cfg: BundleConfig) -> contextlib.AbstractContextManager[Client]:
         return coiled_client(cfg)
     return local_client(cfg)
 
+
 __all__ = ["build_coiled_cluster_kwargs", "get_client"]
