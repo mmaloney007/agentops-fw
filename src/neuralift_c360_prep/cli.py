@@ -61,16 +61,23 @@ def _submit_coiled_batch(cfg: BundleConfig, *, config_path: Path) -> None:
     batch_env[BATCH_ENV_FLAG] = "1"
     batch_env[CONFIG_B64_ENV_KEY] = _encode_config(config_path)
 
-    cmd = [
-        "/app/entrypoint.sh",
-        "python",
+    entrypoint_args = [
         "-m",
         "neuralift_c360_prep.batch_entrypoint",
         "--runtime",
         "coiled",
     ]
     if cfg.logging.level:
-        cmd += ["--log-level", cfg.logging.level]
+        entrypoint_args += ["--log-level", cfg.logging.level]
+    entrypoint_cmd = " ".join(shlex.quote(arg) for arg in entrypoint_args)
+    inner_cmd = (
+        "if [ -x /app/.pixi/envs/default/bin/python ]; then "
+        f"exec /app/.pixi/envs/default/bin/python {entrypoint_cmd}; "
+        "elif command -v python >/dev/null 2>&1; then "
+        f"exec python {entrypoint_cmd}; "
+        "else echo 'python not found' >&2; exit 127; fi"
+    )
+    cmd = f"bash -lc {shlex.quote(inner_cmd)}"
 
     batch_kwargs: dict = {
         "software": cfg.runtime.coiled.software_env,
@@ -86,7 +93,7 @@ def _submit_coiled_batch(cfg: BundleConfig, *, config_path: Path) -> None:
     if batch_vm_type:
         batch_kwargs["vm_type"] = batch_vm_type
 
-    coiled.batch.run(shlex.join(cmd), **batch_kwargs)
+    coiled.batch.run(cmd, **batch_kwargs)
     print(
         "Submitted Coiled batch job for config:",
         config_path,
