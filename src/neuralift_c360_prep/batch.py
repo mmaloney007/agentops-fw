@@ -16,6 +16,7 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
+import io
 import logging
 from pathlib import Path
 
@@ -41,11 +42,12 @@ def submit_batch(cfg: BundleConfig, *, config_path: Path) -> None:
     cluster_name = cluster_kwargs["name"]
 
     # Build command using entrypoint to activate pixi environment
+    # Config is uploaded to ./config.yaml (relative to working dir) via buffers_to_upload
     cmd_parts = [
         "/app/entrypoint.sh",
         "neuralift_c360_prep",
         "--config",
-        "/config.yaml",
+        "./config.yaml",
         "--runtime",
         "coiled",
     ]
@@ -54,11 +56,17 @@ def submit_batch(cfg: BundleConfig, *, config_path: Path) -> None:
 
     cmd = " ".join(cmd_parts)
 
+    # Upload config file to batch environment
+    config_content = config_path.read_bytes()
+    config_buffer = io.BytesIO(config_content)
+
     batch_kwargs: dict = {
         "software": cfg.runtime.coiled.software_env,
         "cluster_kwargs": cluster_kwargs,
         "task_on_scheduler": True,
-        "files": {str(config_path.resolve()): "/config.yaml"},
+        "buffers_to_upload": [
+            {"relative_path": "config.yaml", "buffer": config_buffer}
+        ],
     }
 
     # Use worker VM type for batch if available
