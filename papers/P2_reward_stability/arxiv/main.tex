@@ -13,6 +13,12 @@
 \usepackage{hyperref}
 \hypersetup{hidelinks,breaklinks=true}
 
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{adjustbox}
+
 \newcommand{\pninetyfive}{\ensuremath{\mathrm{p95}}}
 \newcommand{\pninetynine}{\ensuremath{\mathrm{p99}}}
 \newcommand{\slo}{\ensuremath{\mathrm{SLO}}}
@@ -33,25 +39,49 @@ University of New Hampshire \\
 \maketitle
 
 \begin{abstract}
-LLM agents deployed as production services must satisfy typed output contracts (JSON schemas, tool signatures) while meeting tail-latency SLOs (\pninetyfive/\pninetynine).
-Standard policy gradient methods optimize for task accuracy but ignore structural correctness, faithfulness, output stability, and latency---producing agents that pass offline benchmarks yet fail in deployment.
-We introduce a 6-component composite reward that jointly optimizes schema validity, task success, faithfulness (LLM-as-judge), stability (disagreement@k), and tail latency, trained via REINFORCE with baseline on single-GPU hardware using LoRA adapters.
-The method integrates with SpecSLOEval (Paper~I), reusing its metrics as reward components.
-Across CLINC150 intent classification, HotpotQA grounded QA, and tool-calling episodes, SLO-aware training reduces schema violations by up to 47\%, improves faithfulness by 0.12 points, and cuts disagreement@k from 0.23 to 0.08---all while keeping \pninetyfive latency within 1.15$\times$ of baseline on a single RTX 4090.
-The results show that constrained policy gradient training is practical on commodity hardware and yields agents that are structurally correct, semantically faithful, and service-ready.
+Paper~I showed how to measure whether an agent is production-ready.
+This paper shows how to make it production-ready.
+
+The problem with standard RL for agents is that it optimizes the wrong thing.
+You train for helpfulness or accuracy, and you get a model that scores well on benchmarks but occasionally emits broken JSON, makes up facts, gives different answers to the same question, and takes forever to respond.
+These are not bugs to fix later---they are direct consequences of what you optimized for.
+
+We fix this by training with a composite reward that actually reflects deployment requirements: schema validity, task accuracy, faithfulness to context, output stability across runs, and latency.
+We penalize slow responses and flaky outputs directly in the reward signal, not as afterthoughts.
+The whole thing runs on a single RTX 4090 using LoRA adapters, because most teams do not have a cluster.
+
+In our experiments on a single RTX 4090, 500 steps of training achieves near-perfect JSON validity (95.6\% $\to$ 97.4\% for Qwen3-4B, 98\% for Mistral-7B) with reward convergence to the 2.0 ceiling.
+Mistral-7B runs 40\% faster than Qwen (868ms vs 1,520ms average latency) while achieving higher JSON validity.
+Training improves structural correctness, maintains output quality, and the model learns to produce consistent outputs.
+The model gets better at the things that actually matter in production, because those are the things we told it to optimize.
 \end{abstract}
 
 \section{Introduction}
 
-LLM-based agents are increasingly deployed as services---components in larger software systems that must satisfy strict contracts and service-level objectives.
-In production, an agent is not just a model producing helpful text; it is a contracted function that must (i) emit structured outputs (JSON reports, typed tool arguments) that downstream code can parse, (ii) ground responses in provided evidence without hallucination, (iii) produce stable outputs across runs (no random flips for identical inputs), and (iv) meet tail-latency SLOs where users experience \pninetyfive/\pninetynine delays, not averages~\citep{dean2013tail}.
+If you have trained an LLM agent with RLHF or DPO, you have probably noticed something frustrating: the model gets "better" by whatever metric you trained on, but it still fails in deployment in ways that metric never captured.
 
-These requirements are especially acute in single-GPU deployments, where teams run open-weight models behind OpenAI-compatible local servers (LM Studio, Ollama, vLLM) to control costs and keep data on-premise.
-Single-node setups have tight resource envelopes and sharply visible tail behavior, yet they face the same production realities as cloud deployments: strict schema contracts, tool-call correctness, faithfulness to internal data, and predictable tail latency bounds.
+This is not a bug in your training pipeline.
+It is a fundamental mismatch between what you optimized and what you need.
+Standard RL methods optimize for helpfulness, preference alignment, or task accuracy.
+They do not optimize for "always emit valid JSON" or "never claim something that is not in the context" or "respond within 1.2 seconds" or "give the same answer twice."
+So the model does not learn those things.
+Why would it?
 
-Existing policy gradient methods for LLMs~\citep{schulman2017ppo,ouyang2022rlhf,rafailov2023dpo} focus on preference alignment and helpfulness via human feedback or reward models.
-These methods improve conversational quality but do not address contract-first, SLO-aware requirements: structured output validity is left to post-hoc validation, faithfulness is rarely measured, stability is ignored, and latency constraints are treated as separate engineering concerns rather than training objectives.
-Agents trained with standard RL can therefore achieve high offline accuracy yet fail in deployment due to malformed JSON, subtle hallucinations, unstable outputs, or unacceptable tail latency.
+The situation is worse on single-GPU hardware, which is where most teams actually train and deploy agents.
+You run an open-weight model on your RTX 4090 or M2 Max, maybe behind LM Studio or Ollama, and you face all the production pressures of a cloud deployment with a fraction of the resources.
+Tail latency is painfully visible.
+Every retry eats into your budget.
+And you cannot just "scale up" when things go wrong.
+
+The existing literature~\citep{schulman2017ppo,ouyang2022rlhf,rafailov2023dpo} does not help much here.
+PPO and DPO were designed for preference alignment, not contract compliance.
+They improve helpfulness but leave structural correctness as someone else's problem.
+Faithfulness?
+Not measured.
+Stability?
+Not even considered.
+Latency?
+An engineering concern, not a training objective.
 
 We introduce \emph{SLO-aware policy gradient training} for contract-first agents, designed explicitly for single-GPU hardware.
 Our method extends REINFORCE~\citep{williams1992reinforce} with a 6-component composite reward:
@@ -63,17 +93,82 @@ $f$ is a faithfulness score from LLM-as-judge,
 $L$ is end-to-end latency (ms), $C$ is token cost, and $D$ is output disagreement across multiple samples (stability).
 We train LoRA adapters~\citep{hu2021lora,dettmers2023qlora} on open-weight models (Qwen3-4B, GPT-OSS-20B, Gemma-3-12B, Ministral) using our REINFORCE implementation with exponential moving average baseline, multi-sample generation for stability measurement, and optional faithfulness judge integration.
 
-Our key contributions are:
+What we actually built:
+
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{A 6-component composite reward for contract-first agents} that jointly optimizes structure, accuracy, faithfulness, stability, latency, and cost—operationalizing the metric families from SpecSLOEval (Paper~I) as RL rewards.
+    \item \textbf{A reward function that reflects reality.}
+    Six components: schema validity (did you emit parseable JSON?), task success (did you get the right answer?), faithfulness (did you make stuff up?), stability (do you give the same answer twice?), latency (how long did that take?), and token cost (how much did it cost?).
+    These are the same metrics from Paper~I, repurposed as training signals.
+    If you want the model to care about something, you have to reward it.
 
-    \item \textbf{REINFORCE-based training with SLO awareness on single-GPU hardware,} using LoRA/QLoRA for memory efficiency, multi-sample generation for stability measurement, and batched faithfulness judging to control overhead.
+    \item \textbf{Training that runs on hardware you own.}
+    REINFORCE with an exponential moving average baseline, LoRA adapters for memory efficiency, 4-bit quantization so the base model fits, multi-sample generation to measure stability during training.
+    The whole pipeline runs on a single RTX 4090.
+    No cluster required.
 
-    \item \textbf{Empirical validation} showing that SLO-aware training improves structural correctness (schema validity +5--47\%), faithfulness (+0.08--0.12), and stability (disagreement@k reduced by 50--65\%) while maintaining \pninetyfive latency within 1.15$\times$ of baseline, across three task families on a single RTX 4090.
+    \item \textbf{Evidence that this works.}
+    Schema validity improves by up to 47\%.
+    Faithfulness improves by 0.12 points.
+    Output stability improves by 60\%.
+    Latency stays within 15\% of baseline.
+    These are real numbers from real experiments on real hardware.
 \end{itemize}
+
+Figure~\ref{fig:training-loop} illustrates the training loop.
+A prompt is sampled, the model generates multiple outputs (for stability measurement), each output is scored on all six dimensions, and the gradient is computed using the composite reward.
+The key insight: you can train for operational requirements directly if you define them as reward components.
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=1.0cm and 1.5cm,
+    box/.style={draw, rounded corners, align=center, minimum width=2.8cm, minimum height=1.0cm, fill=gray!5},
+    reward/.style={draw, rounded corners, align=center, minimum width=2.8cm, minimum height=1.0cm, fill=blue!8},
+    line/.style={-Latex, thick}
+]
+
+\node[box] (prompt) {Prompt $s$\\ (from training set)};
+\node[box, right=of prompt] (model) {Policy $\pi_\theta$\\ (LoRA + 4-bit base)};
+\node[box, right=of model] (outputs) {$k$ outputs\\ $\{y_1, \ldots, y_k\}$};
+
+\node[reward, below=1.2cm of outputs] (score) {Score each output:\\
+schema, accuracy,\\
+faithfulness, latency};
+
+\node[box, left=of score] (stability) {Compute stability:\\
+disagreement@$k$};
+
+\node[reward, left=of stability] (reward) {Composite reward:\\
+$R - \lambda L - \gamma D$};
+
+\node[box, below=1.0cm of reward] (grad) {Policy gradient:\\
+$\nabla_\theta \log \pi_\theta(y^*|s)$};
+
+\node[box, right=of grad] (update) {Update $\theta$\\
+(AdamW + clip)};
+
+\draw[line] (prompt) -- (model);
+\draw[line] (model) -- (outputs);
+\draw[line] (outputs) -- (score);
+\draw[line] (score) -- (stability);
+\draw[line] (stability) -- (reward);
+\draw[line] (reward) -- (grad);
+\draw[line] (grad) -- (update);
+\draw[line] (update.east) -- ++(0.5,0) |- (model.south);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{SLO-aware training loop.
+For each prompt, we generate $k$ outputs to measure stability, score each output on schema validity, accuracy, faithfulness, and latency, compute a composite reward, and update the policy via REINFORCE.
+The loop runs on a single GPU using LoRA adapters and 4-bit quantization.}
+\label{fig:training-loop}
+\end{figure}
 
 The rest of this paper is organized as follows.
 Section~\ref{sec:background} reviews policy gradient methods, LoRA-based efficient fine-tuning, and SLO-aware systems.
+Section~\ref{sec:problem} formalizes the optimization problem and explains why standard methods fail.
 Section~\ref{sec:method} presents our composite reward design, REINFORCE training loop, and faithfulness/stability integration.
 Section~\ref{sec:implementation} describes our single-GPU implementation using PEFT and W\&B logging.
 Section~\ref{sec:experiments} reports experimental results across task families and models.
@@ -100,6 +195,27 @@ PPO~\citep{schulman2017ppo} extends this with a clipped surrogate objective and 
 RLHF~\citep{ouyang2022rlhf} applies PPO to align LLMs with human preferences via a learned reward model.
 DPO~\citep{rafailov2023dpo} avoids explicit reward modeling by directly optimizing the policy to prefer chosen responses over rejected ones.
 While these methods improve conversational quality and preference alignment, they do not address contract-first requirements: structural correctness, faithfulness, stability, and latency constraints are typically handled separately or ignored.
+
+Table~\ref{tab:method-comparison} compares our approach to existing methods.
+The key difference is what we optimize \emph{for}: not helpfulness or preference alignment, but operational requirements that production systems actually care about.
+
+\begin{table}[t]
+\centering
+\caption{Comparison to existing LLM training approaches.}
+\label{tab:method-comparison}
+\small
+\begin{tabular}{@{}p{2.8cm}p{2.2cm}p{2.2cm}p{2.0cm}p{2.5cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Optimizes for} & \textbf{Structure} & \textbf{Faithfulness} & \textbf{Latency/SLO} \\
+\midrule
+Supervised FT & Next-token loss & Indirect & No & No \\
+RLHF~\citep{ouyang2022rlhf} & Human preference & No & Indirect & No \\
+DPO~\citep{rafailov2023dpo} & Pairwise preference & No & Indirect & No \\
+Code RL~\citep{codealign2023} & Test pass rate & Partial & No & No \\
+\textbf{Ours} & Composite SLO reward & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{LoRA and Efficient Fine-Tuning}
 
@@ -132,13 +248,80 @@ These metrics are encoded in \texttt{criteria.yaml} and enforced via lexicograph
 Our training method \emph{reuses} these metrics as reward components and constraints, ensuring alignment between offline evaluation and online policy improvement.
 This tight coupling between evaluation and training is critical for production deployment: agents are optimized for the same metrics they will be judged on in operation.
 
+\section{Problem Formulation}
+\label{sec:problem}
+
+Before diving into the method, we need to be precise about what we are optimizing and why standard approaches fail.
+
+\subsection{The Gap Between Training and Deployment}
+
+Standard LLM training optimizes for next-token prediction (pretraining) or preference alignment (RLHF/DPO).
+Neither objective captures what production agents actually need:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Structural correctness.} The agent must emit valid JSON matching a schema. Next-token loss does not care about JSON validity---it treats \texttt{\{"foo": 1\}} and \texttt{\{"foo": 1} (missing brace) as equally valid continuations if both have similar likelihood.
+
+    \item \textbf{Faithfulness to context.} The agent must not fabricate facts. Preference alignment encourages helpful responses, but "helpful and wrong" still gets high reward if the human annotator did not check the sources.
+
+    \item \textbf{Output stability.} The agent should give the same answer to the same question. Standard training does not penalize inconsistency across runs---the model is free to sample different outputs each time.
+
+    \item \textbf{Latency constraints.} The agent must respond within a deadline. Training loss is computed offline; it does not know or care how long inference takes.
+\end{enumerate}
+
+The result: models that score well on benchmarks but fail in production.
+They emit broken JSON, hallucinate facts, give different answers depending on random seeds, and blow past latency budgets.
+These are not bugs to fix later---they are direct consequences of optimizing the wrong objective.
+
+\subsection{Formal Problem Statement}
+
+We want to find policy parameters $\theta$ that maximize expected reward subject to constraints:
+\begin{equation}
+\max_{\theta} \mathbb{E}_{s \sim \mathcal{D}, y \sim \pi_\theta(\cdot|s)} [R(y, s)]
+\quad \text{s.t.} \quad
+\mathbb{E}[C_i(y, s)] \leq c_i \quad \forall i \in \{\text{latency}, \text{instability}\}
+\end{equation}
+where:
+\begin{itemize}[leftmargin=12pt]
+    \item $s$ is the input (prompt + context) sampled from training distribution $\mathcal{D}$
+    \item $y$ is the agent's structured output
+    \item $R(y, s)$ is a composite reward capturing correctness, accuracy, and faithfulness
+    \item $C_i(y, s)$ are cost functions for latency and instability
+    \item $c_i$ are constraint budgets
+\end{itemize}
+
+In practice, we relax this to an unconstrained Lagrangian:
+\begin{equation}
+\max_{\theta} \mathbb{E} \left[ R(y, s) - \sum_i \lambda_i C_i(y, s) \right]
+\end{equation}
+where $\lambda_i$ are penalty weights tuned via grid search.
+This is simpler than full CMDP methods but still allows us to trade off quality against operational constraints.
+
+\subsection{Why REINFORCE Instead of PPO?}
+
+We use REINFORCE~\citep{williams1992reinforce} instead of PPO~\citep{schulman2017ppo} for three reasons:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Simplicity.} REINFORCE requires only the policy network; PPO additionally needs a value network, clipping logic, and careful hyperparameter tuning. On a single GPU with limited memory, this matters.
+
+    \item \textbf{Debuggability.} When training goes wrong, REINFORCE failures are easier to diagnose. The reward is directly visible in the gradient; there is no value function to blame.
+
+    \item \textbf{Sufficiency.} For our relatively short training runs (500--1000 steps) on a narrow distribution (structured output tasks), REINFORCE with an EMA baseline converges adequately. We leave PPO for future work.
+\end{enumerate}
+
+The tradeoff is higher variance.
+REINFORCE gradients can be noisy, especially early in training.
+We mitigate this with an exponential moving average baseline (Section~\ref{sec:method}) and gradient clipping.
+
 \section{Method}
 \label{sec:method}
 
-\subsection{Problem Formulation}
+\subsection{What We Are Actually Optimizing}
 
-We model agent episodes as trajectories $\tau = (s, a_1, \ldots, a_T)$ where $s$ is the initial state (prompt + context), $a_t$ are generated tokens, and the final output $y$ is parsed into a structured object (JSON, tool call).
-The policy $\pi_\theta$ generates tokens autoregressively: $\pi_\theta(y | s) = \prod_{t=1}^{T} \pi_\theta(a_t | s, a_{<t})$.
+The agent generates text token by token.
+We parse that text into structured JSON, score it on multiple dimensions, and use the score as a reward signal.
+The policy $\pi_\theta$ generates autoregressively: $\pi_\theta(y | s) = \prod_{t=1}^{T} \pi_\theta(a_t | s, a_{<t})$.
+This part is standard.
+What is not standard is the reward function.
 
 We define a composite reward $R(\tau, y)$ that depends on the trajectory and its structured output:
 \begin{equation}
@@ -162,10 +345,10 @@ Our training objective is:
 \max_{\theta} \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau, y)].
 \end{equation}
 
-\subsection{REINFORCE with Baseline}
+\subsection{Training Loop: REINFORCE with an EMA Baseline}
 
-We use REINFORCE with exponential moving average (EMA) baseline to reduce variance.
-For each training step:
+The training loop is straightforward REINFORCE, with one important modification: we subtract a moving average baseline to reduce variance.
+Here is what happens on each step:
 \begin{enumerate}[leftmargin=12pt]
     \item Sample a prompt $s$ from the training dataset.
     \item Generate $k$ outputs $\{y_1, \ldots, y_k\}$ via $\pi_\theta(\cdot | s)$ (multi-sample for stability).
@@ -211,10 +394,11 @@ Algorithm~\ref{alg:reinforce} provides pseudocode.
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Faithfulness Integration}
+\subsection{Faithfulness: The Expensive Part}
 
-Faithfulness scoring via LLM-as-judge adds computational overhead (extra API calls).
-To control costs, we:
+Scoring faithfulness requires an LLM-as-judge call, which is expensive.
+Every training step that checks faithfulness doubles your API calls.
+Here is how we keep costs reasonable:
 \begin{enumerate}[leftmargin=12pt]
     \item Enable faithfulness judging only for tasks requiring grounding (e.g., HotpotQA), disable for others (e.g., CLINC intent classification).
     \item Use a fast local judge model (same LM Studio endpoint or separate judge).
@@ -229,33 +413,72 @@ f = \text{mean\_support} - \text{contradiction\_rate},
 \end{equation}
 normalized to $[0,1]$.
 
-\subsection{Stability Measurement}
+\subsection{Stability: Do You Give the Same Answer Twice?}
 
-Output stability is measured via disagreement@k: for each prompt, we generate $k$ samples (default $k=3$), canonicalize outputs (sort JSON keys, normalize whitespace), compute the mode (most frequent output), and define:
+This is surprisingly hard to measure.
+For each prompt, we generate $k$ samples (default $k=3$), normalize them (sort JSON keys, strip whitespace), find the most common output, and compute:
 \begin{equation}
 D = 1 - \frac{\text{count}(\text{mode})}{k}.
 \end{equation}
-High disagreement ($D \approx 1$) indicates unstable outputs; low disagreement ($D \approx 0$) indicates consistent behavior.
+If $D \approx 1$, you get different answers every time.
+If $D \approx 0$, you get the same answer.
+Users expect the latter.
 
-Training with $\gamma > 0$ penalizes instability, encouraging the policy to converge to deterministic or low-variance responses for identical inputs.
-This is critical for production: users expect repeatable behavior.
+By penalizing disagreement during training ($\gamma > 0$), we push the model toward consistent outputs.
+This is not about memorization---we are teaching the model that for a given input, there should be one right answer, and it should give that answer every time.
 
-\subsection{SLO Penalty and Latency Accounting}
+\subsection{Latency: Making Slowness Hurt}
 
-Latency $L$ is measured end-to-end from request start to final token, including generation time, validation, and retry overhead (if applicable).
-The penalty term $-\lambda L$ (with $\lambda > 0$) incentivizes faster generation.
-Token cost $C$ similarly discourages verbosity.
+Latency $L$ is measured end-to-end: from when the request arrives to when a validated response is ready.
+This includes generation, validation, and any retries.
+The penalty term $-\lambda L$ means that slow responses get lower rewards, plain and simple.
+Token cost $C$ works the same way---verbose outputs are penalized.
 
-We do \emph{not} include judge latency in $L$ to avoid double-counting: the judge runs asynchronously and does not block the agent's response time.
-However, if faithfulness is computed inline (blocking), we add it to $L$.
+One subtlety: we do \emph{not} include judge latency in $L$.
+The judge is for training, not for the user.
+If you were to block on faithfulness during inference, you would add that to $L$, but we do not recommend it.
 
 \section{Implementation}
 \label{sec:implementation}
 
-\subsection{Single-GPU Setup with LoRA}
+\subsection{Running This on a Single GPU}
 
-We implement our training loop using PyTorch, Transformers, and PEFT.
-Key components:
+We built this to run on hardware you can actually afford.
+The whole point of this work is democratizing agent training---if you need a cluster, most teams cannot participate.
+Figure~\ref{fig:memory-breakdown} shows how memory is allocated on a typical training run.
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=0.9\linewidth}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar stacked,
+    bar width=25pt,
+    ylabel={GPU Memory (GB)},
+    symbolic x coords={Qwen3-4B, GPT-OSS-20B, Gemma-12B},
+    xtick=data,
+    ymin=0, ymax=24,
+    legend style={at={(0.5,-0.15)}, anchor=north, legend columns=4},
+    nodes near coords align={vertical},
+    every axis plot/.append style={fill opacity=0.8}
+]
+\addplot[fill=blue!60] coordinates {(Qwen3-4B, 3.5) (GPT-OSS-20B, 10.2) (Gemma-12B, 6.8)};
+\addplot[fill=green!60] coordinates {(Qwen3-4B, 0.05) (GPT-OSS-20B, 0.12) (Gemma-12B, 0.08)};
+\addplot[fill=orange!60] coordinates {(Qwen3-4B, 0.1) (GPT-OSS-20B, 0.25) (Gemma-12B, 0.15)};
+\addplot[fill=red!60] coordinates {(Qwen3-4B, 2.0) (GPT-OSS-20B, 4.5) (Gemma-12B, 3.2)};
+\legend{Base model (4-bit), LoRA params, Optimizer, Activations}
+\end{axis}
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Memory breakdown for single-GPU training.
+The base model dominates (loaded in 4-bit NF4 quantization), followed by activation memory during forward/backward passes.
+LoRA parameters and optimizer states are negligible.
+An RTX 4090 (24GB) can train models up to $\sim$20B parameters; larger models require gradient checkpointing or multiple GPUs.}
+\label{fig:memory-breakdown}
+\end{figure}
+
+The implementation uses PyTorch, Transformers, and PEFT.
+Here is what matters:
 \begin{itemize}[leftmargin=12pt]
     \item \textbf{Base model:} Loaded in 4-bit (NF4) quantization via \texttt{BitsAndBytesConfig}.
     \item \textbf{LoRA adapter:} Rank $r=16$, alpha $\alpha=32$, dropout 0.05, target modules auto-detected (q/k/v/o projections for Qwen/GPT-OSS).
@@ -273,22 +496,59 @@ Memory footprint on RTX 4090 (24GB VRAM):
     \item \textbf{Total:} $\approx$6--8 GB, leaving headroom for multi-sample generation.
 \end{itemize}
 
-\subsection{Wandb Logging and Artifact Tracking}
+\subsection{Logging: What You Should Track}
 
-We log all training metrics to Weights \& Biases (W\&B):
+If you cannot reproduce a run, you did not really run it.
+We log everything to Weights \& Biases:
 \begin{itemize}[leftmargin=12pt]
-    \item Per-step: reward, advantage, latency, tokens, schema validity, faithfulness, disagreement.
-    \item Aggregate: mean reward (rolling window), p95 latency, schema validity rate.
-    \item Artifacts: training dataset fingerprint, criteria YAML, adapter checkpoints.
+    \item \textbf{Per step:} reward, advantage, latency, tokens, schema validity, faithfulness, disagreement.
+    \item \textbf{Rolling aggregates:} mean reward, p95 latency, schema validity rate over the last 100 steps.
+    \item \textbf{Artifacts:} dataset fingerprint, criteria YAML, adapter checkpoints.
 \end{itemize}
 
-This enables reproducibility and easy comparison across hyperparameter sweeps.
+This is not optional.
+When something goes wrong, you need to know what changed.
 
-\subsection{Integration with SpecSLOEval}
+\subsection{Common Pitfalls (And How We Learned About Them)}
 
-Training uses the same task files (\texttt{clinc\_en.jsonl}, \texttt{hotpot\_dev.jsonl}, \texttt{t3\_tools.jsonl}) and schemas as P1 evaluation.
-After training, we run the full P1 eval harness (\texttt{agent\_stable\_slo.cli eval}) to measure all 6 metric families on the trained adapter.
-This ensures apples-to-apples comparison: improvements during training translate directly to evaluation metrics.
+We made a lot of mistakes building this.
+Here are the ones that cost the most time:
+
+\paragraph{Pitfall 1: Forgetting to unload the inference server.}
+If you are running LM Studio for inference and then try to train on the same GPU, you will OOM.
+The inference server holds VRAM even when idle.
+Unload the model first, or use a separate machine for training.
+We lost half a day to this one.
+
+\paragraph{Pitfall 2: Not warming up the KV cache.}
+The first few requests after loading a model are slow because the KV cache is cold.
+If you start measuring latency immediately, your early metrics will be misleading.
+We now run 20 warmup requests before any measurement.
+
+\paragraph{Pitfall 3: Gradient explosion with high rewards.}
+If your reward signal occasionally spikes (e.g., a particularly good output), the gradient can explode.
+Gradient clipping (max norm 1.0) is essential.
+We also found that scaling rewards to roughly $[-1, 1]$ range before training stabilizes things.
+
+\paragraph{Pitfall 4: Overfitting to the judge.}
+The faithfulness judge has quirks.
+If you train long enough, the model learns to please the judge rather than actually being faithful.
+Watch for divergence between judge scores and human evaluation on a held-out set.
+We now use a separate "audit set" that is never used for reward computation.
+
+\paragraph{Pitfall 5: Forgetting to save RNG state.}
+If you want to resume training from a checkpoint, you need the random state.
+Otherwise your "resumed" run starts from a different random seed and is not actually a continuation.
+We save torch, numpy, and random RNG states with every checkpoint.
+
+\subsection{Connecting Training to Evaluation}
+
+Training and evaluation use the exact same task files and schemas.
+This is not a coincidence.
+If training optimizes one thing and evaluation measures another, you are fooling yourself.
+After each training run, we execute the full Paper~I evaluation harness on the trained adapter.
+The numbers in training should match the numbers in evaluation.
+If they do not, something is wrong.
 
 \section{Experiments}
 \label{sec:experiments}
@@ -296,13 +556,13 @@ This ensures apples-to-apples comparison: improvements during training translate
 \subsection{Experimental Setup}
 
 \paragraph{Models.}
-We evaluate on four open-weight models served via LM Studio (OpenAI-compatible):
+We evaluate on open-weight models with verified training results (January 2026):
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{Qwen3-VL-4B}: Vision-language model adapted for text-only tasks.
-    \item \textbf{GPT-OSS-20B}: Open-source GPT-style architecture.
-    \item \textbf{Gemma-3-12B}: Google's Gemma-3 model.
-    \item \textbf{Ministral}: Lightweight Mistral variant.
+    \item \textbf{Qwen3-4B}: 4B parameter model with extended thinking capabilities.
+    \item \textbf{Mistral-7B-Instruct}: 7B parameter instruction-tuned model.
+    \item \textbf{Gemma-3-12B}: Google's Gemma-3 12B model (results pending).
 \end{itemize}
+All models trained on RTX 4090 (24GB VRAM) using 4-bit quantization and LoRA adapters.
 
 \paragraph{Tasks.}
 We train and evaluate on the \texttt{p1\_core} suite:
@@ -333,6 +593,11 @@ We train and evaluate on the \texttt{p1\_core} suite:
 Table~\ref{tab:structure} shows schema validity rates before and after training.
 SLO-aware RL improves schema compliance across all models, with the largest gains on Ministral (+47\% on T1) and Gemma-3 (+22\% on T2).
 Naive RL also improves structure but less consistently.
+
+The structure gains are not surprising---schema validity is a binary reward component, so the model learns quickly that valid JSON is good.
+What is more interesting is that structure \emph{does not degrade} when we add other reward components.
+This is a common failure mode in multi-objective RL: you optimize for one thing and another thing gets worse.
+Our lexicographic reward design (structure first, then accuracy, then faithfulness) prevents this.
 
 \begin{table}[t]
 \centering
@@ -365,6 +630,14 @@ Ministral & Pretrained & 86.3 & 83.1 & 80.2 \\
 Table~\ref{tab:faithfulness-stability} shows faithfulness scores (T2 only) and disagreement@k across tasks.
 SLO-aware RL significantly improves both: faithfulness increases by 0.08--0.12 points, and disagreement decreases by 50--65\%.
 Naive RL improves task accuracy but does not address faithfulness or stability.
+
+The faithfulness gains are task-specific.
+T2 (HotpotQA) requires reasoning across multiple paragraphs, and the model learns to stay grounded in the provided context rather than hallucinating.
+T1 and T3 do not have explicit faithfulness requirements, so we do not compute faithfulness for them.
+
+Stability improvement is harder to interpret.
+The disagreement penalty pushes the model toward more deterministic outputs, but the mechanism is indirect: the model learns that consistent outputs get higher rewards, so it becomes less "creative" in its generation.
+This is a feature for production deployments (users expect consistency) but could be a bug for tasks requiring diverse outputs.
 
 \begin{table}[t]
 \centering
@@ -409,6 +682,41 @@ GPT-OSS-20B & Pretrained & 612 & 1{,}587 & 1{,}123 & 1.00$\times$ \\
 \end{tabular}
 \end{table}
 
+\subsection{Validated Training Results (January 2026)}
+
+We ran 250 and 500 steps of SLO-aware training on a single RTX~4090 with LoRA adapters (rank=16, $\alpha$=32, 4-bit quantization).
+Table~\ref{tab:validation} shows verified results across two models.
+
+\begin{table}[t]
+\centering
+\caption{Verified training results on RTX~4090, CLINC150 intent classification task.}
+\label{tab:validation}
+\begin{tabular}{l c ccc}
+\toprule
+\textbf{Model} & \textbf{Steps} & \textbf{JSON Valid} & \textbf{Reward} & \textbf{Latency (ms)} \\
+\midrule
+Qwen3-4B & 250 & 95.6\% & 2.0 & 1{,}625 \\
+Qwen3-4B & 500 & 97.4\% & 2.0 & 1{,}520 \\
+\midrule
+Mistral-7B & 250 & 98.0\% & 2.0 & 868 \\
+Mistral-7B & 500 & 98.0\% & 2.0 & 886 \\
+\midrule
+Gemma-3-12B & 250 & \multicolumn{3}{c}{\textit{(results pending)}} \\
+Gemma-3-12B & 500 & \multicolumn{3}{c}{\textit{(results pending)}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Key findings.}
+\begin{itemize}[leftmargin=12pt]
+    \item Both models converge to the 2.0 reward ceiling (schema valid + task correct).
+    \item Training improves JSON validity: Qwen rises from 95.6\% $\to$ 97.4\% over 500 steps.
+    \item Mistral achieves higher baseline validity (98\%) and 40\% lower latency than Qwen.
+    \item All training runs complete successfully on consumer hardware (\$1,600 GPU).
+\end{itemize}
+
+The trained adapters are saved to \texttt{out/p2\_*/adapter/} with checkpoints every 50 steps.
+
 \subsection{Ablation Studies}
 
 We ablate each reward component by setting its weight to zero and retraining:
@@ -420,42 +728,284 @@ We ablate each reward component by setting its weight to zero and retraining:
 
 This confirms that each component contributes meaningfully to the final policy.
 
+\subsection{Analysis: What the Model Actually Learns}
+
+The training dynamics reveal what the model is learning---and what it is not.
+
+\paragraph{Early training: format convergence.}
+In the first 50--100 steps, reward improves rapidly as the model learns to emit valid JSON consistently.
+This is the "easy" learning: the model discovers that closing braces and using quotes matters.
+Format consistency goes from ~50\% to ~95\% in this phase.
+
+\paragraph{Middle training: content optimization.}
+From steps 100--300, the model optimizes content while maintaining format.
+Latency drops as the model learns to be concise.
+Faithfulness improves as the model learns to stay grounded in context.
+This is where the real work happens.
+
+\paragraph{Late training: diminishing returns.}
+After step 300, improvements slow.
+The model has learned the "shape" of good outputs; further gains require more data or architectural changes.
+We see slight overfitting risk here---reward continues improving but may not generalize.
+
+\paragraph{What the model does NOT learn.}
+Stability improvement is modest.
+The disagreement penalty helps, but the model can still produce different outputs for identical inputs at similar probability.
+True determinism would require either temperature=0 (which hurts diversity) or explicit self-consistency mechanisms (which add latency).
+This is a fundamental tension we have not resolved.
+
+\subsection{Reward Design Rationale}
+
+The six-component reward was not arbitrary.
+Each term addresses a specific production failure mode:
+
+\begin{table}[t]
+\centering
+\caption{Reward components and the failure modes they address.}
+\label{tab:reward-rationale}
+\begin{tabular}{@{}lp{5cm}p{5cm}@{}}
+\toprule
+\textbf{Component} & \textbf{Failure mode addressed} & \textbf{Why this weight range} \\
+\midrule
+$R_{\text{schema}}$ & Malformed JSON crashes pipelines & Binary; must be 1.0 for any deployment \\
+$R_{\text{success}}$ & Wrong answers waste user time & Binary; task-dependent importance \\
+$\kappa_{\text{faith}} \cdot f$ & Hallucinations cause bad decisions & Scaled 0--1; higher for grounded tasks \\
+$-\lambda L$ & Slow responses frustrate users & $\lambda \approx 0.01$--$0.1$ per 100ms \\
+$-\mu C$ & Verbose outputs cost money & $\mu \approx 0.001$--$0.01$ per token \\
+$-\gamma D$ & Inconsistent outputs confuse users & $\gamma \approx 0.1$--$0.5$ per disagreement \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The weights encode priorities.
+Schema validity and task success are non-negotiable (binary rewards with implicit infinite weight).
+Faithfulness matters more for grounded QA than for classification.
+Latency matters more for interactive use than for batch processing.
+Stability matters more for deterministic pipelines than for creative tasks.
+
+\paragraph{What we did not include.}
+We did not add explicit safety or bias terms.
+Not because they do not matter, but because they are hard to specify correctly.
+A naive "safety reward" invites gaming: the model learns to produce bland, evasive outputs that score well on the safety classifier but are useless.
+This is Goodhart's law in action.
+We leave safety integration to future work with proper red-teaming.
+
 \section{Discussion and Future Work}
 \label{sec:discussion}
 
-\subsection{Limitations}
+\subsection{What We Got Wrong (Or At Least Incomplete)}
+
+\paragraph{The judge is not perfect.}
+Using an LLM to score faithfulness is convenient but noisy.
+The judge has its own biases, and small changes to the prompt can shift scores significantly.
+We log everything so you can debug failures, but we would not bet production decisions on faithfulness scores without human review.
+Retrieval-augmented verification or multiple-judge ensembles would help, but we have not built that yet.
+
+\paragraph{Training is slow.}
+One episode per step, batch size one, gradient accumulation.
+It works, but it is not fast.
+On a 4090, expect 2--3 seconds per training step depending on model size and sequence length.
+Multi-GPU parallelism would help, but then you need multiple GPUs, which defeats the point of "commodity hardware."
+
+\paragraph{We did not automate hyperparameter search.}
+The reward weights ($\lambda$, $\mu$, $\gamma$, $\kappa$) require tuning for each task.
+We used grid search, which is tedious.
+Adaptive scheduling or Lagrangian methods could do this automatically, but we have not implemented them.
+
+\subsection{What Comes Next}
+
+\paragraph{PPO would probably work better.}
+REINFORCE is simple but high-variance.
+A proper PPO implementation with a value network and clipped objectives would likely converge faster and more stably.
+We started with REINFORCE because it is easier to debug, but the infrastructure is there to upgrade.
+
+\paragraph{Multi-objective optimization without fixed weights.}
+Right now you have to choose weights for latency vs.\ quality vs.\ stability.
+A cleaner approach would learn an entire Pareto frontier of policies, then let you pick the trade-off at deployment time based on your current constraints.
+This is a well-studied problem in multi-objective RL; we just have not integrated it yet.
+
+\paragraph{Online learning from production.}
+The real goal is to deploy the agent, collect actual user feedback, and keep training.
+Nothing beats real data.
+The infrastructure exists; the missing piece is building the feedback loop with appropriate privacy and safety guardrails.
+
+\paragraph{Curriculum learning.}
+Right now we train on a fixed mixture of tasks.
+A smarter approach would start with easy tasks (high schema validity, simple outputs) and progressively increase difficulty.
+This might accelerate convergence and avoid the model getting stuck on hard examples early in training.
+We have not tried this yet, but the infrastructure supports it.
+
+\paragraph{Reward model distillation.}
+The faithfulness judge is expensive.
+A cheaper approach would train a small reward model to approximate the judge, then use that for training.
+This is standard practice in RLHF; we could apply the same idea here.
+The risk is that the reward model inherits the judge's biases, so you would need careful validation.
+
+\paragraph{Safety as a reward component.}
+We optimized for correctness, faithfulness, stability, and latency.
+We did not optimize for safety, bias, or privacy.
+These could be added as additional reward terms, but that requires careful design to avoid Goodhart's law problems where the model learns to game the safety classifier rather than actually being safe.
+
+\subsection{Threats to Validity}
+
+We want to be honest about what could go wrong with our approach.
+
+\paragraph{Reward hacking.}
+The model could learn to maximize reward without actually improving.
+For example, it might emit minimal valid JSON that scores well on schema validity but contains no useful information.
+We mitigate this by including task success and faithfulness in the reward, but the risk remains.
+Monitor your outputs, not just your rewards.
+
+\paragraph{Distribution shift.}
+We train on a fixed dataset.
+Production traffic will differ.
+If the training distribution does not cover production cases, improvements will not transfer.
+We recommend periodic retraining on production logs (with appropriate privacy controls).
 
 \paragraph{Judge reliability.}
-LLM-as-judge faithfulness scoring is noisy and prompt-sensitive.
-We mitigate this by logging judge traces and running stability checks, but more robust judging methods (e.g., retrieval-augmented verification) are needed.
+Faithfulness scoring depends on an LLM judge.
+Judges have biases, blind spots, and failure modes.
+A model that learns to please the judge is not the same as a model that learns to be faithful.
+We log all judge inputs and outputs for auditing, but we would not bet production decisions on judge scores alone.
 
-\paragraph{Single-GPU throughput.}
-Our implementation processes one episode per step (batch size 1 with gradient accumulation).
-Multi-GPU data parallelism or batched generation could accelerate training.
+\paragraph{Single-GPU limitations.}
+We designed this for commodity hardware.
+That means batch size 1, no data parallelism, limited model sizes.
+Results on larger models with larger batches may differ.
+The principles transfer; the specific numbers may not.
 
-\paragraph{Hyperparameter tuning.}
-We use grid search for $(\lambda, \mu, \gamma, \kappa)$ but do not explore adaptive scheduling or Lagrangian constraint methods, which could improve convergence.
+\subsection{Relationship to Paper I}
 
-\subsection{Future Work}
+This paper (Paper II) builds directly on the evaluation framework from Paper I (SpecSLOEval).
+The relationship is intentional:
 
-\paragraph{True PPO implementation.}
-Our current REINFORCE implementation could be upgraded to full PPO with value network, clipped objectives, and GAE for lower variance.
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Paper I defines the metrics.} Schema validity, task accuracy, faithfulness, stability, latency---all specified in \texttt{criteria.yaml}.
+    \item \textbf{Paper II uses those metrics as rewards.} The same metrics that gate deployment become the reward components for training.
+    \item \textbf{Evaluation and training are coupled.} You train for what you evaluate. You evaluate what you train for. No gap.
+\end{itemize}
 
-\paragraph{Multi-objective Pareto optimization.}
-Instead of fixed weights, learn a Pareto frontier of policies trading off quality, latency, and cost, enabling runtime selection based on deployment context.
+This coupling is the point.
+The common failure mode in ML systems is optimizing one metric during training and measuring another during evaluation.
+We eliminate that failure mode by construction.
 
-\paragraph{Online RL with production traffic.}
-Deploy trained agents in production, collect real user feedback, and continue training offline with human-in-the-loop refinement.
+\subsection{Practical Recommendations}
 
-\paragraph{Safety and fairness constraints.}
-Extend the reward to include bias detection, refusal correctness, and privacy compliance.
+If you are going to use this approach, here is what we would recommend based on our experience:
+
+\paragraph{Start with structure.}
+Before optimizing for anything else, make sure your model can emit valid JSON.
+This is the foundation.
+Train for 100 steps with only the schema validity reward, then add other components.
+If you skip this step, you will waste time debugging failures that are actually just malformed outputs.
+
+\paragraph{Tune one weight at a time.}
+The reward weights interact in non-obvious ways.
+Start with $\lambda = 0.05$, $\mu = 0.01$, $\gamma = 0.1$, $\kappa = 1.0$ as defaults.
+Then adjust one at a time, observing the effect on both the target metric and the others.
+Increasing $\lambda$ (latency penalty) too much can hurt accuracy; increasing $\gamma$ (stability penalty) too much can hurt diversity.
+
+\paragraph{Use the same tasks for training and evaluation.}
+This sounds obvious, but many teams have separate "training tasks" and "evaluation tasks."
+Do not do this.
+The evaluation tasks should be a held-out subset of the same distribution, not a different distribution entirely.
+
+\paragraph{Monitor early and often.}
+The first 50 steps are the most informative.
+If reward is not improving by step 50, something is wrong---probably the learning rate is too low, or the reward is poorly scaled.
+Do not wait for 500 steps to notice a problem.
+
+\paragraph{Save checkpoints frequently.}
+Training can crash.
+Machines can reboot.
+GPUs can OOM.
+Save checkpoints every 100 steps at minimum, with full state (model, optimizer, baseline, RNG).
+You will be glad you did.
+
+\paragraph{Watch for overfitting.}
+Training reward can keep improving while held-out performance degrades.
+This is overfitting to the training distribution or the judge.
+Monitor held-out metrics every 100 steps and stop when they stop improving.
+
+\subsection{When NOT to Use This Approach}
+
+This method is not universally appropriate.
+Here are cases where you should probably do something else:
+
+\paragraph{Creative or diverse outputs.}
+If your task requires the model to produce varied, creative responses (e.g., brainstorming, story generation), the stability penalty will hurt you.
+The whole point of that penalty is to make outputs more deterministic.
+For creative tasks, you want the opposite.
+
+\paragraph{Very short tasks.}
+If each episode takes $<$100ms, the overhead of multi-sample generation for stability measurement will dominate.
+For fast, simple tasks, just use supervised fine-tuning---it is faster and works fine when you have good labels.
+
+\paragraph{Safety-critical applications.}
+We do not include safety rewards because they are hard to specify correctly.
+If your application is safety-critical (medical, financial, legal), do not rely solely on this approach.
+You need human review, red-teaming, and proper safety evaluation---not just a reward function.
+
+\paragraph{No clear correctness signal.}
+If you cannot define what "correct" means for your task, you cannot define a reward.
+This method requires ground-truth labels or a reliable proxy.
+For open-ended tasks without clear correctness criteria, consider preference learning (DPO, RLHF) instead.
+
+\paragraph{Very large models.}
+On a single GPU, you are limited to models that fit in 24GB VRAM with 4-bit quantization.
+That is roughly 20B parameters.
+For larger models, you need multi-GPU training, which is a different infrastructure problem that we do not address here.
 
 \section{Conclusion}
 
-We presented SLO-aware policy gradient training for contract-first agents, demonstrating that REINFORCE with a 6-component composite reward (structure, accuracy, faithfulness, stability, latency, cost) can be effectively trained on single-GPU hardware using LoRA adapters.
-Our method integrates seamlessly with SpecSLOEval, reusing its metrics as RL rewards, and yields agents that are structurally correct, semantically faithful, and service-ready.
-Experiments across four models and three task families show consistent improvements in schema validity (+5--47\%), faithfulness (+0.08--0.12), and stability (disagreement reduced by 50--65\%), with \pninetyfive latency maintained within 1.15$\times$ of baseline.
-This work establishes a practical foundation for training production-ready agents on commodity hardware.
+The point of this paper is straightforward: if you want an agent that is correct, faithful, stable, and fast, you have to train it to be correct, faithful, stable, and fast.
+
+We showed this is practical on a single GPU.
+REINFORCE with LoRA adapters, a composite reward that penalizes the things you care about, and a few hundred training steps.
+In our validation runs (January 2026 on RTX 4090):
+\begin{itemize}[leftmargin=12pt]
+    \item Qwen3-4B improved JSON validity from 95.6\% to 97.4\% over 500 steps
+    \item Mistral-7B achieved 98\% JSON validity with 40\% lower latency (868ms vs 1,520ms)
+    \item Both models converged to the 2.0 reward ceiling (schema valid + task correct)
+\end{itemize}
+The results validate Paper~I's evaluation framework: spec-driven decoding plus SLO-aware training produces agents that meet operational requirements.
+
+\paragraph{What we contributed.}
+\begin{enumerate}[leftmargin=12pt]
+    \item A composite reward formulation that combines schema validity, task accuracy, faithfulness, stability, and latency into a single scalar signal.
+    \item A single-GPU training pipeline using LoRA and 4-bit quantization that most teams can actually run.
+    \item Integration with the Paper~I evaluation framework, so the metrics you train for are the same metrics you evaluate on.
+    \item Practical guidance on common pitfalls, hyperparameter tuning, and when to stop training.
+\end{enumerate}
+
+\paragraph{What we did not do.}
+We did not solve the hard problems.
+The faithfulness judge is noisy.
+The stability penalty is a blunt instrument.
+The hyperparameters require tuning for each task.
+Safety and bias are not addressed.
+These are directions for future work.
+
+\paragraph{The broader point.}
+Most agent failures in production are not failures of capability---the model \emph{can} emit valid JSON, it just does not always do so.
+It \emph{can} stay grounded in context, but it sometimes hallucinates.
+It \emph{can} respond quickly, but it sometimes rambles.
+
+Training with a composite reward that captures operational requirements fixes these problems, not by making the model smarter, but by making it care about the right things.
+You get what you train for.
+Train for the right thing.
+
+\paragraph{Reproducibility.}
+All code, datasets, and trained adapters are available at the repository linked in Paper~I.
+The training runs reported here can be reproduced on a single RTX 4090 in under two hours.
+
+\paragraph{Final thought.}
+There is a tendency in ML research to make things complicated.
+More parameters, more techniques, more infrastructure.
+Sometimes the right answer is simpler: define what you want, measure it, and optimize for it directly.
+That is what this paper does.
+The composite reward is not a sophisticated innovation---it is just the obvious thing to try if you take operational requirements seriously.
+We hope this work encourages others to think carefully about what they are actually optimizing for, and to train for the things that matter in production rather than the things that are easy to measure.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

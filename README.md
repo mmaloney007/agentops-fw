@@ -1,8 +1,17 @@
 # AgentOps-FW — Contract-grounded agents on a single GPU (RTX 4090)
 
-**Author:** Mike Maloney — Co‑Founder & CDO, Neuralift; Lecturer, UNH  
-Email: mikey.maloney@gmail.com • mike.maloney@unh.edu  
-GitHub: https://github.com/mmaloney007 • W&B: https://wandb.ai/mike007
+**Author:** Mike Maloney — Co-Founder & CDO, Neuralift; Lecturer, University of New Hampshire
+
+## Contact
+
+| | |
+|---|---|
+| **Primary Email** | mike.maloney@unh.edu |
+| **Personal Email** | mikey.maloney@gmail.com |
+| **Work Email** | mike@neuralift.ai |
+| **LinkedIn** | [linkedin.com/in/mike-maloney-5229274](https://www.linkedin.com/in/mike-maloney-5229274/) |
+| **GitHub** | [github.com/mmaloney007](https://github.com/mmaloney007) |
+| **W&B** | [wandb.ai/mike007](https://wandb.ai/mike007) |
 
 ## TL;DR
 A minimal, reproducible framework for **reliable, SLA‑aware, tool‑using LLM agents** that runs on a **single RTX 4090** with **open‑weight models**. It supports:

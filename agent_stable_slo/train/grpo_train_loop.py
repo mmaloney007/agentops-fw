@@ -63,20 +63,41 @@ def _guard_prompt(prompt: str, max_chars: int, truncate: bool) -> str:
 
 
 def _parse_json(text: str, schema: dict) -> Dict[str, Any]:
+    """Extract JSON from model output, handling embedded JSON in reasoning text."""
+    # Try direct parse first
     try:
         return json.loads(text)
     except Exception:
         pass
+
+    # Handle markdown code blocks
     if "```" in text:
         parts = text.split("```")
         for p in parts:
             p_strip = p.strip()
+            if p_strip.startswith("json"):
+                p_strip = p_strip[4:].strip()
             if not p_strip:
                 continue
             try:
                 return json.loads(p_strip)
             except Exception:
                 continue
+
+    # Extract JSON objects embedded in text (handles thinking models)
+    # Find all potential JSON objects by looking for { ... } patterns
+    import re
+    json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+    matches = re.findall(json_pattern, text)
+    for match in matches:
+        try:
+            parsed = json.loads(match)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            continue
+
+    # Fallback for simple answer schemas
     if "answer" in schema.get("properties", {}):
         return {"answer": text.strip()}
     return {}
@@ -405,10 +426,10 @@ def train_loop(cfg: GRPOTrainConfig):
             gold = row.get("gold")
 
             schema_hint = (
-                "Return ONLY JSON that matches the provided schema exactly; no text or commentary.\n"
-                "If unsure, return an empty object with required keys.\n"
+                "IMPORTANT: Output ONLY a valid JSON object. "
+                "No explanations, no reasoning, no markdown - just the raw JSON.\n\n"
             )
-            full_prompt = f"{schema_hint}{prompt}"
+            full_prompt = f"{schema_hint}{prompt}\n\nJSON:"
 
             enc = tok(
                 full_prompt,

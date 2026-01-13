@@ -1,0 +1,564 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global}
+    \entry{kwon2023vllm}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=3127ee56e9c5b4624fe744d4cbb4cfae}{%
+           family={Kwon},
+           familyi={K\bibinitperiod},
+           given={Woosuk},
+           giveni={W\bibinitperiod}}}%
+      }
+      \strng{namehash}{dd534d6c7046a3f7b2811b8ac2696584}
+      \strng{fullhash}{dd534d6c7046a3f7b2811b8ac2696584}
+      \strng{bibnamehash}{dd534d6c7046a3f7b2811b8ac2696584}
+      \strng{authorbibnamehash}{dd534d6c7046a3f7b2811b8ac2696584}
+      \strng{authornamehash}{dd534d6c7046a3f7b2811b8ac2696584}
+      \strng{authorfullhash}{dd534d6c7046a3f7b2811b8ac2696584}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{title}{Efficient Memory Management for Large Language Model Serving with PagedAttention}
+      \field{year}{2023}
+      \verb{eprint}
+      \verb 2309.06180
+      \endverb
+    \endentry
+    \entry{zheng2023sglang}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=78ae36dd96e81ab137034e5c45965c6b}{%
+           family={Zheng},
+           familyi={Z\bibinitperiod},
+           given={Zhiqiang},
+           giveni={Z\bibinitperiod}}}%
+      }
+      \strng{namehash}{af7a002f87252d7a49cd95eadc4d74db}
+      \strng{fullhash}{af7a002f87252d7a49cd95eadc4d74db}
+      \strng{bibnamehash}{af7a002f87252d7a49cd95eadc4d74db}
+      \strng{authorbibnamehash}{af7a002f87252d7a49cd95eadc4d74db}
+      \strng{authornamehash}{af7a002f87252d7a49cd95eadc4d74db}
+      \strng{authorfullhash}{af7a002f87252d7a49cd95eadc4d74db}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{title}{SGLang: Efficient Execution of Structured Language Model Programs}
+      \field{year}{2023}
+      \verb{eprint}
+      \verb 2312.07104
+      \endverb
+    \endentry
+    \entry{geng2025jsonschemabench}{misc}{}
+      \name{author}{6}{}{%
+        {{hash=762a5f6658d22154811c621330eabf9b}{%
+           family={Geng},
+           familyi={G\bibinitperiod},
+           given={Saibo},
+           giveni={S\bibinitperiod}}}%
+        {{hash=078a0a4b13c325965b528ce8ae3bc6cf}{%
+           family={Antoniak},
+           familyi={A\bibinitperiod},
+           given={Maria},
+           giveni={M\bibinitperiod}}}%
+        {{hash=44ddd1947297940fae36faf60cfdc356}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Haoyu},
+           giveni={H\bibinitperiod}}}%
+        {{hash=495577054ead8942ff5dd43d6dba3901}{%
+           family={Han},
+           familyi={H\bibinitperiod},
+           given={Qian},
+           giveni={Q\bibinitperiod}}}%
+        {{hash=34bf39cab57292ffa4ca1f5a851b64f0}{%
+           family={Haddow},
+           familyi={H\bibinitperiod},
+           given={Barry},
+           giveni={B\bibinitperiod}}}%
+        {{hash=bf98d70c7173a46aa44c19b423633312}{%
+           family={Birch},
+           familyi={B\bibinitperiod},
+           given={Alexandra},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{6d25cba336e48571aaee5489da23b0db}
+      \strng{fullhash}{2fc1487a0f508bd2cd46e64af31881d5}
+      \strng{bibnamehash}{6d25cba336e48571aaee5489da23b0db}
+      \strng{authorbibnamehash}{6d25cba336e48571aaee5489da23b0db}
+      \strng{authornamehash}{6d25cba336e48571aaee5489da23b0db}
+      \strng{authorfullhash}{2fc1487a0f508bd2cd46e64af31881d5}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.CL}
+      \field{eprinttype}{arXiv}
+      \field{title}{JSONSchemaBench: A Comprehensive Benchmark for Structured JSON Generation}
+      \field{year}{2025}
+      \verb{eprint}
+      \verb 2501.10868
+      \endverb
+    \endentry
+    \entry{openaiStructuredOutputs}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=0523b13262b12c215d8009938f5c14f1}{%
+           family={{OpenAI}},
+           familyi={O\bibinitperiod}}}%
+      }
+      \strng{namehash}{0523b13262b12c215d8009938f5c14f1}
+      \strng{fullhash}{0523b13262b12c215d8009938f5c14f1}
+      \strng{bibnamehash}{0523b13262b12c215d8009938f5c14f1}
+      \strng{authorbibnamehash}{0523b13262b12c215d8009938f5c14f1}
+      \strng{authornamehash}{0523b13262b12c215d8009938f5c14f1}
+      \strng{authorfullhash}{0523b13262b12c215d8009938f5c14f1}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://openai.com/index/introducing-structured-outputs-in-the-api/}}
+      \field{note}{Accessed: 2025-12-22}
+      \field{title}{Structured Outputs (OpenAI documentation)}
+      \field{year}{2024}
+    \endentry
+    \entry{schulman2017ppo}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=3e09bd2a25d237ebdaed560a07c0451e}{%
+           family={Schulman},
+           familyi={S\bibinitperiod},
+           given={John},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{8d6613ae59595910252a86a61babf6c8}
+      \strng{fullhash}{8d6613ae59595910252a86a61babf6c8}
+      \strng{bibnamehash}{8d6613ae59595910252a86a61babf6c8}
+      \strng{authorbibnamehash}{8d6613ae59595910252a86a61babf6c8}
+      \strng{authornamehash}{8d6613ae59595910252a86a61babf6c8}
+      \strng{authorfullhash}{8d6613ae59595910252a86a61babf6c8}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{title}{Proximal Policy Optimization Algorithms}
+      \field{year}{2017}
+      \verb{eprint}
+      \verb 1707.06347
+      \endverb
+    \endentry
+    \entry{dettmers2023qlora}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=67a40f4e13f66c2e43ce4d7d64b9d9a4}{%
+           family={Dettmers},
+           familyi={D\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{a50dbcd4c24eb2e86d45d36ef4076dc0}
+      \strng{fullhash}{a50dbcd4c24eb2e86d45d36ef4076dc0}
+      \strng{bibnamehash}{a50dbcd4c24eb2e86d45d36ef4076dc0}
+      \strng{authorbibnamehash}{a50dbcd4c24eb2e86d45d36ef4076dc0}
+      \strng{authornamehash}{a50dbcd4c24eb2e86d45d36ef4076dc0}
+      \strng{authorfullhash}{a50dbcd4c24eb2e86d45d36ef4076dc0}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{title}{QLoRA: Efficient Finetuning of Quantized LLMs}
+      \field{year}{2023}
+      \verb{eprint}
+      \verb 2305.14314
+      \endverb
+    \endentry
+    \entry{dean2013tail}{article}{}
+      \name{author}{2}{}{%
+        {{hash=4aecfb0cc2e1e3b7899129fa2a94e2b8}{%
+           family={Dean},
+           familyi={D\bibinitperiod},
+           given={Jeffrey},
+           giveni={J\bibinitperiod}}}%
+        {{hash=b7b397ec8054ed0ab9f02f1e5685b8d0}{%
+           family={Barroso},
+           familyi={B\bibinitperiod},
+           given={Luiz\bibnamedelima André},
+           giveni={L\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+      }
+      \strng{namehash}{74372f2c0e00bceddd08cd5c5eea59d7}
+      \strng{fullhash}{74372f2c0e00bceddd08cd5c5eea59d7}
+      \strng{bibnamehash}{74372f2c0e00bceddd08cd5c5eea59d7}
+      \strng{authorbibnamehash}{74372f2c0e00bceddd08cd5c5eea59d7}
+      \strng{authornamehash}{74372f2c0e00bceddd08cd5c5eea59d7}
+      \strng{authorfullhash}{74372f2c0e00bceddd08cd5c5eea59d7}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Communications of the ACM}
+      \field{number}{2}
+      \field{title}{The Tail at Scale}
+      \field{volume}{56}
+      \field{year}{2013}
+      \field{pages}{74\bibrangedash 80}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1145/2408776.2408794
+      \endverb
+    \endentry
+    \entry{dao2023flashattention2}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=ede2395a7f566a456448fcb5f8222c99}{%
+           family={Dao},
+           familyi={D\bibinitperiod},
+           given={Tri},
+           giveni={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{c6e8806a86a2e83c272c16e8d7d4b3c0}
+      \strng{fullhash}{c6e8806a86a2e83c272c16e8d7d4b3c0}
+      \strng{bibnamehash}{c6e8806a86a2e83c272c16e8d7d4b3c0}
+      \strng{authorbibnamehash}{c6e8806a86a2e83c272c16e8d7d4b3c0}
+      \strng{authornamehash}{c6e8806a86a2e83c272c16e8d7d4b3c0}
+      \strng{authorfullhash}{c6e8806a86a2e83c272c16e8d7d4b3c0}
+      \field{sortinit}{8}
+      \field{sortinithash}{a231b008ebf0ecbe0b4d96dcc159445f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{title}{FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning}
+      \field{year}{2023}
+      \verb{eprint}
+      \verb 2307.08691
+      \endverb
+    \endentry
+    \entry{agrawal2024sarathi}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=5a9fbbf67cdf0ec715cc2258e2cf3d2a}{%
+           family={Agrawal},
+           familyi={A\bibinitperiod},
+           given={Amey},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{13ad1eabae82eb4eb483dd07b9f5b998}
+      \strng{fullhash}{13ad1eabae82eb4eb483dd07b9f5b998}
+      \strng{bibnamehash}{13ad1eabae82eb4eb483dd07b9f5b998}
+      \strng{authorbibnamehash}{13ad1eabae82eb4eb483dd07b9f5b998}
+      \strng{authornamehash}{13ad1eabae82eb4eb483dd07b9f5b998}
+      \strng{authorfullhash}{13ad1eabae82eb4eb483dd07b9f5b998}
+      \field{sortinit}{9}
+      \field{sortinithash}{0a5ebc79d83c96b6579069544c73c7d4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{title}{Sarathi-Serve: High-throughput and Memory-efficient LLM Serving with Partitioned Attention}
+      \field{year}{2024}
+      \verb{eprint}
+      \verb 2403.02310
+      \endverb
+    \endentry
+    \entry{es2023ragas}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=d8dead04bec0d1ebb462dd6ac4504a36}{%
+           family={Es},
+           familyi={E\bibinitperiod},
+           given={Shahul},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{c1c4ea85e78c313d8c00616419b5c4d6}
+      \strng{fullhash}{c1c4ea85e78c313d8c00616419b5c4d6}
+      \strng{bibnamehash}{c1c4ea85e78c313d8c00616419b5c4d6}
+      \strng{authorbibnamehash}{c1c4ea85e78c313d8c00616419b5c4d6}
+      \strng{authornamehash}{c1c4ea85e78c313d8c00616419b5c4d6}
+      \strng{authorfullhash}{c1c4ea85e78c313d8c00616419b5c4d6}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.CL}
+      \field{eprinttype}{arXiv}
+      \field{title}{RAGAS: Automated Evaluation of Retrieval Augmented Generation}
+      \field{year}{2023}
+      \verb{eprint}
+      \verb 2309.15217
+      \endverb
+    \endentry
+    \entry{atomicFacts2024}{misc}{}
+      \name{author}{7}{}{%
+        {{hash=28789ec78f6ba72f59baf40dfb377588}{%
+           family={Min},
+           familyi={M\bibinitperiod},
+           given={Sewon},
+           giveni={S\bibinitperiod}}}%
+        {{hash=2d42b453b4785b3a0ba5a8a04e918605}{%
+           family={Krishna},
+           familyi={K\bibinitperiod},
+           given={Kalpesh},
+           giveni={K\bibinitperiod}}}%
+        {{hash=495a50109b0d7df7d26b3b4a36916ff4}{%
+           family={Lyu},
+           familyi={L\bibinitperiod},
+           given={Xinxi},
+           giveni={X\bibinitperiod}}}%
+        {{hash=928932022a14871a5f2b036c85304ee8}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Hanlin},
+           giveni={H\bibinitperiod}}}%
+        {{hash=d4d56d3d370b3afd4ad2ebf985fbd3f8}{%
+           family={Yih},
+           familyi={Y\bibinitperiod},
+           given={Wen-tau},
+           giveni={W\bibinithyphendelim t\bibinitperiod}}}%
+        {{hash=64d48b2f4b0370b6692c87cfc65f19b9}{%
+           family={Choi},
+           familyi={C\bibinitperiod},
+           given={Yejin},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=e9dafefb58a6a6e1e496fdf8928b3eeb}{%
+           family={Hajishirzi},
+           familyi={H\bibinitperiod},
+           given={Hannaneh},
+           giveni={H\bibinitperiod}}}%
+      }
+      \strng{namehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{fullhash}{e489b3268648048f663a7ed517218834}
+      \strng{bibnamehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{authorbibnamehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{authornamehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{authorfullhash}{e489b3268648048f663a7ed517218834}
+      \field{extraname}{1}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.CL}
+      \field{eprinttype}{arXiv}
+      \field{title}{FactScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation}
+      \field{year}{2023}
+      \verb{eprint}
+      \verb 2305.14251
+      \endverb
+    \endentry
+    \entry{chen2024humans}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=8a75c8a407bc3965c01424ef4d1d0994}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Yujia},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \strng{namehash}{61e4dbc27344496cbda713b72dca87bd}
+      \strng{fullhash}{61e4dbc27344496cbda713b72dca87bd}
+      \strng{bibnamehash}{61e4dbc27344496cbda713b72dca87bd}
+      \strng{authorbibnamehash}{61e4dbc27344496cbda713b72dca87bd}
+      \strng{authornamehash}{61e4dbc27344496cbda713b72dca87bd}
+      \strng{authorfullhash}{61e4dbc27344496cbda713b72dca87bd}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.CL}
+      \field{eprinttype}{arXiv}
+      \field{title}{Humans or LLMs as the Judge? A Study on Evaluation Methods for Text Summarization}
+      \field{year}{2024}
+      \verb{eprint}
+      \verb 2402.10669
+      \endverb
+    \endentry
+    \entry{altman1999cmdp}{book}{}
+      \name{author}{1}{}{%
+        {{hash=d01ee4a862dcfcd8ef3654226d81cbf5}{%
+           family={Altman},
+           familyi={A\bibinitperiod},
+           given={Eitan},
+           giveni={E\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Boca Raton, FL}%
+      }
+      \list{publisher}{2}{%
+        {Chapman}%
+        {Hall/CRC}%
+      }
+      \strng{namehash}{d01ee4a862dcfcd8ef3654226d81cbf5}
+      \strng{fullhash}{d01ee4a862dcfcd8ef3654226d81cbf5}
+      \strng{bibnamehash}{d01ee4a862dcfcd8ef3654226d81cbf5}
+      \strng{authorbibnamehash}{d01ee4a862dcfcd8ef3654226d81cbf5}
+      \strng{authornamehash}{d01ee4a862dcfcd8ef3654226d81cbf5}
+      \strng{authorfullhash}{d01ee4a862dcfcd8ef3654226d81cbf5}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Constrained Markov Decision Processes}
+      \field{year}{1999}
+    \endentry
+    \entry{achiam2017cpo}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=e9029ecf4d7c873909e2074c987301f3}{%
+           family={Achiam},
+           familyi={A\bibinitperiod},
+           given={Joshua},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{2c48ebdf9b2221b378684fa059addad4}
+      \strng{fullhash}{2c48ebdf9b2221b378684fa059addad4}
+      \strng{bibnamehash}{2c48ebdf9b2221b378684fa059addad4}
+      \strng{authorbibnamehash}{2c48ebdf9b2221b378684fa059addad4}
+      \strng{authornamehash}{2c48ebdf9b2221b378684fa059addad4}
+      \strng{authorfullhash}{2c48ebdf9b2221b378684fa059addad4}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.LG}
+      \field{eprinttype}{arXiv}
+      \field{title}{Constrained Policy Optimization}
+      \field{year}{2017}
+      \verb{eprint}
+      \verb 1705.10528
+      \endverb
+    \endentry
+    \entry{williams1992reinforce}{article}{}
+      \name{author}{1}{}{%
+        {{hash=6cbc29ad7fd57ffdb9ed4728418fd988}{%
+           family={Williams},
+           familyi={W\bibinitperiod},
+           given={Ronald\bibnamedelima J.},
+           giveni={R\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Springer}%
+      }
+      \strng{namehash}{6cbc29ad7fd57ffdb9ed4728418fd988}
+      \strng{fullhash}{6cbc29ad7fd57ffdb9ed4728418fd988}
+      \strng{bibnamehash}{6cbc29ad7fd57ffdb9ed4728418fd988}
+      \strng{authorbibnamehash}{6cbc29ad7fd57ffdb9ed4728418fd988}
+      \strng{authornamehash}{6cbc29ad7fd57ffdb9ed4728418fd988}
+      \strng{authorfullhash}{6cbc29ad7fd57ffdb9ed4728418fd988}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Machine Learning}
+      \field{number}{3-4}
+      \field{title}{Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning}
+      \field{volume}{8}
+      \field{year}{1992}
+      \field{pages}{229\bibrangedash 256}
+      \range{pages}{28}
+    \endentry
+    \entry{min2023factscore}{misc}{}
+      \name{author}{9}{}{%
+        {{hash=28789ec78f6ba72f59baf40dfb377588}{%
+           family={Min},
+           familyi={M\bibinitperiod},
+           given={Sewon},
+           giveni={S\bibinitperiod}}}%
+        {{hash=2d42b453b4785b3a0ba5a8a04e918605}{%
+           family={Krishna},
+           familyi={K\bibinitperiod},
+           given={Kalpesh},
+           giveni={K\bibinitperiod}}}%
+        {{hash=495a50109b0d7df7d26b3b4a36916ff4}{%
+           family={Lyu},
+           familyi={L\bibinitperiod},
+           given={Xinxi},
+           giveni={X\bibinitperiod}}}%
+        {{hash=c97f53fdeeb04c28de19e3324cb4bc0a}{%
+           family={Lewis},
+           familyi={L\bibinitperiod},
+           given={Mike},
+           giveni={M\bibinitperiod}}}%
+        {{hash=d4d56d3d370b3afd4ad2ebf985fbd3f8}{%
+           family={Yih},
+           familyi={Y\bibinitperiod},
+           given={Wen-tau},
+           giveni={W\bibinithyphendelim t\bibinitperiod}}}%
+        {{hash=b7309d5979903f9e56ec43ebf0d594ad}{%
+           family={Koh},
+           familyi={K\bibinitperiod},
+           given={Pang\bibnamedelima Wei},
+           giveni={P\bibinitperiod\bibinitdelim W\bibinitperiod}}}%
+        {{hash=48ea6f65be60970c81190df53e86239e}{%
+           family={Iyyer},
+           familyi={I\bibinitperiod},
+           given={Mohit},
+           giveni={M\bibinitperiod}}}%
+        {{hash=1dbd3a5b42828fb2cebd7786488ba425}{%
+           family={Zettlemoyer},
+           familyi={Z\bibinitperiod},
+           given={Luke},
+           giveni={L\bibinitperiod}}}%
+        {{hash=e9dafefb58a6a6e1e496fdf8928b3eeb}{%
+           family={Hajishirzi},
+           familyi={H\bibinitperiod},
+           given={Hannaneh},
+           giveni={H\bibinitperiod}}}%
+      }
+      \strng{namehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{fullhash}{7a0d825e121204fede4564c87bff701e}
+      \strng{bibnamehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{authorbibnamehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{authornamehash}{a0430095b3081f3f6d581b5106916389}
+      \strng{authorfullhash}{7a0d825e121204fede4564c87bff701e}
+      \field{extraname}{2}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprintclass}{cs.CL}
+      \field{eprinttype}{arXiv}
+      \field{title}{{FActScore}: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation}
+      \field{year}{2023}
+      \verb{eprint}
+      \verb 2305.14251
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
