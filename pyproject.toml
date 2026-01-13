@@ -61,7 +61,7 @@ uszipcode = ">=0.2.6,<1.0"
 pyarrow = ">=21.0.0,<23"
 weave = "==0.51.42"
 python-dotenv = ">=1.0.0,<2"
-neuralift_c360_prep = { path = "." }
+neuralift_c360_prep = { path = ".", editable = true }
 
 [tool.pixi.feature.dev.dependencies]
 pytest = ">=9.0.2,<10"
