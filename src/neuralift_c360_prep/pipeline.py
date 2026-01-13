@@ -24,16 +24,15 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import re
 import yaml
 
 from .cluster import get_client
 from .config import BundleConfig
 from .databricks_oauth import get_databricks_access_token
 from .ingest import load_lazy_dask
+from .log_utils import setup_logging
 from .preprocess import preprocess
 from .write import (
     count_parquet_files,
@@ -41,13 +40,7 @@ from .write import (
     create_managed_uc_volume_via_sql,
     tag_uc_volume_via_sql,
 )
-from .metadata import (
-    SEGMENTER_CONFIG_DEFAULTS,
-    build_metadata,
-    build_pretty_config_from_data_dict,
-    render_config_yaml_with_comments,
-    resolve_output_table_name,
-)
+from .metadata import build_metadata, build_minimal_config, resolve_output_table_name
 
 logger = logging.getLogger(__name__)
 
@@ -82,19 +75,6 @@ def _build_dbsql_conn_params(*, require: bool) -> dict | None:
     }
 
 
-def _snake_case(value: str) -> str:
-    cleaned = re.sub(r"[^\w]+", "_", value.strip().lower())
-    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
-    return cleaned or "run"
-
-
-def _resolve_wandb_project(cfg, fallback: str) -> str:
-    project = getattr(cfg.metadata, "wandb_project", "") or ""
-    if not project or project == "project_name_here":
-        return _snake_case(fallback)
-    return project
-
-
 def _print_output_summary(
     *,
     base_uri: str,
@@ -102,44 +82,43 @@ def _print_output_summary(
     parquet_count: int | None,
     volume_info: dict | None,
 ) -> None:
-    print("\n=== Output Summary ===")
-    print(f"Base URI       : {base_uri}")
+    logger.info("=== Output Summary ===")
+    logger.info("Base URI       : %s", base_uri)
     if parquet_count is None:
-        print("Parquet files  : unknown")
+        logger.info("Parquet files  : unknown")
     else:
-        print(f"Parquet files  : {parquet_count}")
-    print("Artifacts      : config.yaml, bundleconfig.yaml, data_dictionary.json")
+        logger.info("Parquet files  : %s", parquet_count)
+    logger.info("Artifacts      : config.yaml, bundleconfig.yaml, data_dictionary.json")
     if volume_info:
-        print("\n=== UC Volume ===")
-        print(f"Name           : {volume_info['volume_name']}")
-        print(f"Comment        : {volume_info['volume_comment']}")
-        print(f"UC Path        : {volume_info['uc_path']}")
+        logger.info("=== UC Volume ===")
+        logger.info("Name           : %s", volume_info["volume_name"])
+        logger.info("Comment        : %s", volume_info["volume_comment"])
+        logger.info("UC Path        : %s", volume_info["uc_path"])
         tags = volume_info.get("tags", {})
         if tags:
             tags_text = ", ".join(f"{k}={v}" for k, v in tags.items())
-            print(f"Tags           : {tags_text}")
-    print()
+            logger.info("Tags           : %s", tags_text)
 
 
 def run_from_config(cfg: BundleConfig) -> str:
     """
     Execute the pipeline and return the output base URI.
     """
-    logging.basicConfig(level=getattr(logging, cfg.logging.level.upper(), logging.INFO))
-
-    # If debug, force progress logs on and emit the resolved config for transparency
-    debug_mode = cfg.logging.level == "debug"
-    if debug_mode and not cfg.logging.show_progress:
-        cfg.logging.show_progress = True
-
-    logger.info("Starting pipeline (engine=%s)", cfg.runtime.engine)
-    if cfg.logging.level in {"info", "debug"}:
-        logger.info(
-            "Resolved config:\n%s",
-            yaml.safe_dump(cfg.model_dump(exclude_none=True), sort_keys=False),
-        )
+    # Re-setup logging in case run_from_config() is called directly (e.g., from tests)
+    # This is idempotent, so it's safe even if cli.py already called it
+    setup_logging(
+        cfg.logging.level,
+        dask_level=cfg.logging.dask_level,
+        llm_level=cfg.logging.llm_level,
+    )
 
     with get_client(cfg):
+        logger.info("Starting pipeline (engine=%s)", cfg.runtime.engine)
+        if cfg.logging.level in {"info", "debug"}:
+            logger.info(
+                "Resolved config:\n%s",
+                yaml.safe_dump(cfg.model_dump(exclude_none=True), sort_keys=False),
+            )
         if cfg.input.source == "uc_table":
             fmt, uri = "databricks_table", cfg.input.uc_table
         elif cfg.input.source == "delta_path":
@@ -164,7 +143,6 @@ def run_from_config(cfg: BundleConfig) -> str:
             dtype_overrides=cfg.input.dtype_overrides,
             read_blocksize_mb=cfg.output.target_mb_per_part,
             snapshot_mode="off",
-            show_progress=cfg.logging.show_progress,
             conn_params=conn_params,
             allow_dbsql_fallback=cfg.input.source == "uc_table",
             require_logical_names=cfg.input.require_logical_names,
@@ -176,27 +154,65 @@ def run_from_config(cfg: BundleConfig) -> str:
 
         ddf = preprocess(ddf, cfg)
 
+        # Persist after preprocessing to avoid re-computing during metadata generation
+        if getattr(cfg.output, "persist_after_preprocess", True):
+            logger.warning(
+                "[persist] persist_after_preprocess=True can destabilize large Coiled runs; disable if the cluster dies post-LLM."
+            )
+            try:
+                from dask.distributed import get_client as get_dask_client, wait
+                import time
+
+                client = get_dask_client()
+                logger.info(
+                    "[persist] persisting preprocessed dataframe to cluster memory "
+                    "(avoids re-computing preprocessing for every metadata stat)..."
+                )
+                t_persist = time.time()
+                ddf = client.persist(ddf)
+                # Wait for persist to actually complete (persist() is async)
+                wait(ddf)
+                logger.info(
+                    f"[persist] ✅ preprocessed dataframe persisted in {time.time() - t_persist:.2f}s"
+                )
+            except ValueError:
+                # No distributed client (local mode)
+                logger.debug(
+                    "[persist] no distributed client; skipping persist_after_preprocess"
+                )
+
+        # Verify cluster is still alive before starting expensive metadata computation
+        try:
+            from dask.distributed import get_client as get_dask_client
+
+            client = get_dask_client()
+            n_workers = len(client.scheduler_info().get("workers", {}))
+            if n_workers == 0:
+                raise RuntimeError(
+                    "Cluster has no workers available. Check Coiled dashboard for cluster status."
+                )
+            logger.debug(
+                "[cluster] verified %d workers available before metadata computation",
+                n_workers,
+            )
+        except ValueError:
+            pass  # No distributed client (local mode)
+
         table_name = resolve_output_table_name(cfg)
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
-        meta_json = json.loads(meta_text)
-        wandb_project = _resolve_wandb_project(cfg, cfg.output.run_name or table_name)
-        pretty_config = build_pretty_config_from_data_dict(
-            data_dict=meta_json,
-            ddf=ddf,
-            use_gpu=cfg.metadata.use_gpu,
-            use_wandb=cfg.metadata.use_wandb,
-            config_debug=cfg.metadata.config_debug,
-            wandb_project=wandb_project,
-            max_card_for_cat=cfg.metadata.tags.max_card,
-        )
-        pretty_config_text = render_config_yaml_with_comments(
+        row_count_value = meta.get("_row_count")
+        try:
+            row_count = int(row_count_value) if row_count_value is not None else None
+        except (TypeError, ValueError):
+            row_count = None
+        run_name = cfg.output.run_name or table_name
+        pretty_config = build_minimal_config(row_count=row_count, run_name=run_name)
+        pretty_config_text = yaml.safe_dump(
             pretty_config,
-            header_comment_lines=[
-                "Generated by neuralift_c360_prep.",
-                "Inline '# default:' comments reflect neuralift_segmenter/config.py defaults.",
-            ],
-            defaults=SEGMENTER_CONFIG_DEFAULTS,
+            sort_keys=False,
+            default_flow_style=False,
+            allow_unicode=False,
         )
 
         base_uri = cfg.output.s3_base
@@ -252,7 +268,16 @@ def run_from_config(cfg: BundleConfig) -> str:
             target_mb_per_part=cfg.output.target_mb_per_part,
             force_npartitions=cfg.output.force_npartitions,
             write_index=cfg.output.write_index,
-            show_progress=cfg.logging.show_progress,
+            shuffle_before_partition_on=getattr(
+                cfg.output, "shuffle_before_partition_on", True
+            ),
+            persist_before_write=getattr(cfg.output, "persist_before_write", True),
+            rebalance_before_write=getattr(cfg.output, "rebalance_before_write", True),
+            cast_bool_to_int8=getattr(cfg.output, "cast_bool_to_int8", True),
+            cast_category_to_string=getattr(
+                cfg.output, "cast_category_to_string", True
+            ),
+            cast_object_to_string=getattr(cfg.output, "cast_object_to_string", True),
         )
 
         if volume_tags:

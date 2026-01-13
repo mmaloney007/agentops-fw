@@ -49,7 +49,6 @@ def test_write_min_two_partitions(tmp_path):
         partition_on=None,
         target_mb_per_part=512,
         force_npartitions=None,
-        show_progress=False,
     )
 
     assert write_mod.count_parquet_files(s3_base=base) == 2

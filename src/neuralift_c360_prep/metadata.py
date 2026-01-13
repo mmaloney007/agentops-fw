@@ -34,40 +34,42 @@ Copyright © 2025 Neuralift, Inc.
 from __future__ import annotations
 
 import gc
-import math
 import json
 import logging
+import math
 import os
 import re
-import statistics
 import textwrap
 import threading
 import time
-import tempfile
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import blake2b
 from pathlib import Path
-from uuid import uuid4
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 import dask.dataframe as dd
-from dask import compute as dask_compute
 import openai
 import pandas as pd
 import yaml
+from dask import compute as dask_compute
 from instructor import Mode, from_openai  # type: ignore
 from pandas.api.types import (
     is_bool_dtype,
+    is_datetime64_any_dtype,
     is_float_dtype,
     is_integer_dtype,
-    is_string_dtype,
-    is_datetime64_any_dtype,
     is_numeric_dtype,
+    is_string_dtype,
 )
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
+
+logger = logging.getLogger(__name__)
+data_dict_logger = logging.getLogger("data-dict")
+llm_logger = logging.getLogger("neuralift_c360_prep.llm")
 
 # ---------------------------------------------------------------------------
 # ASCII helpers
@@ -142,9 +144,7 @@ def _rate_limit_before_sleep(retry_state) -> None:
     exc = retry_state.outcome.exception() if retry_state.outcome else None
     if _is_rate_limit_error(exc):
         delay = _note_rate_limit()
-        logging.getLogger("data-dict").warning(
-            "Rate limit encountered; backing off for %.1fs", delay
-        )
+        data_dict_logger.warning("Rate limit encountered; backing off for %.1fs", delay)
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +257,310 @@ def _wrap_instructor(force_client) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Column stats helpers
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ColumnStats:
+    columns: list[str]
+    row_count: int
+    counts: pd.Series
+    null_counts: pd.Series
+    dtypes: pd.Series
+    unique_counts: pd.Series | None
+    unique_is_approx: bool
+
+    def subset(self, columns: Iterable[str]) -> "ColumnStats":
+        cols = list(columns)
+        counts = self.counts.reindex(cols).fillna(0).astype(int)
+        null_counts = self.null_counts.reindex(cols).fillna(0).astype(int)
+        dtypes = self.dtypes.reindex(cols)
+        if self.unique_counts is None:
+            unique_counts = None
+        else:
+            unique_counts = self.unique_counts.reindex(cols).fillna(0).astype(int)
+        return ColumnStats(
+            columns=cols,
+            row_count=self.row_count,
+            counts=counts,
+            null_counts=null_counts,
+            dtypes=dtypes,
+            unique_counts=unique_counts,
+            unique_is_approx=self.unique_is_approx,
+        )
+
+
+def _empty_int_series(columns: Sequence[str]) -> pd.Series:
+    return pd.Series(index=list(columns), dtype="int64")
+
+
+def _compute_approx_unique_counts(ddf: dd.DataFrame, cols: Sequence[str]) -> pd.Series:
+    if not cols:
+        return _empty_int_series(cols)
+    delayed_vals = [ddf[c].nunique_approx() for c in cols]
+    approx_vals = dask_compute(*delayed_vals)
+    return pd.Series(approx_vals, index=cols).astype(int)
+
+
+def _compute_exact_unique_counts(ddf: dd.DataFrame, cols: Sequence[str]) -> pd.Series:
+    if not cols:
+        return _empty_int_series(cols)
+    unique_counts = ddf[cols].nunique(dropna=True).compute()
+    if isinstance(unique_counts, pd.DataFrame):
+        if unique_counts.shape[0] == 1:
+            unique_counts = unique_counts.iloc[0]
+        else:
+            raise TypeError(
+                "Expected unique counts as Series/1-row DF; got "
+                f"DF shape={unique_counts.shape}"
+            )
+    if not isinstance(unique_counts, pd.Series):
+        raise TypeError(
+            f"Unique counts must be a pandas Series; got {type(unique_counts)}. "
+            "Refusing to broadcast a scalar across columns."
+        )
+    return unique_counts.reindex(cols).fillna(0).astype(int)
+
+
+def compute_column_stats(
+    ddf: dd.DataFrame,
+    *,
+    columns: Iterable[str] | None = None,
+    use_approx_unique: bool = False,
+    approx_row_threshold: int | None = 2_000_000,
+    compute_unique_counts: bool = True,
+) -> ColumnStats:
+    """
+    Compute column statistics with optimized batching.
+
+    OPTIMIZATION: Batches count + approx uniques in a single dask_compute() call
+    when use_approx_unique=True, reducing scheduler round-trips from 2 to 1.
+
+    Note: The pipeline prefers _compute_stats_and_sample() to batch stats + sample
+    in a single pass. This remains for compatibility and direct callers.
+    """
+    cols = list(columns) if columns is not None else list(ddf.columns)
+    dtypes = ddf.dtypes.reindex(cols)
+
+    if not cols:
+        empty = _empty_int_series(cols)
+        return ColumnStats(
+            columns=cols,
+            row_count=0,
+            counts=empty,
+            null_counts=empty,
+            dtypes=dtypes,
+            unique_counts=empty if compute_unique_counts else None,
+            unique_is_approx=False,
+        )
+
+    # OPTIMIZATION: Batch count + approx uniques in single compute call when possible
+    # This reduces scheduler round-trips and graph traversals
+    counts_delayed = ddf[cols].count()
+
+    if compute_unique_counts and use_approx_unique:
+        # Batch both operations together - approx uniques are cheap
+        approx_unique_delayed = [ddf[c].nunique_approx() for c in cols]
+        all_results = dask_compute(counts_delayed, *approx_unique_delayed)
+        counts = all_results[0]
+        approx_vals = all_results[1:]
+
+        if not isinstance(counts, pd.Series):
+            counts = pd.Series(counts, index=cols)
+        counts = counts.reindex(cols).fillna(0).astype(int)
+        row_count = int(counts.max()) if len(counts) else 0
+        null_counts = (row_count - counts).astype(int)
+
+        # Decide if we need exact uniques based on row count
+        use_approx = bool(
+            approx_row_threshold is None or row_count > approx_row_threshold
+        )
+
+        if use_approx:
+            unique_counts = pd.Series(approx_vals, index=cols).astype(int)
+        else:
+            # Need exact uniques - compute them (approx was "free" in the batch)
+            logger.info(
+                "[stats] row_count=%s < threshold=%s; computing exact uniques...",
+                f"{row_count:,}",
+                f"{approx_row_threshold:,}",
+            )
+            unique_counts = _compute_exact_unique_counts(ddf, cols)
+    else:
+        # Non-batched path for exact uniques or no uniques needed
+        counts = counts_delayed.compute()
+        if not isinstance(counts, pd.Series):
+            counts = pd.Series(counts, index=cols)
+        counts = counts.reindex(cols).fillna(0).astype(int)
+        row_count = int(counts.max()) if len(counts) else 0
+        null_counts = (row_count - counts).astype(int)
+
+        if not compute_unique_counts:
+            return ColumnStats(
+                columns=cols,
+                row_count=row_count,
+                counts=counts,
+                null_counts=null_counts,
+                dtypes=dtypes,
+                unique_counts=None,
+                unique_is_approx=False,
+            )
+
+        # Compute exact uniques
+        use_approx = False
+        unique_counts = _compute_exact_unique_counts(ddf, cols)
+
+    return ColumnStats(
+        columns=cols,
+        row_count=row_count,
+        counts=counts,
+        null_counts=null_counts,
+        dtypes=dtypes,
+        unique_counts=unique_counts,
+        unique_is_approx=use_approx,
+    )
+
+
+def _build_partition_sample(
+    ddf: dd.DataFrame,
+    *,
+    sample_rows: int,
+    sample_cols: Sequence[str],
+    random_state: int = 42,
+) -> dd.DataFrame | None:
+    if sample_rows <= 0 or not sample_cols:
+        return None
+
+    cols = [c for c in sample_cols if c in ddf.columns]
+    if not cols:
+        return None
+
+    n_parts = max(1, int(ddf.npartitions))
+    per_part = max(1, int(math.ceil(sample_rows / float(n_parts))))
+
+    def _sample_partition(pdf: pd.DataFrame) -> pd.DataFrame:
+        subset = pdf[cols]
+        if subset.empty:
+            return subset.head(0)
+        n = min(len(subset), per_part)
+        if len(subset) <= n:
+            return subset
+        return subset.sample(n=n, random_state=random_state)
+
+    return ddf.map_partitions(_sample_partition, meta=ddf[cols]._meta)
+
+
+def _compute_stats_and_sample(
+    ddf: dd.DataFrame,
+    *,
+    columns: Sequence[str] | None = None,
+    sample_rows: int = 0,
+    sample_cols: Sequence[str] | None = None,
+    compute_unique_counts: bool = True,
+    use_approx_unique: bool = True,
+    approx_row_threshold: int | None = 2_000_000,
+) -> tuple[ColumnStats, pd.DataFrame | None]:
+    cols = list(columns) if columns is not None else list(ddf.columns)
+    dtypes = ddf.dtypes.reindex(cols)
+
+    if not cols:
+        empty = _empty_int_series(cols)
+        stats = ColumnStats(
+            columns=cols,
+            row_count=0,
+            counts=empty,
+            null_counts=empty,
+            dtypes=dtypes,
+            unique_counts=empty if compute_unique_counts else None,
+            unique_is_approx=False,
+        )
+        return stats, None
+
+    counts_delayed = ddf[cols].count()
+    tasks: list[Any] = [counts_delayed]
+
+    unique_counts = None
+    unique_is_approx = False
+    approx_tasks: list[Any] = []
+    if compute_unique_counts:
+        if use_approx_unique:
+            approx_tasks = [ddf[c].nunique_approx() for c in cols]
+            tasks.extend(approx_tasks)
+            unique_is_approx = True
+        else:
+            tasks.append(ddf[cols].nunique(dropna=True))
+
+    sample_ddf = _build_partition_sample(
+        ddf,
+        sample_rows=sample_rows,
+        sample_cols=sample_cols or cols,
+    )
+    if sample_ddf is not None:
+        tasks.append(sample_ddf)
+
+    results = dask_compute(*tasks)
+    idx = 0
+
+    counts = results[idx]
+    idx += 1
+
+    if not isinstance(counts, pd.Series):
+        counts = pd.Series(counts, index=cols)
+    counts = counts.reindex(cols).fillna(0).astype(int)
+    row_count = int(counts.max()) if len(counts) else 0
+    null_counts = (row_count - counts).astype(int)
+
+    if compute_unique_counts:
+        if use_approx_unique:
+            approx_vals = results[idx : idx + len(cols)]
+            idx += len(cols)
+            unique_counts = pd.Series(approx_vals, index=cols).astype(int)
+        else:
+            exact_res = results[idx]
+            idx += 1
+            if isinstance(exact_res, pd.DataFrame):
+                if exact_res.shape[0] == 1:
+                    exact_res = exact_res.iloc[0]
+                else:
+                    raise TypeError(
+                        "Expected unique counts as Series/1-row DF; got "
+                        f"DF shape={exact_res.shape}"
+                    )
+            if not isinstance(exact_res, pd.Series):
+                exact_res = pd.Series(exact_res, index=cols)
+            unique_counts = exact_res.reindex(cols).fillna(0).astype(int)
+
+    sample_pdf = results[idx] if sample_ddf is not None else None
+    if sample_pdf is not None and sample_rows > 0 and len(sample_pdf) > sample_rows:
+        sample_pdf = sample_pdf.sample(n=sample_rows, random_state=42)
+
+    if (
+        compute_unique_counts
+        and use_approx_unique
+        and approx_row_threshold is not None
+        and row_count > 0
+        and row_count <= approx_row_threshold
+    ):
+        logger.info(
+            "[stats] row_count=%s < threshold=%s; computing exact uniques...",
+            f"{row_count:,}",
+            f"{approx_row_threshold:,}",
+        )
+        unique_counts = _compute_exact_unique_counts(ddf, cols)
+        unique_is_approx = False
+
+    stats = ColumnStats(
+        columns=cols,
+        row_count=row_count,
+        counts=counts,
+        null_counts=null_counts,
+        dtypes=dtypes,
+        unique_counts=unique_counts if compute_unique_counts else None,
+        unique_is_approx=unique_is_approx,
+    )
+    return stats, sample_pdf
+
+
+# ---------------------------------------------------------------------------
 # Column profiling for data dictionary
 # ---------------------------------------------------------------------------
 def _profile_single_column(
@@ -320,8 +624,15 @@ def _profile_single_column(
     reraise=True,
     before_sleep=_rate_limit_before_sleep,
 )
-def _describe_column(client, prompt: str, model: str) -> ColumnDescription:
-    return client.chat.completions.create(
+def _describe_column(
+    client, prompt: str, model: str, col_name: str = ""
+) -> ColumnDescription:
+    llm_logger.debug("[llm] Calling model=%s for column='%s'", model, col_name)
+    # Only show first 500 chars of prompt to avoid log spam
+    prompt_preview = prompt[:500] + "..." if len(prompt) > 500 else prompt
+    llm_logger.debug("[llm] Prompt preview:\n%s", prompt_preview)
+
+    response = client.chat.completions.create(
         model=model,
         response_model=ColumnDescription,
         messages=[
@@ -330,6 +641,23 @@ def _describe_column(client, prompt: str, model: str) -> ColumnDescription:
         ],
         top_p=1.0,
     )
+
+    # Log token usage if available
+    if hasattr(response, "_raw_response") and hasattr(response._raw_response, "usage"):
+        usage = response._raw_response.usage
+        llm_logger.debug(
+            "[llm] Response for '%s' | tokens: prompt=%d, completion=%d, total=%d",
+            col_name,
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens,
+        )
+    else:
+        llm_logger.debug(
+            "[llm] Response for '%s': %s", col_name, response.definition[:100]
+        )
+
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +675,8 @@ def create_intelligent_data_dictionary(
     max_concurrency: int = 8,
     use_cache: bool = False,
     cache_dir: str | Path = ".nl_dd_cache",
-    show_progress: bool = True,
+    stats: ColumnStats | None = None,
+    sample_pdf: pd.DataFrame | None = None,
     debug: bool = False,
     use_approx_unique: bool = True,
     use_sample_for_uniques: bool = False,
@@ -359,6 +688,7 @@ def create_intelligent_data_dictionary(
       - Single stats pass for non-null counts and uniques (approx by default).
       - Sampling via ddf.sample(...), no head().
       - All per-column profiling only uses the in-memory pandas sample.
+      - Optionally accepts precomputed stats to avoid recomputation.
 
     Returns:
       - defs:   {column_name -> definition string}
@@ -377,13 +707,12 @@ def create_intelligent_data_dictionary(
     client = _wrap_instructor(base_client)
     client_kind = "Instructor-wrapped (forced)"
 
-    if show_progress:
-        print("=== data-dict init ===")
-        print(f"- model: {model}")
-        print(f"- client_source: {client_source}")
-        print(f"- client_kind: {client_kind}")
-        print(f"- use_approx_unique: {use_approx_unique}")
-        print(f"- use_sample_for_uniques: {use_sample_for_uniques}")
+    logger.info("=== data-dict init ===")
+    logger.info("- model: %s", model)
+    logger.info("- client_source: %s", client_source)
+    logger.info("- client_kind: %s", client_kind)
+    logger.info("- use_approx_unique: %s", use_approx_unique)
+    logger.info("- use_sample_for_uniques: %s", use_sample_for_uniques)
 
     if isinstance(source, str):
         if not os.path.isfile(source):
@@ -403,50 +732,86 @@ def create_intelligent_data_dictionary(
 
     col_names = list(ddf.columns[:max_cols]) if max_cols else list(ddf.columns)
 
-    if show_progress:
-        print(f"🚀 Starting data dictionary for {len(col_names)} column(s)...")
-        print("📊 Computing Dask stats (counts, uniques)...")
+    logger.info("🚀 Starting data dictionary for %s column(s)...", len(col_names))
 
-    counts_delayed = ddf[col_names].count()
+    if stats is None:
+        logger.info("📊 Computing Dask stats (counts, uniques)...")
 
-    if use_sample_for_uniques:
-        stats_to_compute = [counts_delayed]
-        has_unique = False
+        counts_delayed = ddf[col_names].count()
+
+        if use_sample_for_uniques:
+            stats_to_compute = [counts_delayed]
+            has_unique = False
+        else:
+            unique_delayed = (
+                ddf[col_names].nunique_approx()
+                if use_approx_unique
+                else ddf[col_names].nunique(dropna=True)
+            )
+            stats_to_compute = [counts_delayed, unique_delayed]
+            has_unique = True
+
+        computed_stats = dask_compute(*stats_to_compute)
+
+        if has_unique:
+            counts, unique_counts = computed_stats
+        else:
+            (counts,) = computed_stats
+            unique_counts = None
+
+        if not isinstance(counts, pd.Series):
+            counts = pd.Series(counts, index=col_names)
+
+        row_count = int(counts.max())
+        null_counts = row_count - counts
+
+        if unique_counts is not None and not isinstance(unique_counts, pd.Series):
+            unique_counts = pd.Series(unique_counts, index=col_names)
+        if unique_counts is not None:
+            unique_counts = unique_counts.astype(int)
     else:
-        unique_delayed = (
-            ddf[col_names].nunique_approx()
-            if use_approx_unique
-            else ddf[col_names].nunique(dropna=True)
-        )
-        stats_to_compute = [counts_delayed, unique_delayed]
-        has_unique = True
+        stats = stats.subset(col_names)
+        counts = stats.counts
+        row_count = stats.row_count
+        null_counts = stats.null_counts
+        unique_counts = stats.unique_counts
+        stats_unique_is_approx = stats.unique_is_approx
 
-    computed_stats = dask_compute(*stats_to_compute)
+        if use_sample_for_uniques:
+            unique_counts = None
+        elif unique_counts is None:
+            if use_approx_unique:
+                unique_counts = _compute_approx_unique_counts(ddf, col_names)
+                stats_unique_is_approx = True
+            else:
+                unique_counts = _compute_exact_unique_counts(ddf, col_names)
+                stats_unique_is_approx = False
+        elif not use_approx_unique and stats_unique_is_approx:
+            unique_counts = _compute_exact_unique_counts(ddf, col_names)
+            stats_unique_is_approx = False
 
-    if has_unique:
-        counts, unique_counts = computed_stats
+        if unique_counts is not None and not isinstance(unique_counts, pd.Series):
+            unique_counts = pd.Series(unique_counts, index=col_names)
+        if unique_counts is not None:
+            unique_counts = unique_counts.astype(int)
+
+    logger.info(
+        "✅ Stats done: ~%s rows over %s columns",
+        f"{row_count:,}",
+        len(col_names),
+    )
+    if sample_rows <= 0:
+        sample_pdf = pd.DataFrame(columns=col_names)
+    elif sample_pdf is None:
+        logger.info("🎯 Building sample via ddf.sample(...) (no head())...")
+        sample_frac = min(1.0, sample_rows / max(row_count, 1))
+        sample_ddf = ddf[col_names].sample(frac=sample_frac, random_state=42)
+        sample_pdf = sample_ddf.compute()
     else:
-        (counts,) = computed_stats
-        unique_counts = None
-
-    if not isinstance(counts, pd.Series):
-        counts = pd.Series(counts, index=col_names)
-
-    row_count = int(counts.max())
-    null_counts = row_count - counts
-
-    if unique_counts is not None and not isinstance(unique_counts, pd.Series):
-        unique_counts = pd.Series(unique_counts, index=col_names)
-    if unique_counts is not None:
-        unique_counts = unique_counts.astype(int)
-
-    if show_progress:
-        print(f"✅ Stats done: ~{row_count:,} rows over {len(col_names)} columns")
-        print("🎯 Building sample via ddf.sample(...) (no head())...")
-
-    sample_frac = min(1.0, sample_rows / max(row_count, 1))
-    sample_ddf = ddf[col_names].sample(frac=sample_frac, random_state=42)
-    sample_pdf = sample_ddf.compute()
+        logger.info("🎯 Using precomputed sample (%s rows)...", len(sample_pdf))
+        sample_pdf = sample_pdf.reindex(columns=col_names)
+        if len(sample_pdf) > sample_rows:
+            sample_pdf = sample_pdf.sample(n=sample_rows, random_state=42)
 
     if use_sample_for_uniques or unique_counts is None:
         unique_counts = sample_pdf.nunique(dropna=True)
@@ -454,26 +819,36 @@ def create_intelligent_data_dictionary(
             unique_counts = pd.Series(unique_counts, index=col_names)
         unique_counts = unique_counts.astype(int)
 
-    if show_progress:
-        print(
-            f"📏 Sample ready: {len(sample_pdf)} rows, "
-            f"{len(col_names)} columns (used for profiling)"
-        )
-        print("🧮 Profiling columns and generating LLM definitions...")
+    logger.info(
+        "📏 Sample ready: %s rows, %s columns (used for profiling)",
+        len(sample_pdf),
+        len(col_names),
+    )
+    logger.info("🧮 Profiling columns...")
 
-    profiles: List[Dict[str, Any]] = []
-    for i, name in enumerate(col_names, start=1):
-        if show_progress and (i == 1 or i % 10 == 0 or i == len(col_names)):
-            print(f"[profile] {i}/{len(col_names)} {name}")
-        prof = _profile_single_column(
-            sample_pdf[name],
+    # OPTIMIZATION: Profile columns in parallel for wide tables (>50 columns)
+    # For narrow tables, sequential is faster due to thread overhead
+    def _profile_col(name: str) -> Dict[str, Any]:
+        return _profile_single_column(
+            sample_pdf[name],  # noqa: F821 - defined in enclosing scope before call
             name,
             row_count=row_count,
-            null_count=int(null_counts.get(name, 0)),
-            unique_count=int(unique_counts.get(name, 0)),
+            null_count=int(null_counts.get(name, 0)),  # noqa: F821
+            unique_count=int(unique_counts.get(name, 0)),  # noqa: F821
             top_n_values=top_n_values,
         )
-        profiles.append(prof)
+
+    if len(col_names) > 50:
+        # Parallel profiling for wide tables
+        logger.info("[profile] using parallel profiling for %s columns", len(col_names))
+        with ThreadPoolExecutor(max_workers=min(8, len(col_names))) as ex:
+            profiles = list(ex.map(_profile_col, col_names))
+    else:
+        # Sequential for narrow tables
+        profiles = [_profile_col(name) for name in col_names]
+
+    logger.info("[profile] profiled %s columns", len(profiles))
+    llm_logger.info("[llm] 🧮 Generating definitions for %d columns...", len(col_names))
 
     dtypes_out: Dict[str, Any] = {}
     ddf_dtypes = ddf.dtypes
@@ -500,22 +875,16 @@ def create_intelligent_data_dictionary(
         if cache_path:
             cached = _cache_load(cache_path, key)
             if cached:
-                if show_progress:
-                    print(f"[cache] {idx}/{total} {name}")
+                logger.info("[cache] %s/%s %s", idx, total, name)
                 return idx, name, cached
 
-        if show_progress:
-            print(f"[start] {idx}/{total} {name}")
+        llm_logger.info("[start] %s/%s %s", idx, total, name)
         delay = _current_rate_limit_delay()
         if delay:
             time.sleep(delay)
         prompt = _prompt_for_column(profile, context)
-        if debug:
-            print(f"\n[DEBUG {idx}/{total}] Prompt for '{name}':\n{prompt}\n")
-        desc = _describe_column(client, prompt, model=model)
+        desc = _describe_column(client, prompt, model=model, col_name=name)
         definition = desc.definition
-        if debug:
-            print(f"[DEBUG {idx}/{total}] Definition for '{name}': {definition}")
         _relax_rate_limit()
         if cache_path:
             _cache_save(cache_path, key, definition)
@@ -532,21 +901,20 @@ def create_intelligent_data_dictionary(
                 idx, name, definition = fut.result()
                 safe_def = _ascii7(definition)
             except Exception as e:
-                logging.getLogger("data-dict").exception(
-                    "Definition failed for column %s", futs[fut]
-                )
+                data_dict_logger.exception("Definition failed for column %s", futs[fut])
                 name = futs[fut]
                 safe_def = _ascii7(f"Definition unavailable; {type(e).__name__}")
             definitions[name] = safe_def
             completed += 1
-            if show_progress and (completed == 1 or completed % 10 == 0):
-                print(f"✨ LLM progress: {completed}/{total_cols} columns")
+            if completed == 1 or completed % 10 == 0:
+                llm_logger.info(
+                    "[llm] ✨ Progress: %s/%s columns completed", completed, total_cols
+                )
 
     del sample_pdf, counts, null_counts, unique_counts
     gc.collect()
 
-    if show_progress:
-        print(f"✅ Complete! Generated {len(definitions)} definitions")
+    llm_logger.info("[llm] ✅ Complete! Generated %s definitions", len(definitions))
 
     yaml_out = {
         "generated_utc": datetime.now(timezone.utc).isoformat(),
@@ -570,7 +938,6 @@ def create_intelligent_data_dictionary(
 # Table comment generation
 # ---------------------------------------------------------------------------
 DEFAULT_TABLE_COMMENT_MODEL = "gpt-5-nano"
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 _default_client = from_openai(openai, mode=Mode.JSON)
 
 
@@ -589,7 +956,114 @@ class CommentModel(BaseModel):
         return v[0].upper() + v[1:] if v else v
 
 
+def _summarize_data_dict_for_comment(yaml_dd: str, max_columns: int = 15) -> str:
+    """
+    Create condensed data dictionary for table comment generation.
+
+    Reduces token usage by 70-90% while preserving key information:
+    - Summary statistics (total columns, type counts)
+    - Date range if available
+    - Most important columns (IDs, dates, amounts, first N columns)
+    """
+    try:
+        full_dd = yaml.safe_load(yaml_dd)
+        columns = full_dd.get("columns", [])
+
+        if not columns:
+            return yaml_dd  # Return original if parsing fails
+
+        # Count column types by inspecting definitions
+        type_counts = {}
+        date_columns = []
+        id_columns = []
+        important_columns = []
+
+        for i, col_entry in enumerate(columns):
+            col_name = col_entry.get("Column Name", "")
+            col_def = col_entry.get("Definition", "").lower()
+
+            # Identify column types from name/definition
+            if any(x in col_name.lower() for x in ["_id", "id_", "_key", "key_"]):
+                id_columns.append(col_entry)
+            elif any(
+                x in col_name.lower()
+                for x in ["date", "time", "timestamp", "_at", "_on"]
+            ):
+                date_columns.append(col_entry)
+            elif any(
+                x in col_name.lower()
+                for x in ["amount", "total", "price", "cost", "revenue"]
+            ):
+                important_columns.append(col_entry)
+            elif i < 5:  # First 5 columns
+                important_columns.append(col_entry)
+
+            # Rough type classification from definition
+            if any(x in col_def for x in ["date", "time", "timestamp"]):
+                type_counts["datetime"] = type_counts.get("datetime", 0) + 1
+            elif any(
+                x in col_def
+                for x in ["number", "numeric", "integer", "float", "count", "amount"]
+            ):
+                type_counts["numeric"] = type_counts.get("numeric", 0) + 1
+            elif any(x in col_def for x in ["boolean", "true/false", "yes/no", "flag"]):
+                type_counts["boolean"] = type_counts.get("boolean", 0) + 1
+            else:
+                type_counts["string"] = type_counts.get("string", 0) + 1
+
+        # Build sampled column list (prioritize important columns)
+        sampled = []
+        seen = set()
+
+        # Add IDs first
+        for col in id_columns:
+            if col["Column Name"] not in seen and len(sampled) < max_columns:
+                sampled.append(col)
+                seen.add(col["Column Name"])
+
+        # Add dates
+        for col in date_columns:
+            if col["Column Name"] not in seen and len(sampled) < max_columns:
+                sampled.append(col)
+                seen.add(col["Column Name"])
+
+        # Add other important columns
+        for col in important_columns:
+            if col["Column Name"] not in seen and len(sampled) < max_columns:
+                sampled.append(col)
+                seen.add(col["Column Name"])
+
+        # Fill remaining slots with first unseen columns
+        for col in columns:
+            if col["Column Name"] not in seen and len(sampled) < max_columns:
+                sampled.append(col)
+                seen.add(col["Column Name"])
+
+        # Build condensed YAML
+        summary = {
+            "summary": {
+                "total_columns": len(columns),
+                "by_type": type_counts,
+            },
+            "key_columns": sampled,
+        }
+
+        if len(columns) > max_columns:
+            summary["note"] = (
+                f"Showing {len(sampled)} of {len(columns)} columns (IDs, dates, and key fields prioritized)"
+            )
+
+        return yaml.safe_dump(summary, sort_keys=False, allow_unicode=False)
+
+    except Exception:
+        # If summarization fails, return original (fallback)
+        return yaml_dd
+
+
 def build_prompt(*, yaml_dd: str, context: str) -> str:
+    # Summarize the data dictionary to reduce token usage
+    summarized_dd = _summarize_data_dict_for_comment(yaml_dd, max_columns=15)
+
     return textwrap.dedent(f"""\
 You are a senior data scientist. Write ONE compact paragraph (≤500 ASCII characters, max 5 sentences) that states **what is in this table**:
 key columns or data themes, data types, and overall time span (earliest to latest dates present).
@@ -599,7 +1073,7 @@ ORGANIZATION CONTEXT:
 {context}
 
 DATA DICTIONARY:
-{yaml_dd}
+{summarized_dd}
 
 Respond with exactly this single-line JSON (no markdown, no extra keys):
 {{"Comment":"<your paragraph>"}}""")
@@ -611,6 +1085,12 @@ Respond with exactly this single-line JSON (no markdown, no extra keys):
     reraise=True,
 )
 def _call_comment(client, model, prompt) -> str:
+    llm_logger.info("[llm] Generating table comment...")
+    llm_logger.debug("[llm] Calling model=%s for table comment", model)
+    # Only show first 500 chars of prompt to avoid log spam
+    prompt_preview = prompt[:500] + "..." if len(prompt) > 500 else prompt
+    llm_logger.debug("[llm] Prompt preview:\n%s", prompt_preview)
+
     result = client.chat.completions.create(
         model=model,
         messages=[
@@ -620,6 +1100,20 @@ def _call_comment(client, model, prompt) -> str:
         response_model=CommentModel,  # Instructor validation
         top_p=1.0,
     )
+
+    # Log token usage if available
+    if hasattr(result, "_raw_response") and hasattr(result._raw_response, "usage"):
+        usage = result._raw_response.usage
+        llm_logger.debug(
+            "[llm] Table comment response | tokens: prompt=%d, completion=%d, total=%d",
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens,
+        )
+    else:
+        llm_logger.debug("[llm] Table comment response: %s...", result.comment[:100])
+
+    llm_logger.info("[llm] ✅ Table comment generated")
     return result.comment
 
 
@@ -664,10 +1158,10 @@ def build_column_tags_yaml_dask(
     exact_unique_limit: int | None = None,
     extra_tags_all: Mapping[str, str] | None = None,
     extra_tags_by_column: Mapping[str, Mapping[str, str]] | None = None,
-    show_progress: bool = True,
     progress_every: int = 10,
     approx_row_threshold: int = 2_000_000,
     debug: bool = False,
+    stats: ColumnStats | None = None,
 ) -> Tuple[Dict[str, Dict[str, str]], str]:
     """
     Classify columns and emit a YAML for tags (no UC/SQL).
@@ -679,78 +1173,93 @@ def build_column_tags_yaml_dask(
       - DATETIME/DATE => categorical
       - Numeric => categorical if uniq <= max_card else continuous
       - fallback => categorical
+
+    If stats is provided, counts/uniques are reused to avoid recomputation.
     """
     cols = list(ddf.columns)
     id_set = {c.lower() for c in id_cols}
     kpi_set = {c.lower() for c in kpi_cols}
     miss_set = {c.lower() for c in (missing_indicator_cols or [])}
 
-    if show_progress:
-        print("[tags] computing non-null counts (and inferring row_count)...")
-
-    counts = ddf[cols].count().compute()
-    if not isinstance(counts, pd.Series):
-        counts = pd.Series(counts, index=cols)
-
-    row_count = int(counts.max()) if len(counts) else 0
-    null_counts = row_count - counts
-    dtypes = ddf.dtypes
-
-    if show_progress:
-        print(
-            f"[tags] stats: rows≈{row_count:,}, cols={len(cols)}, "
-            f"use_approx_unique={use_approx_unique}, approx_row_threshold={approx_row_threshold}"
+    if stats is None:
+        logger.info("[tags] computing non-null counts (and inferring row_count)...")
+        stats = compute_column_stats(
+            ddf,
+            columns=cols,
+            use_approx_unique=use_approx_unique,
+            approx_row_threshold=approx_row_threshold,
         )
+    else:
+        stats = stats.subset(cols)
+        logger.info(
+            "[tags] using precomputed stats (rows≈%s, cols=%s)",
+            f"{stats.row_count:,}",
+            len(cols),
+        )
+
+    row_count = stats.row_count
+    null_counts = stats.null_counts
+    dtypes = stats.dtypes
+    unique_counts = stats.unique_counts
+    stats_unique_is_approx = stats.unique_is_approx
+
+    logger.info(
+        "[tags] stats: rows≈%s, cols=%s, use_approx_unique=%s, approx_row_threshold=%s",
+        f"{row_count:,}",
+        len(cols),
+        use_approx_unique,
+        approx_row_threshold,
+    )
 
     use_approx = bool(use_approx_unique and row_count > approx_row_threshold)
 
-    if use_approx:
-        if show_progress:
-            print(
+    if unique_counts is None or stats_unique_is_approx != use_approx:
+        if use_approx:
+            logger.info(
                 "[tags] using approximate uniques (per-column nunique_approx) for large table"
             )
-
-        # IMPORTANT: DataFrame.nunique_approx() can return a scalar in some environments.
-        # Compute per-column to guarantee one value per column.
-        delayed_vals = [ddf[c].nunique_approx() for c in cols]
-        approx_vals = dd.compute(*delayed_vals)  # tuple of scalars aligned with cols
-        unique_counts = pd.Series(approx_vals, index=cols).astype(int)
-
-    else:
-        if show_progress:
-            print("[tags] computing exact uniques (nunique) for all columns...")
-        unique_counts = ddf[cols].nunique(dropna=True).compute()
-
-    # SAFETY: normalize shape (still useful for exact path or odd returns)
-    if isinstance(unique_counts, pd.DataFrame):
-        if unique_counts.shape[0] == 1:
-            unique_counts = unique_counts.iloc[0]
+            unique_counts = _compute_approx_unique_counts(ddf, cols)
+            stats_unique_is_approx = True
         else:
-            raise TypeError(
-                f"Expected unique counts as Series/1-row DF; got DF shape={unique_counts.shape}"
-            )
-
-    if not isinstance(unique_counts, pd.Series):
-        raise TypeError(
-            f"Unique counts must be a pandas Series; got {type(unique_counts)}. "
-            "Refusing to broadcast a scalar across columns."
-        )
+            logger.info("[tags] computing exact uniques (nunique) for all columns...")
+            unique_counts = _compute_exact_unique_counts(ddf, cols)
+            stats_unique_is_approx = False
+    else:
+        if use_approx:
+            logger.info("[tags] using precomputed approximate uniques")
+        else:
+            logger.info("[tags] using precomputed exact uniques")
 
     unique_counts = unique_counts.reindex(cols).fillna(0).astype(int)
 
     # Optional exact uniques for gray-band columns when using approx
     if use_approx and approx_gray_band >= 0:
         gray_cols: list[str] = []
+        gray_col_info: dict[str, int] = {}  # col -> approx unique count
         for c in cols:
             est = int(unique_counts.get(c, 0))
             if abs(est - max_card) <= approx_gray_band:
                 gray_cols.append(c)
+                gray_col_info[c] = est
         if exact_unique_limit is not None:
             gray_cols = gray_cols[:exact_unique_limit]
+            gray_col_info = {c: gray_col_info[c] for c in gray_cols}
 
         if gray_cols:
-            if show_progress:
-                print(f"[tags] exact uniques for gray-band cols: {gray_cols}")
+            logger.warning(
+                "[tags] gray-band exact uniques for %d column(s) trigger an extra compute pass; "
+                "set metadata.tags.approx_gray_band=-1 to keep approximate uniques only.",
+                len(gray_cols),
+            )
+            # Log detailed info about which columns and why
+            detail_lines = [
+                f"  - {c}: ~{gray_col_info[c]} approx uniques (within {approx_gray_band} of max_card={max_card})"
+                for c in gray_cols
+            ]
+            logger.info(
+                "[tags] gray-band columns being recomputed for exact uniques:\n%s",
+                "\n".join(detail_lines),
+            )
             exact_uniques = ddf[gray_cols].nunique(dropna=True).compute()
             if isinstance(exact_uniques, pd.DataFrame) and exact_uniques.shape[0] == 1:
                 exact_uniques = exact_uniques.iloc[0]
@@ -766,8 +1275,8 @@ def build_column_tags_yaml_dask(
     total_cols = len(cols)
 
     for i, col in enumerate(cols, start=1):
-        if show_progress and (i == 1 or i % progress_every == 0 or i == total_cols):
-            print(f"[tags] profiling {i}/{total_cols}")
+        if i == 1 or i % progress_every == 0 or i == total_cols:
+            logger.info("[tags] profiling %s/%s", i, total_cols)
 
         col_l = col.lower()
         uniq = int(unique_counts.get(col, 0))
@@ -818,9 +1327,16 @@ def build_column_tags_yaml_dask(
                 is_string_dtype(dt) or "object" in dtype_str or "category" in dtype_str
             )
             is_cat = "category" in dtype_str
-            print(
-                f"[tag] {col} dtype={dtype_str} uniq={uniq} max_card={max_card} "
-                f"is_bool={is_bool} is_str={is_str} is_cat={is_cat} -> type={ctype}"
+            logger.debug(
+                "[tag] %s dtype=%s uniq=%s max_card=%s is_bool=%s is_str=%s is_cat=%s -> type=%s",
+                col,
+                dtype_str,
+                uniq,
+                max_card,
+                is_bool,
+                is_str,
+                is_cat,
+                ctype,
             )
 
     columns_yaml = [{"name": c, **tags_by_col[c]} for c in cols]
@@ -865,6 +1381,7 @@ def build_data_dictionary_json(
     column_tags: Mapping[str, Mapping[str, str]],
     column_dtypes: Mapping[str, Any] | None = None,
     column_order: Iterable[str] | None = None,
+    row_count: int | None = None,
 ) -> Tuple[Dict[str, Any], str]:
     """
     Build a flat JSON data dictionary.
@@ -933,9 +1450,17 @@ def build_data_dictionary_json(
 
         columns_json.append(col_entry)
 
+    column_count = len(columns_json)
+    row_count_int = int(row_count) if row_count is not None else None
+    row_text = f"{row_count_int:,}" if row_count_int is not None else "unknown"
+    col_text = f"{column_count:,}"
+
     meta_json: Dict[str, Any] = {
         "comment": table_comment or "",
         "table_name": table_name,
+        "row_count": row_count_int,
+        "column_count": column_count,
+        "shape": f"{row_text} rows, {col_text} columns",
         "columns": columns_json,
     }
 
@@ -961,7 +1486,7 @@ def inspect_schema_alignment(
     json_cols = {c["column_name"]: c for c in meta_json.get("columns", [])}
 
     all_cols = list(ddf.columns)
-    print(f"Inspecting {len(all_cols)} column(s)...\n")
+    logger.info("Inspecting %s column(s)...", len(all_cols))
 
     for col in all_cols:
         dask_dtype = str(ddf[col].dtype)
@@ -1004,1241 +1529,63 @@ def inspect_schema_alignment(
         if only_suspect and not suspect:
             continue
 
-        print(f"--- {col} ---")
-        print(f"  Dask dtype        : {dask_dtype}")
-        print(f"  dtypes_map entry  : {dtypes_entry}")
-        print(f"  tags['type']      : {col_type}")
-        print(f"  JSON.data_type    : {json_data_type}")
-        print(f"  JSON.column_type  : {json_col_type}")
-        print(f"  null_count        : {null_count}")
-        print(f"  unique_count      : {unique_count}")
-        print(f"  max_card          : {max_card}")
-        print(f"  is_dask_numeric   : {is_dask_numeric}")
-        print(f"  json_says_string  : {json_says_string}")
-        print(f"  cat/cont mismatch : {cat_vs_cont_mismatch}")
-        print()
+        logger.info("--- %s ---", col)
+        logger.info("  Dask dtype        : %s", dask_dtype)
+        logger.info("  dtypes_map entry  : %s", dtypes_entry)
+        logger.info("  tags['type']      : %s", col_type)
+        logger.info("  JSON.data_type    : %s", json_data_type)
+        logger.info("  JSON.column_type  : %s", json_col_type)
+        logger.info("  null_count        : %s", null_count)
+        logger.info("  unique_count      : %s", unique_count)
+        logger.info("  max_card          : %s", max_card)
+        logger.info("  is_dask_numeric   : %s", is_dask_numeric)
+        logger.info("  json_says_string  : %s", json_says_string)
+        logger.info("  cat/cont mismatch : %s", cat_vs_cont_mismatch)
 
 
 # ---------------------------------------------------------------------------
-# Config builder helpers (schema-aligned with neuralift_segmenter/config.py)
+# Minimal config builder (trimmed config.yaml output)
 # ---------------------------------------------------------------------------
-# See build_pretty_config_from_data_dict() docstring for heuristic details and
-# paper links in plain text.
-
-_DEFAULT_OUTPUT_PATH = str(Path(tempfile.gettempdir()) / str(uuid4()))
-
-SEGMENTER_CONFIG_DEFAULTS: Dict[str, Any] = {
-    "use_gpu": True,
-    "is_container": False,
-    "use_wandb": False,
-    "input_uri": None,
-    "input_path": None,
-    "config_file_name": "config.yaml",
-    "output_path": _DEFAULT_OUTPUT_PATH,
-    "delete_existing_artifacts": False,
-    "labels_file_name": None,
-    "ranked_points_file_name": None,
-    "verbose": 0,
-    "headless": False,
-    "resume": False,
-    "json_logging": None,
-    "data": {
-        "sample_frac": None,
-    },
-    "dae": {
-        "dataset_stats_file_name": "dataset_stats.joblib",
-        "estimate_batch_size": True,
-        "rmm_allocator": True,
-        "compile": False,
-        "scale_batch_size": False,
-        "weight_averaging": True,
-        "matmul_precision": "high",
-        "data_module": {
-            "val_split": 0.2,
-            "batch_size": 256,
-            "compute_stats_from": "full",
-            "num_sample_partitions": 5,
-            "optimize_memory": False,
-        },
-        "model": {
-            "learning_rate": 4e-3,
-            "backbone_type": "mlp",
-            "encoder_hidden_dims": [256, 128],
-            "decoder_hidden_dims": [128, 256],
-            "latent_dim": 64,
-            "feature_embed_dim": 32,
-            "scheduler": "onecycle",
-            "optimizer": "adam",
-            "gradient_checkpointing": False,
-            "use_sparse_categorical": False,
-            "use_grouped_categorical_head": False,
-            "boolean_cardinality_threshold": 2,
-            "use_mixed_categorical": True,
-            "max_onehot_cardinality": 4,
-            "batch_norm_continuous": True,
-            "batch_norm_embeddings": True,
-            "embedding_dropout": 0.1,
-            "robust_scaler": False,
-            "num_swap_prob": 0.35,
-            "cat_swap_prob": 0.35,
-        },
-        "trainer": {
-            "max_epochs": 50,
-            "accelerator": "auto",
-            "precision": "bf16-mixed",
-            "fast_dev_run": False,
-            "gradient_clip_val": 1.0,
-            "devices": -1,
-            "enable_model_summary": True,
-            "sync_batchnorm": False,
-        },
-        "distributed": {
-            "enabled": False,
-            "backend": "nccl",
-        },
-    },
-    "segmenter": {
-        "cluster_selection_method": "eom",
-        "min_cluster_pct": None,
-        "min_cluster_size": None,
-        "min_cluster_threshold": None,
-        "min_samples": 10,
-        "min_samples_pct": None,
-        "min_dist": 0.0,
-        "soft_clustering_batch_size": None,
-        "noise_threshold": None,
-        "n_neighbors": 15,
-        "n_components": None,
-        "nnd_n_clusters": 4,
-        "nnd_overlap_factor": 2,
-        "knn_n_clusters": 4,
-        "knn_overlap_factor": 2,
-        "metric": "euclidean",
-        "prediction_data": True,
-    },
-    "xgboost": {
-        "scale_pos_weight": True,
-        "max_bin": 256,
-        "rmm_pool_frac": 0.8,
-        "jit_unspill": True,
-        "enable_cudf_spill": False,
-        "protocol": None,
-    },
-    "explainability": {
-        "top_n": 5,
-        "num_features": 25,
-    },
-    "wandb": {
-        "entity": "neuralift-ai",
-        "project": None,
-        "group": None,
-        "mode": "online",
-    },
-}
-
-_MISSING_DEFAULT = object()
+_MIN_CLUSTER_THRESHOLD_FLOOR = 50
+_MIN_CLUSTER_THRESHOLD_DIVISOR = 250
 
 
-def _flatten_defaults(values: Mapping[str, Any], prefix: str = "") -> Dict[str, Any]:
-    flat: Dict[str, Any] = {}
-    for key, value in values.items():
-        path = f"{prefix}.{key}" if prefix else str(key)
-        if isinstance(value, Mapping):
-            flat.update(_flatten_defaults(value, path))
-        else:
-            flat[path] = value
-    return flat
+def _min_cluster_threshold_min(row_count: int | None) -> int:
+    if row_count is None or row_count <= 0:
+        return _MIN_CLUSTER_THRESHOLD_FLOOR
+    scaled = int(math.ceil(row_count / float(_MIN_CLUSTER_THRESHOLD_DIVISOR)))
+    return max(scaled, _MIN_CLUSTER_THRESHOLD_FLOOR)
 
 
-def _format_default_value(value: Any) -> str:
-    text = yaml.safe_dump(
-        value,
-        sort_keys=False,
-        default_flow_style=True,
-        allow_unicode=False,
-    ).strip()
-    if text.endswith("..."):
-        text = text[:-3].strip()
-    return text.replace("\n", " ")
-
-
-def _get_value_by_path(config: Mapping[str, Any], path: str) -> Any:
-    current: Any = config
-    for part in path.split("."):
-        if not isinstance(current, Mapping) or part not in current:
-            return _MISSING_DEFAULT
-        current = current[part]
-    return current
-
-
-def _strip_nulls_and_defaults(value: Any, defaults: Any = _MISSING_DEFAULT) -> Any:
-    if isinstance(value, Mapping):
-        cleaned: Dict[str, Any] = {}
-        defaults_map = defaults if isinstance(defaults, Mapping) else {}
-        for key, val in value.items():
-            default_val = defaults_map.get(key, _MISSING_DEFAULT)
-            cleaned_val = _strip_nulls_and_defaults(val, default_val)
-            if cleaned_val is None:
-                continue
-            if default_val is not _MISSING_DEFAULT and cleaned_val == default_val:
-                continue
-            cleaned[key] = cleaned_val
-        return cleaned or None
-    if isinstance(value, list):
-        cleaned_list = [_strip_nulls_and_defaults(val) for val in value]
-        cleaned_list = [val for val in cleaned_list if val is not None]
-        if isinstance(defaults, list) and cleaned_list == defaults:
-            return None
-        return cleaned_list
-    if value is None:
-        return None
-    if defaults is not _MISSING_DEFAULT and value == defaults:
-        return None
-    return value
-
-
-def _filter_rationale(
-    rationale: Mapping[str, str], config: Mapping[str, Any]
-) -> Dict[str, str]:
-    filtered: Dict[str, str] = {}
-    for path, msg in rationale.items():
-        if _get_value_by_path(config, path) is not _MISSING_DEFAULT:
-            filtered[path] = msg
-    return filtered
-
-
-def _annotate_yaml_with_defaults(
-    yaml_text: str,
+def build_minimal_config(
     *,
-    config: Mapping[str, Any],
-    defaults: Mapping[str, Any] | None,
-) -> str:
-    if not defaults:
-        return yaml_text
-
-    flat_defaults = _flatten_defaults(defaults)
-    lines = yaml_text.splitlines()
-    output: List[str] = []
-    stack: List[Tuple[int, str]] = []
-
-    for line in lines:
-        stripped = line.lstrip()
-        if not stripped or stripped.startswith("#") or stripped.startswith("- "):
-            output.append(line)
-            continue
-
-        match = re.match(r"^(\s*)([^:#]+):(?:\s*.*)?$", line)
-        if not match:
-            output.append(line)
-            continue
-
-        indent = len(match.group(1))
-        key = match.group(2).strip()
-
-        while stack and indent <= stack[-1][0]:
-            stack.pop()
-
-        path = ".".join([item[1] for item in stack] + [key])
-        value = _get_value_by_path(config, path)
-        if isinstance(value, Mapping):
-            output.append(line)
-            stack.append((indent, key))
-            continue
-
-        default_value = flat_defaults.get(path, _MISSING_DEFAULT)
-        if default_value is not _MISSING_DEFAULT and value != default_value:
-            line = f"{line} # default: {_format_default_value(default_value)}"
-
-        output.append(line)
-    return "\n".join(output)
-
-
-def _read_env_float(name: str) -> float | None:
-    raw = os.getenv(name, "").strip()
-    if not raw:
-        return None
-    try:
-        return float(raw)
-    except ValueError:
-        return None
-
-
-# Treat bool as categorical; treat datetime as categorical for tabular segmentation pipelines.
-def _dtype_is_numeric(dtype: Any) -> bool:
-    try:
-        dt = pd.api.types.pandas_dtype(dtype)
-        if is_bool_dtype(dt):
-            return False
-        return bool(is_numeric_dtype(dt))
-    except Exception:
-        s = str(dtype).lower()
-        return s.startswith(("int", "uint", "float", "decimal"))
-
-
-def _safe_row_count(ddf: dd.DataFrame) -> int:
-    try:
-        return int(ddf.shape[0].compute())
-    except Exception:
-        try:
-            return int(ddf.map_partitions(len).compute().sum())
-        except Exception:
-            return 0
-
-
-def _approx_nunique_dask(
-    ddf: dd.DataFrame,
-    col: str,
-    *,
-    n_rows: int,
-    max_sample: int = 100_000,
-) -> int:
-    """Approximate nunique using sampling (fast) with a fallback to nunique_approx if available."""
-    if col not in ddf.columns:
-        return 0
-
-    try:
-        if n_rows <= 0:
-            series = ddf[col]
-        elif n_rows <= max_sample:
-            series = ddf[col]
-        else:
-            frac = max_sample / float(n_rows)
-            series = ddf[col].sample(frac=frac, random_state=42)
-
-        try:
-            return int(series.nunique().compute())
-        except Exception:
-            if hasattr(series, "nunique_approx"):
-                return int(series.nunique_approx().compute())
-            return int(series.astype(str).nunique().compute())
-    except Exception:
-        return 0
-
-
-def infer_column_roles_from_data_dict(
-    data_dict: Dict[str, Any],
-    ddf: dd.DataFrame,
-    *,
-    max_card_for_cat: int = 20,
-) -> Tuple[List[str], List[str], List[str], List[str], Dict[str, int]]:
-    """Infer column roles and collect categorical cardinalities.
-
-    Inputs:
-      data_dict["columns"] is expected to be compatible with either:
-        - tags YAML produced by build_column_tags_yaml_dask() (fields: name, type, dtype, unique_count)
-        - data dictionary JSON produced by build_data_dictionary_json() (fields: column_name, column_type, data_type, ...)
-
-    Returns:
-      (id_cols, kpi_cols, cat_cols, cont_cols, cat_cardinalities_by_col)
-    """
-    cols_meta = data_dict.get("columns") or []
-
-    n_rows = _safe_row_count(ddf)
-
-    id_cols: List[str] = []
-    kpi_cols: List[str] = []
-    cat_cols: List[str] = []
-    cont_cols: List[str] = []
-    cat_cards: Dict[str, int] = {}
-
-    for col_meta in cols_meta:
-        name = (
-            col_meta.get("name")
-            or col_meta.get("column_name")
-            or col_meta.get("Column Name")
-        )
-        if not name:
-            continue
-
-        # tags.yaml uses "type"; json data dict uses "column_type"
-        ctype = (col_meta.get("type") or col_meta.get("column_type") or "").lower()
-
-        if ctype == "id":
-            id_cols.append(name)
-            continue
-        if ctype == "kpi":
-            kpi_cols.append(name)
-            continue
-
-        # Prefer explicit types
-        if ctype == "categorical":
-            cat_cols.append(name)
-        elif ctype == "continuous":
-            cont_cols.append(name)
-        else:
-            # Infer from dtype + cardinality
-            if name in ddf.columns:
-                dtype_val = ddf[name].dtype
-            else:
-                dtype_val = (
-                    col_meta.get("dtype") or col_meta.get("data_type") or "STRING"
-                )
-
-            if not _dtype_is_numeric(dtype_val):
-                cat_cols.append(name)
-            else:
-                # Prefer unique_count from tags if present
-                uniq = col_meta.get("unique_count") or col_meta.get("nunique")
-                try:
-                    uniq_int = int(uniq) if uniq is not None else None
-                except Exception:
-                    uniq_int = None
-
-                card = (
-                    uniq_int
-                    if uniq_int is not None
-                    else _approx_nunique_dask(ddf, name, n_rows=n_rows)
-                )
-                if int(card) <= int(max_card_for_cat):
-                    cat_cols.append(name)
-                else:
-                    cont_cols.append(name)
-
-        # Track categorical cardinality for embedding heuristics
-        if name in cat_cols:
-            uniq = col_meta.get("unique_count") or col_meta.get("nunique")
-            try:
-                cat_cards[name] = int(uniq)
-            except Exception:
-                # If missing, compute approximate
-                cat_cards[name] = _approx_nunique_dask(ddf, name, n_rows=n_rows)
-
-    def dedupe_keep_order(xs: List[str]) -> List[str]:
-        seen = set()
-        out: List[str] = []
-        for x in xs:
-            if x not in seen:
-                seen.add(x)
-                out.append(x)
-        return out
-
-    return (
-        dedupe_keep_order(id_cols),
-        dedupe_keep_order(kpi_cols),
-        dedupe_keep_order(cat_cols),
-        dedupe_keep_order(cont_cols),
-        cat_cards,
-    )
-
-
-def _next_pow2(x: int) -> int:
-    x = int(max(1, x))
-    p = 1
-    while p < x:
-        p *= 2
-    return p
-
-
-def suggest_autoencoder_dims(
-    n_features: int,
-    *,
-    max_width: int = 1024,
-    max_latent: int = 128,
-    min_latent: int = 16,
-    max_layers: int = 4,
-) -> Tuple[List[int], List[int], int]:
-    """Suggest encoder/decoder hidden dims + latent_dim for a DAE.
-
-    Heuristic:
-      latent_dim ≈ next_pow2(4 * sqrt(n_features)), clipped to [min_latent, max_latent]
-      top_width  ≈ next_pow2(min(max_width, max(128, 4 * latent_dim)))
-      encoder dims halve down toward latent_dim (latent_dim is *not* included in hidden dims).
-      decoder is symmetric to the encoder hidden dims.
-    """
-    n_features = max(1, int(n_features))
-
-    latent_target = int(round(4.0 * math.sqrt(n_features)))
-    latent_dim = _next_pow2(latent_target)
-    latent_dim = max(min_latent, min(max_latent, latent_dim))
-
-    top_width = min(max_width, max(128, 4 * latent_dim))
-    top_width = _next_pow2(top_width)
-
-    encoder: List[int] = []
-    w = top_width
-    while w > latent_dim and len(encoder) < max_layers:
-        encoder.append(int(w))
-        next_w = int(w // 2)
-        if next_w <= latent_dim:
-            break
-        w = next_w
-
-    if not encoder:
-        encoder = [int(top_width)]
-
-    decoder = list(reversed(encoder))
-    return encoder, decoder, int(latent_dim)
-
-
-def suggest_feature_embed_dim(
-    cat_cardinalities: Sequence[int],
-    *,
-    default_if_unknown: int = 8,
-    max_embed_dim: int = 32,
-) -> int:
-    """Global embedding dim for categorical features.
-
-    Based on entity-embedding practice: small dims work well for most categories; very
-    high-cardinality features may benefit from larger embedding dims. (Guo & Berkhahn, 2016)
-    """
-    cards = [int(c) for c in cat_cardinalities if c is not None and int(c) > 0]
-    if not cards:
-        return int(default_if_unknown)
-
-    med = statistics.median(cards)
-
-    if med <= 10:
-        return 4
-    if med <= 50:
-        return 8
-    if med <= 200:
-        return 16
-    return int(max_embed_dim)
-
-
-def suggest_corruption_probs(
-    *,
-    n_features: int,
-    cat_cardinalities: Sequence[int],
-) -> Tuple[float, float]:
-    """Swap corruption probabilities for numeric and categorical inputs.
-
-    Denoising AEs rely on deliberately corrupting the input and learning to reconstruct
-    the clean signal (Vincent et al., 2008). We choose moderate noise by default.
-    """
-    n_features = max(1, int(n_features))
-
-    num_swap_prob = 0.35 if n_features >= 50 else 0.30
-
-    cards = [int(c) for c in cat_cardinalities if c is not None and int(c) > 0]
-    med_card = statistics.median(cards) if cards else 0
-
-    # For very high-cardinality categorical features, too much corruption can erase
-    # rare-but-meaningful signals; back off slightly.
-    if med_card >= 1000:
-        cat_swap_prob = 0.20
-    elif med_card >= 100:
-        cat_swap_prob = 0.30
-    else:
-        cat_swap_prob = 0.35
-
-    return float(num_swap_prob), float(cat_swap_prob)
-
-
-def suggest_backbone_type(
-    *,
-    n_rows: int,
-    n_features: int,
-    n_categorical: int,
-) -> str:
-    """Pick a backbone for the DAE.
-
-    Heuristic: default to MLP; choose FT-Transformer only for large, wide, categorical-heavy
-    tables where attention-based mixing tends to help.
-    """
-    n_rows = max(1, int(n_rows))
-    n_features = max(1, int(n_features))
-    n_categorical = max(0, int(n_categorical))
-    cat_ratio = n_categorical / float(n_features)
-
-    if n_rows >= 1_000_000 and n_features >= 200 and cat_ratio >= 0.25:
-        return "ft_transformer"
-    return "mlp"
-
-
-def suggest_batch_size(
-    *,
-    use_gpu: bool,
-    n_features: int,
-    n_rows: int,
-    device_mem_gb: float | None = None,
-    target_steps_per_epoch: Tuple[int, int] = (10, 20),
-) -> int:
-    """Batch-size heuristic based on memory and 10-20 steps per epoch.
-
-    Strategy:
-      - Target 10-20 steps per epoch (batch_size ~= n_rows / steps_mid).
-      - Cap by a memory-derived ceiling that scales with device RAM and table width.
-    """
-    n_rows = max(1, int(n_rows))
-    n_features = max(1, int(n_features))
-
-    min_steps, max_steps = sorted([int(x) for x in target_steps_per_epoch])
-    min_steps = max(1, min_steps)
-    max_steps = max(min_steps, max_steps)
-    steps_mid = int(round((min_steps + max_steps) / 2.0))
-
-    bs_target = max(1, int(round(n_rows / float(steps_mid))))
-    bs_min = max(1, int(math.floor(n_rows / float(max_steps))))
-    bs_max = max(1, int(math.ceil(n_rows / float(min_steps))))
-    bs_by_steps = max(bs_min, min(bs_target, bs_max))
-
-    if not use_gpu:
-        base_cap = 256
-    else:
-        base_cap = 2048
-        if device_mem_gb:
-            base_cap = int(round(base_cap * (device_mem_gb / 16.0)))
-
-    if n_features > 200:
-        base_cap = int(base_cap * 0.5)
-    if n_features > 500:
-        base_cap = int(base_cap * 0.5)
-
-    base_cap = max(1, int(base_cap))
-    return int(min(bs_by_steps, base_cap))
-
-
-def suggest_scheduler(
-    *,
-    use_gpu: bool,
-    steps_per_epoch: int,
-) -> str:
-    """Choose a LR scheduler based on step count and hardware."""
-    steps_per_epoch = max(1, int(steps_per_epoch))
-    if not use_gpu:
-        return "cosine"
-    if steps_per_epoch < 10:
-        return "cosine"
-    return "onecycle"
-
-
-def suggest_learning_rate(
-    *,
-    batch_size: int,
-    use_gpu: bool,
-    scheduler: str,
-) -> float:
-    """Learning-rate heuristic aligned with the chosen scheduler."""
-    if not use_gpu:
-        return 1e-3
-    bs = max(1, int(batch_size))
-    scheduler = (scheduler or "").lower()
-    base = 4e-3 if scheduler == "onecycle" else 2e-3
-    lr = base * math.sqrt(bs / 2048.0)
-    return float(max(5e-4, min(8e-3, lr)))
-
-
-def suggest_compute_stats_plan(n_rows: int) -> Tuple[str, int]:
-    """How to compute dataset stats (scaling, etc.) without biasing on ordered partitions."""
-    n_rows = max(1, int(n_rows))
-    if n_rows <= 1_000_000:
-        return "full", 5
-    if n_rows <= 20_000_000:
-        return "sample", 10
-    return "sample", 10
-
-
-def suggest_target_segments(n_rows: int, target_range: Tuple[int, int]) -> int:
-    """Pick a midpoint target segment count in [low, high] based on dataset size."""
-    low, high = target_range
-    n_rows = max(1, int(n_rows))
-    if n_rows < 200_000:
-        return max(low, min(high, 8))
-    if n_rows < 5_000_000:
-        return max(low, min(high, 12))
-    return max(low, min(high, 16))
-
-
-def suggest_segmenter_hparams(
-    n_rows: int,
-    *,
-    target_segments_range: Tuple[int, int] = (5, 20),
+    row_count: int | None,
+    run_name: str | None,
 ) -> Dict[str, Any]:
-    """Heuristics for UMAP + HDBSCAN segmentation targeting ~5–20 segments.
-
-    Key ideas:
-      - UMAP parameters:
-          * n_neighbors trades local vs global structure (UMAP docs/paper).
-          * min_dist near 0 encourages clumpier embeddings, often better for clustering.
-      - HDBSCAN parameters:
-          * min_cluster_size is the primary "smallest cluster you care about" knob.
-          * prediction_data=True enables fast approximate_predict for out-of-sample labeling.
-    """
-    n_rows = max(1, int(n_rows))
-    target_mid = suggest_target_segments(n_rows, target_segments_range)
-
-    # To aim for ~target_mid segments, enforce a minimum "kept" cluster threshold near n/target_mid.
-    min_cluster_threshold = max(30, int(n_rows / float(target_mid)))
-
-    # Set the smallest cluster of interest to ~1/(target_mid*6) of the dataset.
-    # For target_mid=16 => n/96 (~1.0%) which matches the example config_ominous.yaml.
-    min_cluster_size = max(30, int(n_rows / float(target_mid * 6)))
-
-    min_samples = max(10, int(min_cluster_size / 3))
-
-    if n_rows < 100_000:
-        n_neighbors = 30
-        n_components = 8
-    elif n_rows < 1_000_000:
-        n_neighbors = 40
-        n_components = 10
-    else:
-        n_neighbors = 45
-        n_components = 15
-
-    # For very large N, fit HDBSCAN on a sample and then assign remaining points
-    # using approximate_predict (requires prediction_data=True).
-    sample_target = 2_000_000
-    if n_rows <= sample_target:
-        sample_hdbscan = 1.0
-    else:
-        sample_hdbscan = min(1.0, sample_target / float(n_rows))
-        # Ensure we don't go absurdly small; 0.2% is a minimum guardrail.
-        sample_hdbscan = max(sample_hdbscan, 0.002)
-
-    # Chunked soft clustering (membership vectors) to avoid GPU/host OOM.
-    if n_rows >= 10_000_000:
-        soft_batch = 100_000
-    elif n_rows >= 1_000_000:
-        soft_batch = 50_000
-    else:
-        soft_batch = None
-
+    project_name = run_name if run_name else None
     return {
-        "cluster_selection_method": "eom",
-        "min_cluster_size": int(min_cluster_size),
-        "min_cluster_pct": None,
-        "min_cluster_threshold": int(min_cluster_threshold),
-        "min_samples": int(min_samples),
-        "min_samples_pct": None,
-        "n_neighbors": int(n_neighbors),
-        "n_components": int(n_components),
-        "min_dist": 0.0,
-        "metric": "euclidean",
-        "sample_hdbscan": float(sample_hdbscan),
-        "prediction_data": True,
-        "soft_clustering_batch_size": soft_batch,
-        "noise_threshold": 0.05 if n_rows >= 1_000_000 else None,
-        # Leave these at schema defaults unless you have a specific overlap strategy.
-        "nnd_n_clusters": 4,
-        "nnd_overlap_factor": 2,
-        "knn_n_clusters": 4,
-        "knn_overlap_factor": 2,
-    }
-
-
-def suggest_explainability_hparams(n_features: int) -> Dict[str, int]:
-    n_features = max(1, int(n_features))
-    num_features = int(min(100, max(25, round(0.5 * n_features))))
-    top_n = int(min(num_features, max(10, round(0.2 * num_features))))
-    return {"num_features": num_features, "top_n": top_n}
-
-
-def build_pretty_config_from_data_dict(
-    data_dict: Dict[str, Any],
-    ddf: dd.DataFrame,
-    *,
-    use_gpu: bool = True,
-    use_wandb: bool = False,
-    config_debug: bool = False,
-    wandb_project: str | None = None,
-    wandb_entity: str | None = None,
-    wandb_group: str | None = None,
-    wandb_mode: str | None = None,
-    delete_existing_artifacts: bool = False,
-    robust_scaler: bool = False,
-    max_card_for_cat: int = 20,
-    max_epochs: int = 50,
-    backbone_type: str | None = None,
-    scheduler: str | None = None,
-    optimizer: str = "adam",
-    device_mem_gb: float | None = None,
-    target_steps_per_epoch: Tuple[int, int] = (10, 20),
-    target_segments_range: Tuple[int, int] = (5, 20),
-    return_rationale: bool = False,
-) -> Any:
-    """Build a schema-aligned config for Neuralift segmentation.
-
-    Heuristic summary:
-      - DAE latent_dim = next_pow2(4*sqrt(n_features)), clipped to [16, 128].
-        Hidden dims halve toward latent_dim, and latent_dim is NOT included in
-        encoder/decoder hidden layers.
-      - Embedding dim from median categorical cardinality (Guo & Berkhahn 2016).
-      - Corruption probabilities for denoising AEs (Vincent et al. 2008).
-      - Batch size targets 10-20 steps per epoch and is capped by device memory
-        plus feature width (set device_mem_gb or NL_DEVICE_MEM_GB for accuracy).
-      - Scheduler: OneCycle for GPU runs with >=10 steps/epoch; cosine otherwise.
-        LR scales ~sqrt(batch_size) with a scheduler-specific base (Smith 2017).
-      - Backbone: default MLP; switch to FT-Transformer only for large, wide,
-        categorical-heavy tables.
-      - Segmenter: UMAP + HDBSCAN heuristics targeting ~5-20 segments.
-      - Explainability: XGBoost + SHAP, with conservative defaults.
-
-    References (plain text):
-      DAE: https://www.cs.toronto.edu/~larocheh/publications/icml-2008-denoising-autoencoders.pdf
-      UMAP: https://arxiv.org/abs/1802.03426
-      HDBSCAN: https://arxiv.org/abs/1705.07321
-      OneCycle: https://arxiv.org/abs/1708.07120
-      AdamW: https://arxiv.org/abs/1711.05101
-      Gradient checkpointing: https://arxiv.org/abs/1604.06174
-      Mixed precision: https://arxiv.org/abs/1710.03740
-      BF16: https://arxiv.org/abs/1905.12322
-      Entity embeddings: https://arxiv.org/abs/1604.06737
-      XGBoost: https://arxiv.org/abs/1603.02754
-      SHAP: https://arxiv.org/abs/1705.07874
-
-    If return_rationale=True, returns (config, rationale_dict) where rationale_dict maps
-    'yaml.path.key' -> explanation string.
-    """
-    n_rows = _safe_row_count(ddf)
-
-    id_cols, kpi_cols, cat_cols, cont_cols, cat_cards_by_col = (
-        infer_column_roles_from_data_dict(
-            data_dict, ddf, max_card_for_cat=max_card_for_cat
-        )
-    )
-    n_features = int(len(cat_cols) + len(cont_cols))
-
-    encoder_hidden_dims, decoder_hidden_dims, latent_dim = suggest_autoencoder_dims(
-        n_features
-    )
-
-    feature_embed_dim = suggest_feature_embed_dim(list(cat_cards_by_col.values()))
-    num_swap_prob, cat_swap_prob = suggest_corruption_probs(
-        n_features=n_features, cat_cardinalities=list(cat_cards_by_col.values())
-    )
-
-    if device_mem_gb is None:
-        device_mem_gb = _read_env_float("NL_DEVICE_MEM_GB") or _read_env_float(
-            "NL_GPU_MEM_GB"
-        )
-
-    batch_size = suggest_batch_size(
-        use_gpu=use_gpu,
-        n_features=n_features,
-        n_rows=n_rows,
-        device_mem_gb=device_mem_gb,
-        target_steps_per_epoch=target_steps_per_epoch,
-    )
-    steps_per_epoch = max(1, int(math.ceil(n_rows / float(batch_size))))
-    if scheduler is None:
-        scheduler = suggest_scheduler(use_gpu=use_gpu, steps_per_epoch=steps_per_epoch)
-
-    learning_rate = suggest_learning_rate(
-        batch_size=batch_size, use_gpu=use_gpu, scheduler=scheduler
-    )
-
-    compute_stats_from, num_sample_partitions = suggest_compute_stats_plan(n_rows)
-
-    if backbone_type is None:
-        backbone_type = suggest_backbone_type(
-            n_rows=n_rows, n_features=n_features, n_categorical=len(cat_cols)
-        )
-
-    primary_width = encoder_hidden_dims[0] if encoder_hidden_dims else 0
-    gradient_checkpointing = bool(
-        use_gpu and (primary_width >= 512 or n_features > 300)
-    )
-
-    use_wandb_flag = bool(use_wandb)
-    labels_file_name: str | None = "labels.npy"
-    ranked_points_file_name: str | None = "precomputed_points.npy"
-    if use_wandb_flag:
-        labels_file_name = None
-        ranked_points_file_name = None
-
-    seg = suggest_segmenter_hparams(n_rows, target_segments_range=target_segments_range)
-
-    explain = suggest_explainability_hparams(n_features)
-    default_output_path = SEGMENTER_CONFIG_DEFAULTS["output_path"]
-
-    # -----------------------------
-    # Build config dict (schema per config.py)
-    # -----------------------------
-    config: Dict[str, Any] = {
-        "use_gpu": bool(use_gpu),
-        "is_container": False,
-        "use_wandb": use_wandb_flag,
+        "use_wandb": True,
         "wandb": {
-            "project": wandb_project,
-        },
-        "input_uri": None,
-        "input_path": None,
-        "config_file_name": "config.yaml",
-        "output_path": default_output_path,
-        # Optional output artifact file names (null when W&B is enabled).
-        "labels_file_name": labels_file_name,
-        "ranked_points_file_name": ranked_points_file_name,
-        "verbose": 0,
-        "headless": False,
-        "resume": False,
-        "json_logging": None,
-        "data": {
-            "sample_frac": None,
+            "project": project_name,
         },
         "dae": {
-            "matmul_precision": "high" if use_gpu else "medium",
-            "dataset_stats_file_name": "dataset_stats.joblib",
-            "estimate_batch_size": True,
-            "rmm_allocator": bool(use_gpu),
-            "compile": False,
-            "scale_batch_size": False,
-            "weight_averaging": True,
             "data_module": {
-                "val_split": 0.2,
-                "batch_size": int(batch_size),
-                "compute_stats_from": str(compute_stats_from),
-                "num_sample_partitions": int(num_sample_partitions),
-                "optimize_memory": False,
-            },
-            "model": {
-                "learning_rate": float(learning_rate),
-                "backbone_type": str(backbone_type),
-                "encoder_hidden_dims": [int(x) for x in encoder_hidden_dims],
-                "decoder_hidden_dims": [int(x) for x in decoder_hidden_dims],
-                "latent_dim": int(latent_dim),
-                "feature_embed_dim": int(feature_embed_dim),
-                "num_swap_prob": float(num_swap_prob),
-                "cat_swap_prob": float(cat_swap_prob),
-                "scheduler": str(scheduler),
-                "optimizer": str(optimizer),
-                "gradient_checkpointing": bool(gradient_checkpointing),
-                "use_sparse_categorical": False,
-                "use_grouped_categorical_head": False,
-                "boolean_cardinality_threshold": 2,
-                "use_mixed_categorical": True,
-                "max_onehot_cardinality": 4,
-                "batch_norm_continuous": True,
-                "batch_norm_embeddings": True,
-                "embedding_dropout": 0.1,
-                "robust_scaler": bool(robust_scaler),
+                "batch_size": 8192,
+                "compute_stats_from": "full",
             },
             "trainer": {
-                "max_epochs": int(max_epochs),
-                "accelerator": "auto",
-                "precision": "bf16-mixed" if use_gpu else "32",
-                "fast_dev_run": False,
-                "gradient_clip_val": 1.0,
-                "devices": -1 if use_gpu else 1,
-                "enable_model_summary": True,
-                "sync_batchnorm": False,
+                "max_epochs": 50,
             },
-            "distributed": {
-                "enabled": False,
-                "backend": "nccl",
-            },
-        },
-        "segmenter": {
-            "cluster_selection_method": seg["cluster_selection_method"],
-            "min_cluster_pct": seg["min_cluster_pct"],
-            "min_cluster_size": seg["min_cluster_size"],
-            "min_cluster_threshold": seg["min_cluster_threshold"],
-            "min_samples": seg["min_samples"],
-            "min_samples_pct": seg["min_samples_pct"],
-            "min_dist": seg["min_dist"],
-            "soft_clustering_batch_size": seg["soft_clustering_batch_size"],
-            "noise_threshold": seg["noise_threshold"],
-            "n_neighbors": seg["n_neighbors"],
-            "n_components": seg["n_components"],
-            "nnd_n_clusters": seg["nnd_n_clusters"],
-            "nnd_overlap_factor": seg["nnd_overlap_factor"],
-            "knn_n_clusters": seg["knn_n_clusters"],
-            "knn_overlap_factor": seg["knn_overlap_factor"],
-            "metric": seg["metric"],
-            "prediction_data": seg["prediction_data"],
         },
         "explainability": {
-            "num_features": int(explain["num_features"]),
-            "top_n": int(explain["top_n"]),
+            "num_features": 50,
+            "top_n": 10,
+        },
+        "tuner": {
+            "segment_size": "M",
+            "min_cluster_threshold_min": _min_cluster_threshold_min(row_count),
         },
     }
-
-    # -----------------------------
-    # Rationale (YAML comments)
-    # -----------------------------
-    rationale: Dict[str, str] = {}
-
-    # Root
-    rationale["use_gpu"] = (
-        "Enable GPU acceleration (A10-class GPUs+ support fast bf16 mixed precision)."
-    )
-    rationale["use_wandb"] = (
-        "Track runs/metrics/artifacts; disable for air-gapped/offline runs."
-    )
-    rationale["labels_file_name"] = (
-        "Standard output filename for final HDBSCAN labels; omitted when W&B is enabled."
-    )
-    rationale["ranked_points_file_name"] = (
-        "Standard output filename for precomputed or ranked embedding points; omitted when W&B is enabled."
-    )
-
-    # Data
-    rationale["data.sample_frac"] = (
-        "Optional subsample ratio; leave unset to use the full dataset."
-    )
-
-    # DAE
-    rationale["dae.matmul_precision"] = (
-        "Use high matmul precision on GPU for stable/faster tensor cores; medium on CPU."
-    )
-    rationale["dae.dataset_stats_file_name"] = (
-        "Persist dataset scaling/statistics for reproducible transforms."
-    )
-    rationale["dae.estimate_batch_size"] = (
-        "Let the trainer shrink batch size automatically if out-of-memory."
-    )
-    rationale["dae.rmm_allocator"] = (
-        "Use RAPIDS RMM allocator on GPU runs to reduce fragmentation when cuDF/RAPIDS is in play."
-    )
-    rationale["dae.compile"] = (
-        "torch.compile can speed training, but is kept off by default for maximum stability."
-    )
-    rationale["dae.scale_batch_size"] = (
-        "Disable implicit batch scaling; use explicit batch size with memory + steps/epoch heuristics."
-    )
-    rationale["dae.weight_averaging"] = (
-        "Weight averaging can smooth training; disable if you need strict checkpoint comparability."
-    )
-
-    rationale["dae.data_module.val_split"] = (
-        "20% validation split is a robust default for unsupervised early sanity checks."
-    )
-    rationale["dae.data_module.batch_size"] = (
-        "Batch size targets 10-20 steps/epoch and is capped by device memory and table width."
-    )
-    rationale["dae.data_module.compute_stats_from"] = (
-        "Use full stats for small data; sample stats for large data to avoid expensive full scans."
-    )
-    rationale["dae.data_module.num_sample_partitions"] = (
-        "Number of partitions sampled to estimate dataset stats on large tables."
-    )
-    rationale["dae.data_module.optimize_memory"] = (
-        "Reduce memory pressure during data module setup when enabled."
-    )
-
-    rationale["dae.model.learning_rate"] = (
-        "LR scales ~sqrt(batch_size) with scheduler-specific base (Smith 2017)."
-    )
-    rationale["dae.model.scheduler"] = (
-        "OneCycle for GPU runs with enough steps/epoch; cosine otherwise."
-    )
-    rationale["dae.model.optimizer"] = (
-        "Adam is a stable baseline; switch to AdamW/SGD if you need different regularization."
-    )
-    rationale["dae.model.backbone_type"] = (
-        "MLP default; switch to FT-Transformer for large, wide, categorical-heavy tables."
-    )
-    rationale["dae.model.encoder_hidden_dims"] = (
-        "Geometric compression toward latent space; latent_dim is not part of hidden dims."
-    )
-    rationale["dae.model.decoder_hidden_dims"] = (
-        "Symmetric decoder mirroring encoder hidden dims."
-    )
-    rationale["dae.model.latent_dim"] = (
-        "Latent dimension scales with sqrt(feature_count) to balance compression and capacity."
-    )
-    rationale["dae.model.feature_embed_dim"] = (
-        "Embedding dimension chosen from median categorical cardinality (Guo & Berkhahn 2016)."
-    )
-    rationale["dae.model.num_swap_prob"] = (
-        "Numeric corruption probability for denoising objective (Vincent et al. 2008)."
-    )
-    rationale["dae.model.cat_swap_prob"] = (
-        "Categorical corruption probability; reduced when categorical cardinalities are very high."
-    )
-    rationale["dae.model.gradient_checkpointing"] = (
-        "Checkpointing trades compute for memory; useful for big batches/width (Chen et al. 2016)."
-    )
-    rationale["dae.model.use_sparse_categorical"] = (
-        "Disable sparse categorical path by default; enable only if your model supports it."
-    )
-    rationale["dae.model.use_grouped_categorical_head"] = (
-        "Group categorical reconstruction heads to reduce parameters and overfitting risk."
-    )
-    rationale["dae.model.boolean_cardinality_threshold"] = (
-        "Treat boolean-like features as categoricals with cardinality <= 2."
-    )
-    rationale["dae.model.robust_scaler"] = (
-        "Robust scaling is resistant to heavy-tailed numeric features common in marketing/adtech fact tables."
-    )
-
-    rationale["dae.trainer.max_epochs"] = (
-        "50 epochs is a stable default; reduce for fast iteration, increase for harder domains."
-    )
-    rationale["dae.trainer.accelerator"] = (
-        "Auto accelerator chooses GPU when available."
-    )
-    rationale["dae.trainer.precision"] = (
-        "bf16-mixed is a strong GPU default; BF16 has FP32-like exponent range (Kalamkar et al. 2019)."
-    )
-    rationale["dae.trainer.gradient_clip_val"] = (
-        "Clip gradients to stabilize training under noise and large LR schedules."
-    )
-    rationale["dae.trainer.devices"] = (
-        "Use all visible GPUs for throughput; set to 1 to debug deterministically."
-    )
-    rationale["dae.trainer.enable_model_summary"] = (
-        "Keep model summary for sanity checking layer sizes."
-    )
-
-    rationale["dae.distributed.enabled"] = (
-        "Disabled by default; enable when running multi-node DDP explicitly."
-    )
-    rationale["dae.distributed.backend"] = (
-        "NCCL is standard for multi-GPU NVIDIA distributed training."
-    )
-
-    # Segmenter
-    rationale["segmenter.cluster_selection_method"] = (
-        "EOM tends to produce a stable set of clusters; 'leaf' often yields more clusters."
-    )
-    rationale["segmenter.min_cluster_size"] = (
-        "Primary HDBSCAN knob: smallest grouping considered a cluster (HDBSCAN docs)."
-    )
-    rationale["segmenter.min_cluster_pct"] = (
-        "Pct version of min_cluster_size for readability across table sizes."
-    )
-    rationale["segmenter.min_cluster_threshold"] = (
-        "Pipeline-level threshold to steer toward ~5–20 segments (≈ n_rows/target_mid)."
-    )
-    rationale["segmenter.min_samples"] = (
-        "Density conservativeness; set lower than min_cluster_size to reduce outliers."
-    )
-    rationale["segmenter.min_samples_pct"] = (
-        "Pct version of min_samples for readability."
-    )
-    rationale["segmenter.n_neighbors"] = (
-        "UMAP neighborhood size; larger values emphasize global structure (UMAP docs)."
-    )
-    rationale["segmenter.min_dist"] = (
-        "UMAP min_dist=0 makes clumpier embeddings, often better for clustering (UMAP docs)."
-    )
-    rationale["segmenter.n_components"] = (
-        "Cluster in 5–10D UMAP space to preserve structure while avoiding high-dim clustering."
-    )
-    rationale["segmenter.metric"] = (
-        "Euclidean is appropriate for DAE latent spaces after scaling."
-    )
-    rationale["segmenter.prediction_data"] = (
-        "Required for fast approximate_predict labeling of new points (HDBSCAN docs)."
-    )
-    rationale["segmenter.soft_clustering_batch_size"] = (
-        "Chunk membership computations to avoid OOM on very large N."
-    )
-    rationale["segmenter.noise_threshold"] = (
-        "Low threshold keeps most points assigned while reserving a noise tail."
-    )
-    rationale["segmenter.nnd_n_clusters"] = (
-        "Keep schema default unless you have an overlap strategy."
-    )
-    rationale["segmenter.nnd_overlap_factor"] = (
-        "Keep schema default unless you have an overlap strategy."
-    )
-    rationale["segmenter.knn_n_clusters"] = (
-        "Keep schema default unless you have an overlap strategy."
-    )
-    rationale["segmenter.knn_overlap_factor"] = (
-        "Keep schema default unless you have an overlap strategy."
-    )
-
-    rationale["explainability.num_features"] = (
-        "Number of top features to compute SHAP/global importances over (tradeoff: time vs detail)."
-    )
-    rationale["explainability.top_n"] = "How many top features to surface in reports."
-
-    rationale["wandb.project"] = "W&B project name."
-
-    if not config_debug:
-        config = _strip_nulls_and_defaults(config, SEGMENTER_CONFIG_DEFAULTS)
-        rationale = _filter_rationale(rationale, config)
-
-    if return_rationale:
-        return config, rationale
-    return config
-
-
-def render_config_yaml_with_comments(
-    config: Dict[str, Any],
-    *,
-    header_comment_lines: Sequence[str] | None = None,
-    rationale: Mapping[str, str] | None = None,
-    defaults: Mapping[str, Any] | None = None,
-) -> str:
-    """Render YAML with a top-of-file comment block describing heuristics.
-
-    This avoids needing a YAML library that preserves inline comments.
-    When defaults is provided, inline "# default: ..." annotations are added.
-    """
-    header_comment_lines = list(header_comment_lines or [])
-    rationale = dict(rationale or {})
-
-    lines: List[str] = []
-    for ln in header_comment_lines:
-        ln = str(ln).rstrip("\n")
-        if not ln.startswith("#"):
-            ln = "# " + ln
-        lines.append(ln)
-
-    if rationale:
-        lines.append("#")
-        lines.append(
-            "# -----------------------------------------------------------------------------"
-        )
-        lines.append("# HEURISTIC NOTES (why these defaults)")
-        lines.append(
-            "# -----------------------------------------------------------------------------"
-        )
-        for k in sorted(rationale.keys()):
-            msg = str(rationale[k]).replace("\n", " ").strip()
-            lines.append(f"# {k}: {msg}")
-        lines.append(
-            "# -----------------------------------------------------------------------------"
-        )
-        lines.append("#")
-
-    yaml_text = yaml.safe_dump(
-        config,
-        sort_keys=False,
-        default_flow_style=False,
-        allow_unicode=False,
-    )
-    yaml_text = _annotate_yaml_with_defaults(
-        yaml_text,
-        config=config,
-        defaults=defaults,
-    )
-    lines.append(yaml_text.rstrip("\n"))
-    lines.append("")  # final newline
-    return "\n".join(lines)
-
-
-def print_config_yaml(config: Dict[str, Any]) -> None:
-    text = yaml.safe_dump(
-        config,
-        sort_keys=False,
-        default_flow_style=False,  # block style
-        allow_unicode=False,
-    )
-    print(text)
-
-
-def save_config_yaml(
-    config: Dict[str, Any],
-    path: Union[str, Path],
-    *,
-    header_comment_lines: Sequence[str] | None = None,
-    rationale: Mapping[str, str] | None = None,
-    defaults: Mapping[str, Any] | None = None,
-) -> None:
-    """Save config YAML.
-
-    Backward-compatible: if header_comment_lines/rationale are omitted, behaves like
-    the original save_config_yaml (plain YAML without comments).
-    """
-    path = Path(path)
-    if header_comment_lines or rationale or defaults:
-        text = render_config_yaml_with_comments(
-            config,
-            header_comment_lines=header_comment_lines,
-            rationale=rationale,
-            defaults=defaults,
-        )
-    else:
-        text = yaml.safe_dump(
-            config, sort_keys=False, default_flow_style=False, allow_unicode=False
-        )
-    path.write_text(text)
 
 
 # ---------------------------------------------------------------------------
@@ -2279,14 +1626,41 @@ def build_metadata(
       3) Build table comment
       4) Build JSON data dictionary (comment/data_type/column_name/column_type/lift_*)
     """
-    show_progress = getattr(cfg.logging, "show_progress", True)
     table_name = resolve_output_table_name(cfg, table_name_override)
     skip_llm = os.getenv("NL_SKIP_LLM") == "1" or os.getenv(
         "OPENAI_API_KEY", ""
     ).startswith("sk-test")
 
-    # ---- tags ----
+    # ---- stats (shared by tags + data dictionary) ----
     tags_cfg = cfg.metadata.tags
+    skip_unique_counts = getattr(tags_cfg, "skip_unique_counts", False)
+
+    if skip_unique_counts:
+        logger.info(
+            "[stats] skip_unique_counts=True; computing counts only (fast mode)"
+        )
+
+    max_cols = getattr(cfg.metadata, "max_columns_for_comment", None)
+    llm_cols = list(ddf.columns[:max_cols]) if max_cols else list(ddf.columns)
+    sample_rows = cfg.metadata.sample_rows if not skip_llm else 0
+    stats, sample_pdf = _compute_stats_and_sample(
+        ddf,
+        columns=list(ddf.columns),
+        sample_rows=sample_rows,
+        sample_cols=llm_cols,
+        compute_unique_counts=not skip_unique_counts,
+        use_approx_unique=tags_cfg.use_approx_unique,
+        approx_row_threshold=getattr(tags_cfg, "approx_row_threshold", 2_000_000),
+    )
+    logger.info(
+        "[stats] single-pass stats complete (rows≈%s, cols=%s, sample_rows=%s, approx_uniques=%s)",
+        f"{stats.row_count:,}",
+        len(stats.columns),
+        sample_rows,
+        stats.unique_is_approx,
+    )
+
+    # ---- tags ----
     extra_all = tags_cfg.extra_tags_all or {}
     extra_by_col = tags_cfg.extra_tags_by_column or {}
     tags_by_col, tags_yaml = build_column_tags_yaml_dask(
@@ -2296,13 +1670,16 @@ def build_metadata(
         missing_indicator_cols=tags_cfg.missing_indicator_cols,
         max_card=tags_cfg.max_card,
         use_approx_unique=tags_cfg.use_approx_unique,
+        approx_gray_band=getattr(tags_cfg, "approx_gray_band", 5),
+        approx_row_threshold=getattr(tags_cfg, "approx_row_threshold", 2_000_000),
         extra_tags_all=extra_all,
         extra_tags_by_column=extra_by_col,
-        show_progress=show_progress,
         debug=cfg.logging.level == "debug",
+        stats=stats,
     )
 
     # ---- definitions (LLM) with fallback ----
+    logger.info("[meta] building data dictionary definitions...")
     try:
         if skip_llm:
             raise RuntimeError("LLM skipped by config")
@@ -2312,13 +1689,23 @@ def build_metadata(
             context=cfg.metadata.context,
             sample_rows=cfg.metadata.sample_rows,
             max_concurrency=cfg.metadata.max_concurrency,
-            show_progress=show_progress,
+            stats=stats,
+            sample_pdf=sample_pdf,
+            # LLM cache settings from config
+            use_cache=getattr(cfg.metadata, "use_llm_cache", False),
+            cache_dir=getattr(cfg.metadata, "llm_cache_dir", ".nl_dd_cache"),
+            # Limit columns for LLM if configured
+            max_cols=max_cols,
+        )
+        logger.info(
+            "[meta] data dictionary definitions ready (%s columns)",
+            len(definitions),
         )
     except Exception as exc:  # pragma: no cover - network/LLM failures
-        if show_progress:
-            print(
-                f"[meta] LLM data dictionary skipped/failed ({exc}); using fallback definitions"
-            )
+        logger.warning(
+            "[meta] LLM data dictionary skipped/failed (%s); using fallback definitions",
+            exc,
+        )
         definitions = {c: f"{c} column" for c in ddf.columns}
         dtypes_out = {c: ddf.dtypes[c] for c in ddf.columns}
         dd_yaml = yaml.safe_dump(
@@ -2331,29 +1718,37 @@ def build_metadata(
             sort_keys=False,
             allow_unicode=False,
         )
+        logger.info(
+            "[meta] data dictionary definitions ready (%s columns, fallback)",
+            len(definitions),
+        )
 
     # ---- table comment (LLM) with fallback ----
+    skip_table_comment = getattr(cfg.metadata, "skip_table_comment", False)
+    logger.info("[meta] building table comment...")
     try:
-        if skip_llm:
-            raise RuntimeError("LLM skipped by config")
+        if skip_llm or skip_table_comment:
+            raise RuntimeError("Table comment skipped by config")
         comment_meta, table_comment = create_table_comment(
             openai_client=openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
             model_name=cfg.metadata.model,
             file_context=cfg.metadata.context,
             yaml_dd=dd_yaml,
         )
+        logger.info("[meta] table comment ready")
     except Exception as exc:  # pragma: no cover - network/LLM failures
-        if show_progress:
-            print(
-                f"[meta] table comment generation skipped/failed ({exc}); using fallback"
-            )
+        logger.warning(
+            "[meta] table comment generation skipped/failed (%s); using fallback", exc
+        )
         table_comment = (
             cfg.metadata.context
             or getattr(cfg.output, "run_name", None)
             or f"Table {table_name}"
         )
+        logger.info("[meta] table comment ready (fallback)")
 
     # ---- JSON data dictionary ----
+    logger.info("[meta] building data dictionary JSON...")
     meta_json, meta_json_text = build_data_dictionary_json(
         table_name=table_name,
         table_comment=table_comment,
@@ -2361,19 +1756,28 @@ def build_metadata(
         column_tags=tags_by_col,
         column_dtypes=dtypes_out,
         column_order=ddf.columns,
+        row_count=stats.row_count,
+    )
+    logger.info(
+        "[meta] data dictionary JSON ready (%s columns)",
+        len(meta_json.get("columns", [])),
     )
     if cfg.logging.level == "debug":
         json_cols = {c["column_name"]: c for c in meta_json.get("columns", [])}
         for col in ddf.columns:
             json_entry = json_cols.get(col, {})
             uniq = tags_by_col.get(col, {}).get("unique_count")
-            print(
-                f"[final] {col} data_type={json_entry.get('data_type')} "
-                f"unique_count={uniq} column_type={json_entry.get('column_type')}"
+            logger.debug(
+                "[final] %s data_type=%s unique_count=%s column_type=%s",
+                col,
+                json_entry.get("data_type"),
+                uniq,
+                json_entry.get("column_type"),
             )
 
     meta_with_table = dict(meta_json)
     meta_with_table["table"] = table_name
+    meta_with_table["_row_count"] = stats.row_count
     columns_map: Dict[str, dict] = {}
     for col in meta_json.get("columns", []):
         name = col.get("column_name")
@@ -2405,17 +1809,14 @@ def build_table_comment(cfg):
 
 
 __all__ = [
-    "SEGMENTER_CONFIG_DEFAULTS",
+    "ColumnStats",
+    "compute_column_stats",
     "create_intelligent_data_dictionary",
     "create_table_comment",
     "build_column_tags_yaml_dask",
     "build_data_dictionary_json",
     "inspect_schema_alignment",
-    "build_pretty_config_from_data_dict",
-    "infer_column_roles_from_data_dict",
-    "print_config_yaml",
-    "render_config_yaml_with_comments",
-    "save_config_yaml",
+    "build_minimal_config",
     "build_metadata",
     "build_table_comment",
     "resolve_output_table_name",

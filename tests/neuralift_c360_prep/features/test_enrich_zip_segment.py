@@ -7,6 +7,8 @@ Run with:
     python -m tests.neuralift_c360_prep.features.test_enrich_zip_segment
 """
 
+import logging
+
 import pandas as pd
 import pytest
 from tabulate import tabulate
@@ -20,14 +22,20 @@ from neuralift_c360_prep.features.enrich_zip_segment import (
 pd.set_option("display.max_columns", None)
 pd.set_option("display.width", 240)
 
+logger = logging.getLogger(__name__)
 
-def print_test_result(test_name, input_df, output_df):
-    print(f"\n--- {test_name} ---")
-    print("Input DataFrame:")
-    print(tabulate(input_df, headers="keys", tablefmt="psql", showindex=False))
-    print("\nOutput DataFrame:")
-    print(tabulate(output_df, headers="keys", tablefmt="psql", showindex=False))
-    print(f"{test_name} passed.\n")
+
+def log_test_result(test_name, input_df, output_df):
+    logger.info("--- %s ---", test_name)
+    logger.info(
+        "Input DataFrame:\n%s",
+        tabulate(input_df, headers="keys", tablefmt="psql", showindex=False),
+    )
+    logger.info(
+        "Output DataFrame:\n%s",
+        tabulate(output_df, headers="keys", tablefmt="psql", showindex=False),
+    )
+    logger.info("%s passed.", test_name)
 
 
 @pytest.mark.skipif(
@@ -95,9 +103,10 @@ def test_enrich_segment_large_style():
         "Unknown",
     ], f"94105 => expected 'CA', got {row4['State']}"
 
-    print_test_result("Enrich_Segment_Large_Style", df_input, df_output)
+    log_test_result("Enrich_Segment_Large_Style", df_input, df_output)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     test_enrich_segment_large_style()
-    print("All tests passed.")
+    logger.info("All tests passed.")

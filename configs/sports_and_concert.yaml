@@ -1,11 +1,10 @@
 logging:
-  level: debug
-  show_progress: true
+  level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep
+    software_env: neuralift_c360_prep_test
     n_workers: 2
     worker_vm_types:
       - i3.2xlarge #- i3.2xlarge

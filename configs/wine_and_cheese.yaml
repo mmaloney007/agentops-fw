@@ -1,16 +1,15 @@
 logging:
-  level: debug
-  show_progress: true # FIX THIS TO BE LOGGING
+  level: info
+  dask_level: info
+  llm_level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_test
-    n_workers: 2
-    # worker_cpu: 4
-    # worker_memory: 16GiB
-    worker_vm_types: [m4.xlarge]
-    scheduler_vm_types: [c5d.xlarge]
+    software_env: neuralift_c360_prep_pr-4
+    n_workers: 3
+    worker_vm_types: [m7i.large]
+    scheduler_vm_types: [m7i.large]
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -92,4 +91,4 @@ output:
   run_name: wine_cheese_test
   # s3_base: s3://dummy-bucket/wine/
   partitions: []
-  target_mb_per_part: 512
+  target_mb_per_part: 256

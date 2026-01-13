@@ -1,13 +1,20 @@
 logging:
-  level: debug
+  level: info
+  dask_level: info
+  llm_level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep
-    n_workers: 8
-    worker_vm_types: [i3.2xlarge]
-    scheduler_vm_types: [c5d.xlarge]
+    software_env: neuralift_c360_prep_pr-4
+    n_workers: 4
+    worker_vm_types:
+      #- i7i.8xlarge
+      - i3.4xlarge # 32 vCPU / 256 GiB / NVMe (best for shuffle+spill)
+      # - i4i.8xlarge      # fallback if i7i unavailable
+    scheduler_vm_types:
+      - i7i.8xlarge # keep scheduler small
+      # - m7i.xlarge       # use if scheduler CPU pegs / huge task graphs
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -15,9 +22,9 @@ runtime:
 
 input:
   source: uc_table
-  uc_table: staging-c360.media.viva_stream_media_27m
+  uc_table: staging-media-source.default.media_demo_5m
   columns: null
-  id_cols: ["customer_id"]
+  id_cols: ["Customer_ID"]
   snapshot:
     enabled: false
 
@@ -37,8 +44,8 @@ feature_functions: []
 #       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
 kpi_functions:
   - type: zsml
-    source_col: total_spent
-    out_col: total_spent_tier
+    source_col: Total_Spent
+    out_col: Total_Spent_Tier
     zero_threshold: 0.0
     quantiles: [0.33, 0.66]
     clip_high_quantile: 0.95
@@ -52,21 +59,33 @@ preprocessing:
   drop_empty: true
   drop_constant: true
   missing_fill: auto
+  # zsml:
+  #   enabled: true
+  #   source_col: Total_Spent
+  #   out_col: Total_Spent_Tier
+  #   zero_threshold: 0.0
+  #   quantiles: [0.33, 0.66]
+  #   clip_high_quantile: 0.95
+  #   unit: "$"
+  #   range_style: text
+  #   add_prefix: true
 
 # drop_columns:
 #   - Applied LAST, after preprocessing/renames (snake-case is allowed).
 drop_columns:
-  - state
-  - zipcode
-  - cancellation_date
-  - subscription_start_date
-  - subscription_end_date
-  - last_login_date
+  - Country
+  - State
+  - Zip
+  - Cancellation_Date
+  - Subscription_Start_Date
+  - Subscription_End_Date
+  - Last_Login_Date
+  - content_pref_mutually_exclusive_entertainment_lifetime
 
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 50
+  max_concurrency: 75
   tags:
     id_cols: ["customer_id"]
     kpi_cols:
@@ -84,26 +103,21 @@ metadata:
         value_sum_unit: USD
         event_sum_column: months_subscribed
         event_sum_unit: months
-    max_card: 20
-    use_approx_unique: false
+    max_card: 25
+    use_approx_unique: true
   schema_alignment: true
   context: >
     VistaStream is a premium streaming platform dedicated to delivering an exceptional
     entertainment experience to a diverse and discerning subscriber base.
-    In this table each row captures a unique subscriber and includes identifiers, plan details,
-    billing histories, churn markers and demographic attributes. It also holds device usage flags,
-    genre engagement indicators and viewing statistics expressed as counts, durations and spend totals.
-    Columns use text codes, numeric fields, boolean flags and date values.
-    Date fields span from the earliest subscription start dates through cancellation entries
-    (active accounts marked by a future placeholder date).
   op_timeout: 45m
 
 output:
+  persist_after_preprocess: false # Disable to test if persist is causing cluster death
   uc_catalog: staging-c360
   uc_schema: media
-  uc_table: vivastream_media_27m_01
-  uc_volume_name: vivastream_27m_01
-  run_name: vivastream_27m_01
+  uc_volume_name: media_demo_5m
+  run_name: media_demo_5m
+  uc_table: media_demo_5m
   # s3_base: s3://dummy-bucket/media_dask_test_54k/
   partitions: []
   target_mb_per_part: 256

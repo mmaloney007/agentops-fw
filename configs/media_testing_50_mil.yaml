@@ -1,18 +1,17 @@
 logging:
-  level: debug
-  show_progress: true
+  level: info
+  dask_level: info
+  llm_level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep
+    software_env: neuralift_c360_prep_pr-4
     n_workers: 6
-    # worker_cpu: 8
-    # worker_memory: 128GiB
     worker_vm_types:
-      - i3.4xlarge #- i3.2xlarge
+      - i3.4xlarge # scale out; good if you can parallelize well
     scheduler_vm_types:
-      - c5d.xlarge
+      - i3.4xlarge
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -20,7 +19,7 @@ runtime:
 
 input:
   source: uc_table
-  uc_table: staging-media-source.default.media_demo_5m
+  uc_table: staging-media-source.default.media_demo_50m
   columns: null
   id_cols: ["Customer_ID"]
   snapshot:
@@ -82,9 +81,8 @@ drop_columns:
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 50
+  max_concurrency: 100
   tags:
-    use_approx_unique: false
     id_cols: ["customer_id"]
     kpi_cols:
       - at_risk
@@ -102,6 +100,7 @@ metadata:
         event_sum_column: months_subscribed
         event_sum_unit: months
     max_card: 25
+    use_approx_unique: true
   schema_alignment: true
   context: >
     VistaStream is a premium streaming platform dedicated to delivering an exceptional
@@ -111,9 +110,9 @@ metadata:
 output:
   uc_catalog: staging-c360
   uc_schema: media
-  uc_volume_name: media_demo_5m_512mb
-  run_name: media_demo_5m_512mb
-  uc_table: media_demo_5m_512mb
+  uc_volume_name: media_demo_50m
+  run_name: media_demo_50m
+  uc_table: media_demo_50m
   # s3_base: s3://dummy-bucket/media_dask_test_54k/
   partitions: []
-  target_mb_per_part: 512
+  target_mb_per_part: 256
