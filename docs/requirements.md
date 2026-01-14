@@ -8,6 +8,7 @@ This repo uses both a Python package manifest and pip requirements files. Keep t
 - `requirements-dev.txt`: lint/test/dev tooling.
 - `environment.yml`: optional conda/mamba environment spec (includes Python version and core deps).
 Requires Python 3.12+.
+Versioning is derived from git tags via `setuptools-scm` (build metadata includes commit info).
 
 Typical setup:
 ```bash

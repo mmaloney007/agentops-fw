@@ -1,8 +1,8 @@
 
 #!/usr/bin/env bash
-# Codex shell profile: ensure (micro)mamba is initialized, then activate the chosen env,
+# Dev shell profile: ensure (micro)mamba is initialized, then activate the chosen env,
 # then export repo vars for LM Studio @ 10.0.0.63.
-# Point your tool to run: bash -lc "source scripts/codex_profile.sh && <your command>"
+# Point your tool to run: bash -lc "source archive/legacy/dev_profile.sh && <your command>"
 set -e
 
 # Init (micro)mamba

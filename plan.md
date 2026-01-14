@@ -16,6 +16,8 @@
 - 2026-01-13: reset plan file to keep ongoing progress and keep top-level focused.
 - 2026-01-13: archived legacy modules and older papers/results; added dependency notes; refreshed docs/CI paths.
 - 2026-01-13: removed `docs/ONE_PAGER.md` and added follow-up cleanup considerations.
+- 2026-01-13: archived top-level notebooks/data/figures, moved tooling into `scripts/`, and removed codex-named files from the root.
+- 2026-01-13: enabled git-derived versioning via `setuptools-scm` in `pyproject.toml`.
 
 ## Notes
 - Dependency sources: `pyproject.toml` is the package manifest; `requirements.txt` and `requirements-dev.txt` are for pip installs; `environment.yml` is for conda/mamba.

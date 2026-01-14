@@ -54,7 +54,7 @@ Distributed smoke (single node):
 - `torchrun --nproc_per_node=1 -m agent_stable_slo.train.grpo_train_loop --config-file configs/grpo/tiny_smoke.yaml --tasks tasks/tiny_smoke.jsonl --steps 10 --eval-interval 5`
 - For >1 rank, set `--ddp-backend nccl|gloo` and run with `torchrun --nproc_per_node=<N> ...` (ensure per-rank HF cache or shared FS).
 
-Notebook for approachable P1 evals/tables: see `notebooks/p1_eval.ipynb` (defaults to tiny model/tasks; swap in your Qwen/RL runs and paper tasks).
+Notebook for approachable P1 evals/tables: see `archive/notebooks/p1_eval.ipynb` (defaults to tiny model/tasks; swap in your Qwen/RL runs and paper tasks).
 
 Output layout:
 - `out/<run>/manifest.json`: config, dataset fingerprints, hardware/env snapshot, git hash/status.
