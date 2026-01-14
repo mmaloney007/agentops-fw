@@ -499,7 +499,7 @@ def write_ddf_and_yaml_to_s3(
     if bundle_config_yaml_text is not None:
         extra_files.append("bundleconfig.yaml")
     extra_files.append("data_dictionary.json")
-if suggestions_yaml_text is not None:
+    if suggestions_yaml_text is not None:
         extra_files.append("suggestions.yaml")
     logger.info(f"[s3] writing {', '.join(extra_files)} ...")
     t1 = time.time()

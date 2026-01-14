@@ -747,7 +747,7 @@ def load_lazy_dask(
     if debug_head_rows > 0:
         _log_debug_head(ddf, debug_head_rows, head_pdf=head_pdf)
 
-return ddf
+    return ddf
 
 
 def load_ddf(cfg):

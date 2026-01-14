@@ -103,7 +103,7 @@ def _print_output_summary(
     if parquet_count is None:
         logger.info("Parquet files  : unknown")
     else:
-logger.info("Parquet files  : %s", parquet_count)
+        logger.info("Parquet files  : %s", parquet_count)
     artifacts = "config.yaml, bundleconfig.yaml, data_dictionary.json"
     if has_suggestions:
         artifacts += ", suggestions.yaml"

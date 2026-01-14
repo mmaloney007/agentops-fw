@@ -165,7 +165,7 @@ def test_wandb_nulls_artifact_filenames():
             {"name": "x", "type": "continuous"},
         ]
     }
-config = build_pretty_config_from_data_dict(
+    config = build_pretty_config_from_data_dict(
         data_dict=data_dict,
         ddf=ddf,
         use_wandb=True,

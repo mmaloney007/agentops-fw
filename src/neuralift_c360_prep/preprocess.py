@@ -296,7 +296,7 @@ def missing_report_and_fill_dask(
             sample_rows=numeric_sample_rows,
         )
 
-if fill and num_cols_for_mean:
+    if fill and num_cols_for_mean:
         _log_step(
             f"[missing/means] computing means for {len(num_cols_for_mean)} numeric cols",
             verbose,
