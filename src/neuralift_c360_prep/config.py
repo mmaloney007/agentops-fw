@@ -189,6 +189,11 @@ class InputConfig(BaseModel):
     dtype_overrides: Optional[dict[str, str]] = None
     require_logical_names: bool = True
     id_cols: List[str] = Field(default_factory=list)
+# Performance options
+    use_pyarrow_strings: bool = (
+        True  # Use PyArrow-backed strings for ~50% memory reduction
+    )
+    read_blocksize_mb: int = 128  # Blocksize for reads; smaller = more parallelism
 
     @model_validator(mode="before")
     def _reject_snapshot(cls, data):
@@ -598,6 +603,11 @@ class TagConfig(BaseModel):
     extra_tags_by_column: dict[str, dict[str, str]] = Field(default_factory=dict)
     max_card: int = 25
     use_approx_unique: bool = True
+    approx_row_threshold: int = 2_000_000
+    approx_gray_band: int = 5  # Set to -1 to skip gray-band exact uniques.
+    skip_unique_counts: bool = (
+        False  # Skip unique count computation entirely (fast mode)
+    )
 
 
 class DataDoctorConfig(BaseModel):
@@ -624,6 +634,11 @@ class MetadataConfig(BaseModel):
     use_gpu: bool = True
     config_debug: bool = False
     wandb_project: str = "project_name_here"
+    # LLM optimization options
+    use_llm_cache: bool = False
+    llm_cache_dir: str = ".nl_dd_cache"
+    skip_table_comment: bool = False
+    max_columns_for_comment: Optional[int] = None
 
 
 class OutputConfig(BaseModel):
@@ -634,10 +649,24 @@ class OutputConfig(BaseModel):
     uc_volume_name: str | None = None
     s3_base: str | None = None
     partitions: List[str] = Field(default_factory=list)
-    target_mb_per_part: int = 512
+    target_mb_per_part: int = (
+        512  # Target write size; tune with force_npartitions when needed.
+    )
     force_npartitions: Optional[int] = None
     write_index: bool = False
     include_c360_tag: bool = True
+    # Performance toggles
+    persist_after_preprocess: bool = (
+        False  # Avoid pre-LLM persist to reduce memory pressure.
+    )
+    shuffle_before_partition_on: bool = True
+    persist_before_write: bool = False
+    rebalance_before_write: bool = False
+    count_output_files: bool = True
+    # Dtype casting toggles
+    cast_bool_to_int8: bool = True
+    cast_category_to_string: bool = True
+    cast_object_to_string: bool = True
 
     @model_validator(mode="before")
     def _promote_legacy_partition_keys(cls, data):
@@ -658,7 +687,8 @@ class OutputConfig(BaseModel):
 
 class LoggingConfig(BaseModel):
     level: Literal["debug", "info", "warning", "error"] = "info"
-    show_progress: bool = True
+    dask_level: Literal["debug", "info", "warning", "error"] = "info"
+    llm_level: Literal["debug", "info", "warning", "error"] = "info"
     debug_head_rows: int = 5
 
 

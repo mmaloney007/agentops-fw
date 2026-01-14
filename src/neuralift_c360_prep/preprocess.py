@@ -41,24 +41,25 @@ from dask import compute as dask_compute
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Logging helpers
 # ---------------------------------------------------------------------------
 
 
-def _log_step(msg: str, verbose: bool) -> None:
-    if verbose:
-        print(msg)
+def _log_step(msg: str) -> None:
+    logger.info(msg)
 
 
-def _log_head(ddf: dd.DataFrame, cols: list[str], verbose: bool, label: str) -> None:
-    if not verbose or not cols:
+def _log_head(ddf: dd.DataFrame, cols: list[str], debug: bool, label: str) -> None:
+    if not debug or not cols:
         return
     try:
         sample = ddf[cols].head(5, compute=True)
-        _log_step(f"[debug] {label} sample (first 5 rows):\n{sample}", True)
+        logger.debug("[debug] %s sample (first 5 rows):\n%s", label, sample)
     except Exception:
-        _log_step(f"[debug] {label} sample unavailable (head() failed)", True)
+        logger.debug("[debug] %s sample unavailable (head() failed)", label)
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +166,6 @@ def _compute_numeric_medians_bigaware(
     total_rows: int,
     big_row_threshold: int = 5_000_000,
     sample_rows: int = 500_000,
-    verbose: bool = False,
 ) -> Dict[str, float]:
     """
     Compute medians for numeric columns that have nulls.
@@ -177,8 +177,7 @@ def _compute_numeric_medians_bigaware(
     if total_rows <= big_row_threshold:
         _log_step(
             f"[missing/medians] small table (rows≈{total_rows:,}), "
-            f"batched quantile() for {len(num_cols)} numeric cols",
-            verbose,
+            f"batched quantile() for {len(num_cols)} numeric cols"
         )
         q = ddf[num_cols].quantile(0.5).compute()
         for col in num_cols:
@@ -191,8 +190,7 @@ def _compute_numeric_medians_bigaware(
     _log_step(
         f"[missing/medians] big table (rows≈{total_rows:,}), "
         f"shared sample for {len(num_cols)} numeric cols "
-        f"(sample_rows={sample_rows:,})",
-        verbose,
+        f"(sample_rows={sample_rows:,})"
     )
 
     frac = min(1.0, sample_rows / total_rows if total_rows > 0 else 1.0)
@@ -231,6 +229,7 @@ def missing_report_and_fill_dask(
     """
     Memory-efficient missing report + optional fills with progress logging.
     """
+    debug = verbose
     if row_count is None:
         try:
             row_count = int(ddf.map_partitions(len).sum().compute())
@@ -241,7 +240,7 @@ def missing_report_and_fill_dask(
         dtypes = ddf.dtypes
 
     if null_counts is None:
-        _log_step("[missing] computing null counts via isna().sum()...", verbose)
+        _log_step("[missing] computing null counts via isna().sum()...")
         null_counts = ddf.isna().sum().compute()
 
     total_rows = int(row_count)
@@ -249,19 +248,19 @@ def missing_report_and_fill_dask(
         report_df = pd.DataFrame(
             columns=["column", "dtype", "null_count", "pct_null", "suggest_fill"]
         )
-        _log_step("⚠️ DataFrame is empty; nothing to fill.", verbose)
+        logger.warning("⚠️ DataFrame is empty; nothing to fill.")
         return ddf, report_df, {}
 
-    _log_step(f"[missing] start: rows≈{total_rows:,}, cols={len(ddf.columns)}", verbose)
+    _log_step(f"[missing] start: rows≈{total_rows:,}, cols={len(ddf.columns)}")
 
     cols_with_nulls = [c for c, n in null_counts.items() if n > 0]
-    _log_step(f"[missing] {len(cols_with_nulls)} column(s) with ≥1 null", verbose)
+    _log_step(f"[missing] {len(cols_with_nulls)} column(s) with ≥1 null")
 
     if not cols_with_nulls:
         report_df = pd.DataFrame(
             columns=["column", "dtype", "null_count", "pct_null", "suggest_fill"]
         )
-        _log_step("✅ No missing values detected.", verbose)
+        _log_step("✅ No missing values detected.")
         return ddf, report_df, {}
 
     num_cols = [c for c in cols_with_nulls if pd.api.types.is_numeric_dtype(dtypes[c])]
@@ -272,8 +271,7 @@ def missing_report_and_fill_dask(
 
     _log_step(
         f"[missing] split by type: numeric={len(num_cols)}, "
-        f"datetime={len(dt_cols)}, string/other={len(str_cols)}",
-        verbose,
+        f"datetime={len(dt_cols)}, string/other={len(str_cols)}"
     )
 
     # Handle per-column overrides
@@ -296,10 +294,9 @@ def missing_report_and_fill_dask(
             total_rows=total_rows,
             big_row_threshold=big_row_threshold,
             sample_rows=numeric_sample_rows,
-            verbose=verbose,
         )
 
-    if fill and num_cols_for_mean:
+if fill and num_cols_for_mean:
         _log_step(
             f"[missing/means] computing means for {len(num_cols_for_mean)} numeric cols",
             verbose,
@@ -319,30 +316,26 @@ def missing_report_and_fill_dask(
     string_modes: dict[str, Any] = {}
     if fill and str_cols_for_mode:
         _log_step(
-            f"[missing/modes] computing string modes for {len(str_cols_for_mode)} columns...",
+            f"[missing/modes] computing string modes for {len(str_cols_for_mode)} columns (batched)...",
             verbose,
         )
-        for i, col in enumerate(str_cols_for_mode, start=1):
-            if verbose and (
-                i == 1 or i % progress_every == 0 or i == len(str_cols_for_mode)
-            ):
-                _log_step(
-                    f"[missing/modes] {i}/{len(str_cols_for_mode)}: {col}", verbose
-                )
-            vc = ddf[col].dropna().value_counts().head(1).compute()
+        # OPTIMIZATION: Batch all value_counts computations into a single dask_compute call
+        # This reduces scheduler round-trips from O(n) to O(1)
+        mode_tasks = [ddf[col].dropna().value_counts().head(1) for col in str_cols_for_mode]
+        mode_results = dask_compute(*mode_tasks)
+
+        for col, vc in zip(str_cols_for_mode, mode_results):
             if len(vc):
                 string_modes[col] = vc.index[0]
             else:
                 string_modes[col] = fill_strings_const
+        _log_step(f"[missing/modes] computed modes for {len(str_cols_for_mode)} columns")
 
     suggestions: list[dict[str, Any]] = []
     fill_map: dict[str, Any] = {}
     flag_cols: list[str] = []
 
-    _log_step(
-        f"[missing] building fill_map over {len(cols_with_nulls)} column(s)...",
-        verbose,
-    )
+    _log_step(f"[missing] building fill_map over {len(cols_with_nulls)} column(s)...")
 
     for i, col in enumerate(cols_with_nulls, start=1):
         nulls = int(null_counts[col])
@@ -399,11 +392,10 @@ def missing_report_and_fill_dask(
             )
         )
 
-        if verbose and (i == 1 or i % progress_every == 0 or i == len(cols_with_nulls)):
+        if i == 1 or i % progress_every == 0 or i == len(cols_with_nulls):
             _log_step(
                 f"[missing] processed {i}/{len(cols_with_nulls)} (last={col}, "
-                f"nulls={nulls}, pct={pct}%)",
-                verbose,
+                f"nulls={nulls}, pct={pct}%)"
             )
 
     out = ddf
@@ -429,25 +421,21 @@ def missing_report_and_fill_dask(
                 fill_df.to_string(index=False),
             )
         _log_step(
-            f"[missing] applying fills for {len(fill_map)} column(s) via .fillna(...)",
-            verbose,
+            f"[missing] applying fills for {len(fill_map)} column(s) via .fillna(...)"
         )
         out = out.fillna(fill_map)
 
     if add_flags and flag_cols:
-        _log_step(
-            f"[missing] adding missing flags for {len(flag_cols)} column(s)...",
-            verbose,
-        )
+        _log_step(f"[missing] adding missing flags for {len(flag_cols)} column(s)...")
         flag_exprs = {f"{c}_is_missing": out[c].isna() for c in flag_cols}
         out = out.assign(**flag_exprs)
 
     report_df = pd.DataFrame(suggestions).sort_values("pct_null", ascending=False)
-    if verbose:
+    if debug:
         with pd.option_context("display.max_colwidth", None, "display.width", 200):
-            print(report_df.to_markdown(index=False))
+            logger.debug("\n%s", report_df.to_markdown(index=False))
 
-    _log_step("[missing] done.", verbose)
+    _log_step("[missing] done.")
 
     return out, report_df, fill_map
 
@@ -481,14 +469,12 @@ def preprocess_dask_scaled(
     """
     Memory- and compute-efficient preprocess with step logging.
     """
-    _log_step(
-        f"[preprocess] start: rows≈unknown, cols={len(ddf.columns)}",
-        verbose,
-    )
+    debug = verbose
+    _log_step(f"[preprocess] start: rows≈unknown, cols={len(ddf.columns)}")
 
-    _log_step("[preprocess] step 1/5: renaming columns to snake_case...", verbose)
+    _log_step("[preprocess] step 1/5: renaming columns to snake_case...")
     out = rename_columns_snake_ddf(ddf)
-    _log_step(f"[preprocess] rename done → {len(out.columns)} columns", verbose)
+    _log_step(f"[preprocess] rename done → {len(out.columns)} columns")
 
     # Drop configured columns early (after rename) to avoid work on soon-to-be-dropped cols
     pre_drop = list(drop_columns) if drop_columns else []
@@ -503,53 +489,64 @@ def preprocess_dask_scaled(
         if to_drop:
             out = out.drop(columns=sorted(set(to_drop)))
             _log_step(
-                f"[preprocess] early drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}",
-                verbose,
+                f"[preprocess] early drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}"
             )
+
+    # OPTIMIZATION: Fuse bool-fix and sanitize into a single map_partitions call
+    # to reduce task overhead when both are enabled
+    boolfix_obj_cols: list[str] = []
+    sanitize_obj_cols: list[str] = []
 
     if apply_boolfix:
         obj_like = [
             c for c in out.columns if str(out.dtypes[c]) in {"object", "category"}
         ]
         if boolfix_cols is not None:
-            obj_cols = [c for c in obj_like if c in boolfix_cols]
+            boolfix_obj_cols = [c for c in obj_like if c in boolfix_cols]
         else:
-            obj_cols = obj_like
-
+            boolfix_obj_cols = obj_like
         _log_step(
-            f"[preprocess] step 2/5: bool-fix on {len(obj_cols)} object/category cols",
-            verbose,
+            f"[preprocess] step 2/5: bool-fix on {len(boolfix_obj_cols)} object/category cols"
         )
-        if obj_cols:
-            out = out.map_partitions(_boolfix_partition, obj_cols, meta=out)
     else:
-        _log_step("[preprocess] step 2/5: bool-fix disabled", verbose)
+        _log_step("[preprocess] step 2/5: bool-fix disabled")
 
     if sanitize_values:
         obj_all = [c for c in out.columns if str(out.dtypes[c]) == "object"]
         if sanitize_cols is not None:
-            obj_cols = [c for c in obj_all if c in sanitize_cols]
+            sanitize_obj_cols = [c for c in obj_all if c in sanitize_cols]
         else:
-            obj_cols = obj_all
-
+            sanitize_obj_cols = obj_all
         _log_step(
-            f"[preprocess] step 3/5: sanitizing {len(obj_cols)} object cols",
-            verbose,
+            f"[preprocess] step 3/5: sanitizing {len(sanitize_obj_cols)} object cols"
         )
-        if verbose and len(obj_cols) > 100:
-            _log_step(
-                f"[preprocess] WARNING: {len(obj_cols)} object cols; "
-                f"consider restricting sanitize_cols=[...]",
-                verbose,
+        if len(sanitize_obj_cols) > 100:
+            logger.warning(
+                "[preprocess] WARNING: %s object cols; consider restricting sanitize_cols=[...]",
+                len(sanitize_obj_cols),
             )
-        if obj_cols:
-            out = out.map_partitions(_clean_value_partition, obj_cols, meta=out)
     else:
-        _log_step("[preprocess] step 3/5: sanitize disabled", verbose)
+        _log_step("[preprocess] step 3/5: sanitize disabled")
 
-    _log_step(
-        "[preprocess] computing non-null counts (for nulls & drop_empty)...", verbose
-    )
+    # Apply fused partition function if both operations are needed
+    if boolfix_obj_cols and sanitize_obj_cols:
+
+        def _fused_boolfix_and_sanitize(
+            pdf: pd.DataFrame, bf_cols: list[str], san_cols: list[str]
+        ) -> pd.DataFrame:
+            pdf = _boolfix_partition(pdf, bf_cols)
+            pdf = _clean_value_partition(pdf, san_cols)
+            return pdf
+
+        out = out.map_partitions(
+            _fused_boolfix_and_sanitize, boolfix_obj_cols, sanitize_obj_cols, meta=out
+        )
+    elif boolfix_obj_cols:
+        out = out.map_partitions(_boolfix_partition, boolfix_obj_cols, meta=out)
+    elif sanitize_obj_cols:
+        out = out.map_partitions(_clean_value_partition, sanitize_obj_cols, meta=out)
+
+    _log_step("[preprocess] computing non-null counts (for nulls & drop_empty)...")
     counts = out.count().compute()
     if not isinstance(counts, pd.Series):
         counts = pd.Series(counts, index=out.columns)
@@ -559,12 +556,9 @@ def preprocess_dask_scaled(
     )
     dtypes = out.dtypes
 
-    _log_step(
-        f"[preprocess] inferred rows≈{row_count:,}, cols={len(out.columns)}",
-        verbose,
-    )
+    _log_step(f"[preprocess] inferred rows≈{row_count:,}, cols={len(out.columns)}")
 
-    _log_step("[preprocess] step 4/5: missing-value report and fills...", verbose)
+    _log_step("[preprocess] step 4/5: missing-value report and fills...")
     out, _, fill_map = missing_report_and_fill_dask(
         out,
         row_count=row_count,
@@ -576,37 +570,30 @@ def preprocess_dask_scaled(
         fill_numbers_with=fill_numbers_with,
         fill_overrides=fill_overrides,
         add_flags=add_missing_flags,
-        verbose=verbose,
+        verbose=debug,
         big_row_threshold=big_row_threshold,
         numeric_sample_rows=numeric_sample_rows,
     )
     _log_step(
-        f"[preprocess] missing-value phase done; filled {len(fill_map)} column(s)",
-        verbose,
+        f"[preprocess] missing-value phase done; filled {len(fill_map)} column(s)"
     )
 
     dropped: List[str] = []
 
     if drop_empty:
-        _log_step("[preprocess] step 5/5a: dropping empty columns...", verbose)
+        _log_step("[preprocess] step 5/5a: dropping empty columns...")
         empty_cols = counts[counts == 0].index.tolist()
         dropped += empty_cols
-        _log_step(f"[preprocess] drop_empty → {len(empty_cols)} column(s)", verbose)
+        _log_step(f"[preprocess] drop_empty → {len(empty_cols)} column(s)")
     else:
-        _log_step("[preprocess] step 5/5a: drop_empty disabled", verbose)
+        _log_step("[preprocess] step 5/5a: drop_empty disabled")
 
     if drop_constants or drop_every_value_is_unique:
         if drop_constants and row_count <= 1:
-            _log_step(
-                "[preprocess] step 5/5b: drop_constants skipped (row_count<=1)",
-                verbose,
-            )
+            _log_step("[preprocess] step 5/5b: drop_constants skipped (row_count<=1)")
             drop_constants = False
 
-        _log_step(
-            "[preprocess] step 5/5b: computing approx uniques for drop rules...",
-            verbose,
-        )
+        _log_step("[preprocess] step 5/5b: computing approx uniques for drop rules...")
         uniq_obj = out.nunique_approx()
         unique_counts = uniq_obj.compute()
         if not isinstance(unique_counts, pd.Series):
@@ -616,32 +603,25 @@ def preprocess_dask_scaled(
         if drop_constants:
             const_cols = unique_counts[unique_counts == 1].index.tolist()
             dropped += const_cols
-            _log_step(
-                f"[preprocess] drop_constants → {len(const_cols)} column(s)",
-                verbose,
-            )
+            _log_step(f"[preprocess] drop_constants → {len(const_cols)} column(s)")
 
         if drop_every_value_is_unique and row_count > 0:
             uniq_cols = unique_counts[unique_counts >= row_count].index.tolist()
             dropped += uniq_cols
             _log_step(
-                f"[preprocess] drop_every_value_is_unique → {len(uniq_cols)} column(s)",
-                verbose,
+                f"[preprocess] drop_every_value_is_unique → {len(uniq_cols)} column(s)"
             )
     else:
-        _log_step("[preprocess] step 5/5b: constants/unique drops disabled", verbose)
+        _log_step("[preprocess] step 5/5b: constants/unique drops disabled")
 
     dropped = sorted(set(dropped))
     if dropped:
         out = out.drop(columns=dropped)
-        _log_step(
-            f"[preprocess] total dropped columns: {len(dropped)} → {dropped}",
-            verbose,
-        )
+        _log_step(f"[preprocess] total dropped columns: {len(dropped)} → {dropped}")
     else:
-        _log_step("[preprocess] no columns dropped in step 5", verbose)
+        _log_step("[preprocess] no columns dropped in step 5")
 
-    _log_step("[preprocess] ✅ complete.", verbose)
+    _log_step("[preprocess] ✅ complete.")
     return out
 
 
@@ -798,22 +778,22 @@ def _fit_zsml_edges_numeric_dask(
 ) -> Dict[str, Any]:
     positive = numeric[numeric > zero_threshold].dropna()
 
+    # OPTIMIZATION: Batch all quantile computations into a single dask_compute call
+    # This reduces graph traversal overhead significantly
+    all_quantiles = list(quantiles)
     if clip_high_quantile is not None:
-        min_val, max_val, q_vals, cap_val, count_pos = dask_compute(
-            positive.min(),
-            positive.max(),
-            positive.quantile(list(quantiles)),
-            positive.quantile(clip_high_quantile),
-            positive.count(),
-        )
-    else:
-        min_val, max_val, q_vals, count_pos = dask_compute(
-            positive.min(),
-            positive.max(),
-            positive.quantile(list(quantiles)),
-            positive.count(),
-        )
-        cap_val = None
+        all_quantiles.append(clip_high_quantile)
+
+    min_val, max_val, all_q_vals, count_pos = dask_compute(
+        positive.min(),
+        positive.max(),
+        positive.quantile(all_quantiles),
+        positive.count(),
+    )
+
+    # Extract individual quantile values from the batched result
+    q_vals = all_q_vals.iloc[: len(quantiles)]
+    cap_val = float(all_q_vals.iloc[-1]) if clip_high_quantile is not None else None
 
     if count_pos == 0:
         return {
@@ -830,7 +810,7 @@ def _fit_zsml_edges_numeric_dask(
     q1_f, q2_f = float(q_vals.iloc[0]), float(q_vals.iloc[1])
 
     if cap_val is not None and strict_clip:
-        cap = float(cap_val)
+        cap = cap_val
         positive_clipped = positive.clip(upper=cap)
         min_val2, max_val2, q_vals2 = dask_compute(
             positive_clipped.min(),
@@ -841,7 +821,7 @@ def _fit_zsml_edges_numeric_dask(
         max_pos_f = float(max_val2)
         q1_f, q2_f = float(q_vals2.iloc[0]), float(q_vals2.iloc[1])
     elif cap_val is not None and not strict_clip:
-        cap = float(cap_val)
+        cap = cap_val
         if cap < max_pos_f:
             max_pos_f = cap
         if q2_f > max_pos_f:
@@ -1038,7 +1018,8 @@ def preprocess(ddf, cfg):
     Apply core preprocessing only (rename, bool-fix, fill, drop empty/constant).
     Functions and drop-columns are applied in the pipeline stage.
     """
-    verbose = getattr(cfg.logging, "level", "info") == "debug"
+verbose = getattr(cfg.logging, "level", "info") == "debug"
+    debug = verbose  # alias for compatibility
     pre_cfg = getattr(cfg, "preprocessing", None) or getattr(cfg, "cleaning", None)
 
     # Determine whether fill was explicitly configured
@@ -1055,7 +1036,7 @@ def preprocess(ddf, cfg):
     fill_continuous: str | int | float = "median"
     fill_overrides: dict = {}
 
-    if fill_explicit and fill_cfg is not None:
+if fill_explicit and fill_cfg is not None:
         fill_categorical = getattr(fill_cfg, "categorical", "Unknown") or "Unknown"
         fill_continuous = getattr(fill_cfg, "continuous", "median") or "median"
         fill_overrides = dict(getattr(fill_cfg, "overrides", {}) or {})
@@ -1078,7 +1059,7 @@ def preprocess(ddf, cfg):
         drop_empty=getattr(pre_cfg, "drop_empty", True),
         sanitize_values=False,
         apply_boolfix=getattr(pre_cfg, "bool_fix", True),
-        verbose=verbose,
+        verbose=debug,
     )
 
     return ddf

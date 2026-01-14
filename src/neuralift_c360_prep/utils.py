@@ -29,12 +29,15 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 import platform
 
 import dask.dataframe as dd
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def report_allocator(label="process"):
@@ -83,16 +86,21 @@ def diagnose_partitions(
     mean_rows = float(rows_per_part.mean()) if len(rows_per_part) else 0.0
     skew_ratio = (max_rows / max(min_rows, 1)) if min_rows > 0 else math.inf
 
-    print(f"🔎 Partition diagnostics for {label}:")
-    print(f"  partitions      : {nparts}")
-    print(
-        f"  rows/partition  : min={min_rows:,}, max={max_rows:,}, mean={mean_rows:,.1f}"
+    logger.info("🔎 Partition diagnostics for %s:", label)
+    logger.info("  partitions      : %s", nparts)
+    logger.info(
+        "  rows/partition  : min=%s, max=%s, mean=%s",
+        f"{min_rows:,}",
+        f"{max_rows:,}",
+        f"{mean_rows:,.1f}",
     )
-    print(f"  skew ratio      : {skew_ratio:,.2f}x (max / min)")
+    logger.info("  skew ratio      : %s", f"{skew_ratio:,.2f}x (max / min)")
 
     if warn_only:
         if skew_ratio >= skew_threshold:
-            print(f"  ⚠️ Skew is high (>{skew_threshold}x). Consider repartitioning.")
+            logger.warning(
+                "  ⚠️ Skew is high (>%sx). Consider repartitioning.", skew_threshold
+            )
     return {
         "npartitions": nparts,
         "rows_per_part": rows_per_part,
@@ -130,18 +138,24 @@ def auto_repartition(
     need_repartition = False
 
     if nparts < target_min_parts or nparts > target_max_parts:
-        print(
-            f"  ℹ️ partition count outside target range "
-            f"[{target_min_parts}, {target_max_parts}]: {nparts}"
+        logger.info(
+            "  ℹ️ partition count outside target range [%s, %s]: %s",
+            target_min_parts,
+            target_max_parts,
+            nparts,
         )
         need_repartition = True
 
     if skew_ratio >= max_skew:
-        print(f"  ℹ️ skew {skew_ratio:,.2f}x exceeds threshold {max_skew}x")
+        logger.info(
+            "  ℹ️ skew %sx exceeds threshold %sx",
+            f"{skew_ratio:,.2f}",
+            max_skew,
+        )
         need_repartition = True
 
     if not need_repartition:
-        print("  ✅ Partitioning looks fine; no repartition needed.")
+        logger.info("  ✅ Partitioning looks fine; no repartition needed.")
         return ddf
 
     base_min_parts = max(min_nparts, 1)
@@ -169,14 +183,18 @@ def auto_repartition(
             base_min_parts, int((row_count * bpr) / max(target_bytes_per_part, 1))
         )
 
-        print(
-            f"  ℹ️ memory-aware suggestion: bytes_per_row≈{bpr:,}, "
-            f"per_worker≈{per_worker_mem_gib:.2f}GiB, "
-            f"target_bytes_per_part≈{int(target_bytes_per_part):,}, "
-            f"mem_based_nparts≈{mem_based_nparts}"
+        logger.info(
+            "  ℹ️ memory-aware suggestion: bytes_per_row≈%s, "
+            "per_worker≈%.2fGiB, target_bytes_per_part≈%s, mem_based_nparts≈%s",
+            f"{bpr:,}",
+            per_worker_mem_gib,
+            f"{int(target_bytes_per_part):,}",
+            mem_based_nparts,
         )
     else:
-        print("  ℹ️ per_worker_mem_gib not provided; skipping memory-based nparts hint.")
+        logger.info(
+            "  ℹ️ per_worker_mem_gib not provided; skipping memory-based nparts hint."
+        )
 
     target_nparts = row_based_nparts
     if mem_based_nparts is not None:
@@ -187,16 +205,19 @@ def auto_repartition(
         target_nparts = max(target_nparts, target_min_parts)
     target_nparts = min(target_nparts, target_max_parts * 2)
 
-    print(
-        f"  🔄 Repartitioning {label} → {target_nparts} partitions "
-        f"(rows≈{row_count:,}, current={nparts})..."
+    logger.info(
+        "  🔄 Repartitioning %s → %s partitions (rows≈%s, current=%s)...",
+        label,
+        target_nparts,
+        f"{row_count:,}",
+        nparts,
     )
     if not apply:
-        print("  (dry-run: apply=False, not actually repartitioning)")
+        logger.info("  (dry-run: apply=False, not actually repartitioning)")
         return ddf
 
     ddf2 = ddf.repartition(npartitions=target_nparts)
-    print("  ✅ Repartition complete.")
+    logger.info("  ✅ Repartition complete.")
     return ddf2
 
 

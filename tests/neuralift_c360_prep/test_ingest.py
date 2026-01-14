@@ -83,7 +83,7 @@ def test_delta_log_mapping_from_metadata(tmp_path):
     )
 
     mapping = ingest_mod._read_delta_log_mapping(
-        tmp_path.as_posix(), storage_options=None, show_progress=False
+        tmp_path.as_posix(), storage_options=None
     )
     assert mapping == {
         "col_11111111_1111_1111_1111_111111111111": "id",
@@ -109,7 +109,6 @@ def test_require_logical_names_blocks_physical(tmp_path, monkeypatch):
             fmt="databricks_table",
             uri="dummy.table",
             id_cols=[],
-            show_progress=False,
             prefer_delta=False,
             require_logical_names=True,
         )
@@ -139,7 +138,6 @@ def test_partial_mapping_drops_extra_physical(tmp_path, monkeypatch):
         fmt="databricks_table",
         uri="dummy.table",
         id_cols=[],
-        show_progress=False,
         prefer_delta=False,
         require_logical_names=True,
     )

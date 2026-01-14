@@ -16,11 +16,20 @@ Local run (Pixi) meaning local dask and file writing:
 pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime local
 ```
 
-Coiled run (requires Coiled auth + a software env; see setup below):
+Coiled run (submits a Coiled batch job by default; logs stream in Coiled):
 
 ```bash
 pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime coiled
 ```
+
+Run the driver locally against a Coiled cluster (legacy behavior):
+
+```bash
+pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime coiled --no-batch
+```
+
+Batch helper:
+- `scripts/run_coiled_configs.sh` submits batch jobs by default; add `--local-driver` to capture local logs and summary output.
 
 ### Coiled software env setup (regular + Docker)
 
@@ -46,6 +55,10 @@ docker push ghcr.io/neuralift-ai/neuralift-c360-prep:cpu
 pixi run coiled env create --workspace neuralift-dev --name neuralift_c360_prep_cpu --container ghcr.io/neuralift-ai/neuralift-c360-prep:cpu --ignore-container-entrypoint
 ```
 
+Batch notes:
+- `runtime.coiled.submit_batch` defaults to `true` (CLI uses batch unless `--no-batch`).
+- Batch runs use `runtime.coiled.software_env` for the Coiled software environment.
+
 ### Points + labels helper (segmenter)
 
 Generate `labels.npy` and `precomputed_points.npy` from parquet files that
@@ -62,6 +75,29 @@ pixi run points_and_labels --volume s3://bucket/prefix --runtime coiled
 # Override directories if your segment column lives elsewhere
 pixi run points_and_labels --volume s3://bucket/prefix --input-subdir segmented_data --output-subdir segmented_data
 ```
+
+## Testing
+
+Run the test suite locally:
+
+```bash
+# Run all tests
+pixi run -e dev test
+
+# Run with coverage report
+pixi run -e dev pytest --cov=src/neuralift_c360_prep --cov-report=term-missing
+
+# Run specific test file
+pixi run -e dev pytest tests/neuralift_c360_prep/test_pipeline.py
+
+# Run integration tests (requires credentials)
+NL_INTEGRATION=1 pixi run -e dev pytest -m integration
+```
+
+Test suite includes:
+- 36+ unit tests across core modules (ingest, preprocess, write, metadata, pipeline, config)
+- Feature tests (birthday, zip enrichment, state mapping)
+- Integration tests (marked with `@pytest.mark.integration`, require external services)
 
 ### Environment credentials
 
@@ -82,7 +118,6 @@ Optional:
 - `WANDB_API_KEY` (only if `metadata.use_wandb: true`)
 - `NL_SKIP_LLM=1` (skip LLM metadata; uses deterministic fallbacks)
 - `NL_DEVICE_MEM_GB` or `NL_GPU_MEM_GB` (batch-size heuristic for config generation)
-- `DASK_DATAFRAME__QUERY_PLANNING=0` (disable query planning for large Dask plans)
 
 ### Dask behavior highlights
 
@@ -112,7 +147,7 @@ Optional:
   ZSML KPI; drops PII-like columns; writes to `staging-c360.media` (volume name
   `media_dask_test_54k`).
 - `configs/media_testing_mils.yaml`: Coiled UC table `staging-media-source.default.media_demo_5m`;
-  ZSML KPI; `use_approx_unique: false`; sets `DASK_DATAFRAME__QUERY_PLANNING=0`; writes to
+  ZSML KPI; `use_approx_unique: false`; writes to
   `staging-c360.media.media_demo_5m_512mb`.
 - `configs/sports_and_concert.yaml`: Coiled UC table
   `staging-sports-and-concerts-source.default.sports_lp`; sports KPI tags; writes to

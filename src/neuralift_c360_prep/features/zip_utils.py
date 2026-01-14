@@ -38,8 +38,8 @@ def clean_zip_codes_dask(
             .str.extract(r"(\d{1,5})", expand=False)
             .str.zfill(5)
         )
-        valid = df["zip5"].str.fullmatch(r"[0-9]{5}")
-        valid = valid.astype("boolean").fillna(False)
+# Convert to bool explicitly to avoid pandas FutureWarning about fillna downcasting
+        valid = df["zip5"].str.fullmatch(r"[0-9]{5}").astype("boolean").fillna(False)
         df.loc[~valid | (df["zip5"] == "00000"), "zip5"] = pd.NA
     return df
 

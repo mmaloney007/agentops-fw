@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import logging
 import os
 import re
 import uuid
@@ -25,6 +26,9 @@ from dask import compute as dask_compute
 from dask.distributed import Client, LocalCluster
 
 from .env import dotenv_env_vars
+from .log_utils import configure_dask_logging, setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def _storage_options_for_uri(
@@ -53,8 +57,21 @@ def _format_uri(protocol: str | None, path: str) -> str:
 
 
 def _part_index(name: str) -> int | None:
-    match = re.search(r"part-(\d+)", name)
-    return int(match.group(1)) if match else None
+    """Extract numeric index from parquet file name, supporting multiple naming conventions."""
+    # Try multiple common patterns in order of specificity
+    patterns = [
+        r"part-(\d+)",  # Dask/Spark default: part-00000.parquet
+        r"part\.(\d+)",  # Dask alternate: part.0.parquet
+        r"part(\d+)",  # No separator: part00000.parquet
+        r"_(\d+)\.parquet$",  # Trailing underscore: data_00000.parquet
+        r"-(\d+)\.parquet$",  # Trailing hyphen: data-00000.parquet
+        r"(\d+)\.parquet$",  # Just number: 00000.parquet
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, name, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def _parquet_sort_key(path: str) -> tuple[int, int, str]:
@@ -88,6 +105,27 @@ def _list_parquet_files(input_uri: str, storage_options: dict) -> list[str]:
     ]
     if not parquet_paths:
         raise FileNotFoundError(f"No parquet files found under {input_uri}")
+
+    # Check if file naming follows a recognized pattern
+    sample_files = parquet_paths[: min(5, len(parquet_paths))]
+    unrecognized = [p for p in sample_files if _part_index(Path(p).name) is None]
+    if unrecognized:
+        if len(unrecognized) == len(sample_files):
+            # None of the sampled files have recognized naming
+            logger.warning(
+                "[order] Parquet files don't follow a recognized naming pattern "
+                "(e.g., part-00000.parquet). Falling back to alphabetical sort. "
+                "Row order may differ from other parquet readers. "
+                "Sample files: %s",
+                [Path(p).name for p in unrecognized[:3]],
+            )
+        else:
+            # Mixed naming - some recognized, some not
+            logger.warning(
+                "[order] Mixed parquet file naming detected. "
+                "Files without part numbers will sort after numbered files: %s",
+                [Path(p).name for p in unrecognized],
+            )
 
     parquet_paths.sort(key=_parquet_sort_key)
     return [_format_uri(protocol, path) for path in parquet_paths]
@@ -156,7 +194,7 @@ def _update_config_yaml(
 ) -> bool:
     fs, path = fsspec.core.url_to_fs(config_uri, **storage_options)
     if not fs.exists(path):
-        print(f"[config] not found, skipping update: {config_uri}")
+        logger.warning("[config] not found, skipping update: %s", config_uri)
         return False
 
     with fs.open(path, "r", **storage_options) as fh:
@@ -183,7 +221,7 @@ def _update_config_yaml(
     with fs.open(path, "w", **storage_options) as fh:
         fh.write(new_text)
 
-    print(
+    logger.info(
         "[config] updated config.yaml with labels_file_name and ranked_points_file_name"
     )
     return True
@@ -290,7 +328,7 @@ def generate_points_and_labels(
     client: Client | None,
 ) -> tuple[str, str]:
     parquet_uris = _list_parquet_files(input_uri, input_storage_options)
-    print(f"[scan] found {len(parquet_uris)} parquet files under {input_uri}")
+    logger.info("[scan] found %s parquet files under %s", len(parquet_uris), input_uri)
 
     segments = _collect_segments(
         parquet_uris,
@@ -298,7 +336,7 @@ def generate_points_and_labels(
         storage_options=input_storage_options,
         client=client,
     )
-    print(f"[read] collected {len(segments)} rows of '{segment_col}'")
+    logger.info("[read] collected %s rows of '%s'", len(segments), segment_col)
 
     seg_series = segments.astype("object").apply(_normalize_segment)
     unique = pd.unique(seg_series.dropna())
@@ -318,9 +356,9 @@ def generate_points_and_labels(
     with fsspec.open(points_uri, "wb", **output_storage_options) as fh:
         np.save(fh, points)
 
-    print(f"[write] labels.npy -> {labels_uri}")
-    print(f"[write] precomputed_points.npy -> {points_uri}")
-    print(
+    logger.info("[write] labels.npy -> %s", labels_uri)
+    logger.info("[write] precomputed_points.npy -> %s", points_uri)
+    logger.info(
         "[done] ordering guarantee: rows follow sorted parquet part-file order (part-00000, part-00001, ...)"
     )
 
@@ -389,6 +427,12 @@ def _parse_args() -> argparse.Namespace:
         default="coiled",
         help="Execution runtime (default: coiled).",
     )
+    parser.add_argument(
+        "--log-level",
+        choices=["debug", "info", "warning", "error"],
+        default="info",
+        help="Logging level (default: info).",
+    )
     parser.add_argument("--coiled-name", default="neuralift_c360_prep")
     parser.add_argument("--coiled-software-env", default="neuralift_c360_prep")
     parser.add_argument("--n-workers", type=int, default=2)
@@ -410,6 +454,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     env_from_dotenv = dotenv_env_vars()
     args = _parse_args()
+    setup_logging(args.log_level)
     args.coiled_env = _parse_env_pairs(args.coiled_env)
     args.coiled_env = {**env_from_dotenv, **args.coiled_env}
     args.worker_vm_types = (
@@ -442,13 +487,18 @@ def main() -> None:
         config_uri, require_creds=config_uri.startswith("s3://")
     )
 
-    print(f"[init] input={input_uri}")
-    print(f"[init] output={output_uri}")
-    print(f"[init] runtime={args.runtime}")
-
     with _client_context(
         runtime=args.runtime, coiled_kwargs=_build_coiled_kwargs(args)
     ) as client:
+        if client is not None:
+            configure_dask_logging(
+                client,
+                level=args.log_level,
+                forward_to_scheduler=args.runtime == "coiled",
+            )
+        logger.info("[init] input=%s", input_uri)
+        logger.info("[init] output=%s", output_uri)
+        logger.info("[init] runtime=%s", args.runtime)
         generate_points_and_labels(
             input_uri=input_uri,
             output_uri=output_uri,
@@ -469,7 +519,7 @@ def main() -> None:
             storage_options=config_storage_options,
         )
 
-    print("[done] points_and_labels job complete.")
+    logger.info("[done] points_and_labels job complete.")
 
 
 if __name__ == "__main__":  # pragma: no cover

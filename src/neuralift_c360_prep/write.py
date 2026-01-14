@@ -32,6 +32,7 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 import uuid
@@ -43,7 +44,7 @@ import dask.dataframe as dd
 import fsspec
 import yaml
 from databricks import sql  # type: ignore
-from dask.distributed import as_completed, get_client
+from dask.distributed import as_completed, get_client, wait
 
 try:
     from uuid6 import uuid7  # type: ignore
@@ -51,6 +52,9 @@ except Exception:  # pragma: no cover
 
     def uuid7() -> uuid.UUID:  # type: ignore
         return uuid.uuid4()
+
+
+logger = logging.getLogger(__name__)
 
 
 def _quote_ident(name: str) -> str:
@@ -97,9 +101,9 @@ def create_managed_uc_volume_via_sql(
     describe_sql = f"DESCRIBE VOLUME {qcat}.{qsch}.{qvol};"
 
     if show_sql:
-        print("CREATE SCHEMA SQL:\n", create_schema_sql)
-        print("CREATE VOLUME SQL:\n", create_volume_sql)
-        print("DESCRIBE VOLUME SQL:\n", describe_sql)
+        logger.info("CREATE SCHEMA SQL:\n%s", create_schema_sql)
+        logger.info("CREATE VOLUME SQL:\n%s", create_volume_sql)
+        logger.info("DESCRIBE VOLUME SQL:\n%s", describe_sql)
 
     with _connect_dbsql(conn_params) as conn, conn.cursor() as cur:
         cur.execute(create_schema_sql)
@@ -122,12 +126,12 @@ def create_managed_uc_volume_via_sql(
         s3_location = row[idx]
 
     uc_mount_path = f"/Volumes/{catalog}/{schema}/{vol}"
-    print("Managed volume created:")
-    print("  Volume name       :", vol)
-    print("  UC mount path     :", uc_mount_path)
-    print("  S3 backing loc    :", s3_location)
-    print("  created_date_utc  :", created_date_utc)
-    print("  created_ts_utc    :", created_ts_utc)
+    logger.info("Managed volume created:")
+    logger.info("  Volume name       : %s", vol)
+    logger.info("  UC mount path     : %s", uc_mount_path)
+    logger.info("  S3 backing loc    : %s", s3_location)
+    logger.info("  created_date_utc  : %s", created_date_utc)
+    logger.info("  created_ts_utc    : %s", created_ts_utc)
 
     return vol, uc_mount_path, s3_location, created_date_utc, created_ts_utc
 
@@ -172,7 +176,7 @@ def tag_uc_volume_via_sql(
     """
 
     if show_sql:
-        print("TAG SQL:\n", tag_sql)
+        logger.info("TAG SQL:\n%s", tag_sql)
 
     with _connect_dbsql(conn_params) as conn, conn.cursor() as cur:
         cur.execute(tag_sql)
@@ -258,11 +262,17 @@ def write_ddf_and_yaml_to_s3(
     partition_on: Iterable[str] | None = None,
     aws_key_env: str = "AWS_ACCESS_KEY_ID",
     aws_secret_env: str = "AWS_SECRET_ACCESS_KEY",
-    show_progress: bool = True,
     force_npartitions: int | None = None,  # if set, force exact nparts (min 2)
-    target_mb_per_part: int = 256,  # DEFAULT = 256MB (Dask parquet guidance is 100–300 MiB)
+    target_mb_per_part: int = 512,  # DEFAULT = 512MB (tune for downstream IO)
     write_index: bool = False,
-    shuffle_before_partition_on: bool = True,  # default True because you asked for it
+    shuffle_before_partition_on: bool = True,  # default True to reduce file explosion
+    # Performance toggles (configurable via OutputConfig)
+    persist_before_write: bool = True,
+    rebalance_before_write: bool = True,
+    # Dtype casting toggles
+    cast_bool_to_int8: bool = True,
+    cast_category_to_string: bool = True,
+    cast_object_to_string: bool = True,
 ) -> str:
     """
     Write Parquet under <s3_base>/input_data/ and config/metadata files at <s3_base>.
@@ -273,10 +283,6 @@ def write_ddf_and_yaml_to_s3(
       - shuffle(on=partition_on) is the standard way to reduce per-key file explosion (at cost of a shuffle).
     """
 
-    def log(msg: str) -> None:
-        if show_progress:
-            print(msg)
-
     s3_base = s3_base.rstrip("/") + "/"
     storage_options = _storage_options_for_base(
         s3_base,
@@ -285,9 +291,9 @@ def write_ddf_and_yaml_to_s3(
         require_creds=s3_base.startswith("s3://"),
     )
 
-    log(f"[init] s3_base={s3_base}")
+    logger.info(f"[init] s3_base={s3_base}")
     if s3_base.startswith("s3://"):
-        log(f"[init] using AWS creds from {aws_key_env}/{aws_secret_env}")
+        logger.info(f"[init] using AWS creds from {aws_key_env}/{aws_secret_env}")
 
     # Get client once (or None)
     try:
@@ -297,18 +303,6 @@ def write_ddf_and_yaml_to_s3(
 
     ddf_to_write = ddf
 
-    # 1) BOOL -> int8 (for parquet / downstream systems that dislike bool)
-    bool_cols = []
-    for c, dt in ddf_to_write.dtypes.items():
-        dt_l = str(dt).lower()
-        # catches numpy bool, pandas BooleanDtype, and many backends
-        if dt_l in {"bool", "boolean"}:
-            bool_cols.append(c)
-
-    if bool_cols:
-        log(f"[cast] converting boolean cols to int8: {bool_cols}")
-        ddf_to_write = ddf_to_write.astype({c: "int8" for c in bool_cols})
-
     # Prefer pyarrow-backed strings for cross-environment pickle stability.
     string_dtype = "string"
     try:
@@ -316,24 +310,39 @@ def write_ddf_and_yaml_to_s3(
     except Exception:
         string_dtype = "string"
 
+    # 1) BOOL -> int8 (for parquet / downstream systems that dislike bool)
+    if cast_bool_to_int8:
+        bool_cols = []
+        for c, dt in ddf_to_write.dtypes.items():
+            dt_l = str(dt).lower()
+            # catches numpy bool, pandas BooleanDtype, and many backends
+            if dt_l in {"bool", "boolean"}:
+                bool_cols.append(c)
+
+        if bool_cols:
+            logger.info(f"[cast] converting boolean cols to int8: {bool_cols}")
+            ddf_to_write = ddf_to_write.astype({c: "int8" for c in bool_cols})
+
     # 2) category -> string
-    cat_cols = [
-        c for c, dt in ddf_to_write.dtypes.items() if "category" in str(dt).lower()
-    ]
-    if cat_cols:
-        log(f"[cast] converting categoricals to {string_dtype}: {cat_cols}")
-        ddf_to_write = ddf_to_write.astype({c: string_dtype for c in cat_cols})
+    if cast_category_to_string:
+        cat_cols = [
+            c for c, dt in ddf_to_write.dtypes.items() if "category" in str(dt).lower()
+        ]
+        if cat_cols:
+            logger.info(f"[cast] converting categoricals to {string_dtype}: {cat_cols}")
+            ddf_to_write = ddf_to_write.astype({c: string_dtype for c in cat_cols})
 
     # 3) object -> string
-    obj_cols = [
-        c for c, dt in ddf_to_write.dtypes.items() if "object" in str(dt).lower()
-    ]
-    if obj_cols:
-        log(f"[cast] converting object cols to {string_dtype}: {obj_cols}")
-        ddf_to_write = ddf_to_write.astype({c: string_dtype for c in obj_cols})
+    if cast_object_to_string:
+        obj_cols = [
+            c for c, dt in ddf_to_write.dtypes.items() if "object" in str(dt).lower()
+        ]
+        if obj_cols:
+            logger.info(f"[cast] converting object cols to {string_dtype}: {obj_cols}")
+            ddf_to_write = ddf_to_write.astype({c: string_dtype for c in obj_cols})
 
     current_parts = ddf_to_write.npartitions
-    log(f"[stats] current nparts={current_parts}")
+    logger.info(f"[stats] current nparts={current_parts}")
 
     if target_mb_per_part <= 0:
         raise ValueError("target_mb_per_part must be positive")
@@ -344,12 +353,12 @@ def write_ddf_and_yaml_to_s3(
     if force_npartitions is not None and force_npartitions > 0:
         desired = max(force_npartitions, min_npartitions)
         if desired == current_parts:
-            log(
+            logger.info(
                 f"[repartition] force_npartitions={desired} matches current nparts; keeping existing partitions."
             )
         else:
             direction = "UP" if desired > current_parts else "DOWN"
-            log(
+            logger.info(
                 f"[repartition] forcing nparts {direction} from {current_parts} → {desired}"
             )
             if desired > current_parts and current_parts == 1:
@@ -358,21 +367,28 @@ def write_ddf_and_yaml_to_s3(
             current_parts = desired
     else:
         part_size = f"{int(target_mb_per_part)}MB"
-        log(f"[repartition] target partition_size={part_size}")
+        logger.info(f"[repartition] target partition_size={part_size}")
 
         # repartition(partition_size=...) triggers a size measurement pass and can be expensive.  (https://docs.dask.org/en/stable/generated/dask.dataframe.DataFrame.repartition.html)
         # Guard: on a distributed client with very low nparts, this is where people often OOM if one partition is huge.
         if client is not None and ddf_to_write.npartitions <= 4:
-            log(
+            logger.info(
                 "[repartition] distributed cluster + low nparts; skipping repartition(partition_size=...) "
                 "to avoid single-worker OOM. Fix partitioning at read time or use force_npartitions."
             )
         else:
+            logger.info(
+                f"[repartition] measuring partition sizes and repartitioning to {part_size} (this may take time)..."
+            )
+            t_repartition = time.time()
             ddf_to_write = ddf_to_write.repartition(partition_size=part_size)
+            logger.info(
+                f"[repartition] ✅ complete in {time.time() - t_repartition:.2f}s"
+            )
 
         current_parts = ddf_to_write.npartitions
         if current_parts < min_npartitions:
-            log(
+            logger.info(
                 f"[repartition] only {current_parts} partition(s); enforcing {min_npartitions}"
             )
             ddf_to_write = ddf_to_write.clear_divisions().repartition(
@@ -385,41 +401,68 @@ def write_ddf_and_yaml_to_s3(
     parquet_path = f"{s3_base}input_data/"
 
     if part_cols:
-        log(
+        logger.info(
             f"[write] partition_on={part_cols} "
             "(note: can create >npartitions files because each dask partition can write multiple files per key)."
         )  #  (https://docs.dask.org/en/stable/_modules/dask/dataframe/dask_expr/io/parquet.html)
 
         if shuffle_before_partition_on:
-            log(
-                "[shuffle] shuffling on partition_on columns to reduce per-key file explosion (this is a real shuffle)."
+            logger.info(
+                "[shuffle] shuffling on partition_on columns to reduce per-key file explosion (this is a real shuffle, may take time)..."
             )
+            t_shuffle = time.time()
             ddf_to_write = ddf_to_write.shuffle(on=part_cols)
+            logger.info(f"[shuffle] ✅ complete in {time.time() - t_shuffle:.2f}s")
 
             # After shuffle, sizes may change; if you're in local mode or already have many partitions,
             # it can be helpful to re-apply partition_size gently. Keep guarded to avoid OOM.
             if client is None or ddf_to_write.npartitions > 8:
                 part_size = f"{int(target_mb_per_part)}MB"
-                log(
-                    f"[shuffle] optional post-shuffle repartition(partition_size={part_size})"
+                logger.info(
+                    f"[shuffle] post-shuffle repartition to {part_size} (measuring sizes)..."
                 )
+                t_post_shuffle = time.time()
                 ddf_to_write = ddf_to_write.repartition(partition_size=part_size)
+                logger.info(
+                    f"[shuffle] ✅ post-shuffle repartition complete in {time.time() - t_post_shuffle:.2f}s"
+                )
 
     # --- Persist + rebalance ONCE, after shuffle, right before writing (cluster-only) ---
     if client is not None:
-        log(
-            "[write] persisting before to_parquet to distribute partitions across workers"
-        )
-        ddf_to_write = client.persist(ddf_to_write)
-        try:
-            client.rebalance(ddf_to_write)
-        except Exception:
-            pass
+        if persist_before_write:
+            logger.warning(
+                "[persist] persist_before_write=True materializes the full dataset; disable if memory pressure or cluster instability occurs."
+            )
+            logger.info(
+                "[persist] materializing dataframe to cluster memory (all lazy operations execute now - this may take several minutes)..."
+            )
+            t_persist = time.time()
+            ddf_to_write = client.persist(ddf_to_write)
+            # Wait for persist to actually complete (persist() is async)
+            wait(ddf_to_write)
+            logger.info(
+                f"[persist] ✅ dataframe materialized in {time.time() - t_persist:.2f}s"
+            )
 
-    log(f"[s3] preparing Parquet write to {parquet_path} (overwrite=True)...")
+            if rebalance_before_write:
+                logger.info("[rebalance] redistributing partitions across workers...")
+                t_rebalance = time.time()
+                try:
+                    client.rebalance(ddf_to_write)
+                    logger.info(
+                        f"[rebalance] ✅ complete in {time.time() - t_rebalance:.2f}s"
+                    )
+                except Exception as e:
+                    logger.warning(f"[rebalance] failed: {e}")
+        else:
+            logger.info(
+                "[write] persist_before_write=False; skipping persist/rebalance"
+            )
 
-    log(f"[debug] nparts before to_parquet = {ddf_to_write.npartitions}")
-    log(f"[debug] partition_on = {part_cols}")
+    logger.info(f"[s3] preparing Parquet write to {parquet_path} (overwrite=True)...")
+
+    logger.info(f"[debug] nparts before to_parquet = {ddf_to_write.npartitions}")
+    logger.info(f"[debug] partition_on = {part_cols}")
 
     write_delayed = ddf_to_write.to_parquet(
         parquet_path,
@@ -438,28 +481,27 @@ def write_ddf_and_yaml_to_s3(
     )
 
     if client is None:
-        log("[s3] no global Client; using local scheduler to write parquet...")
+        logger.info("[s3] no global Client; using local scheduler to write parquet...")
         t0 = time.time()
         dask.compute(*delayed_tasks)
-        log(f"[s3] Parquet write complete in {time.time() - t0:.2f}s.")
+        logger.info(f"[s3] Parquet write complete in {time.time() - t0:.2f}s.")
     else:
         futures = client.compute(delayed_tasks)
         n_parts = len(futures)
-        log(f"[s3] starting Parquet write for ~{n_parts} task(s)...")
+        logger.info(f"[s3] starting Parquet write for ~{n_parts} task(s)...")
         t0 = time.time()
         for i, fut in enumerate(as_completed(futures), start=1):
             fut.result()
-            if show_progress:
-                print(f"[s3] finished task {i}/{n_parts}")
-        log(f"[s3] Parquet write complete in {time.time() - t0:.2f}s.")
+            logger.info(f"[s3] finished task {i}/{n_parts}")
+        logger.info(f"[s3] Parquet write complete in {time.time() - t0:.2f}s.")
 
     extra_files = ["config.yaml"]
     if bundle_config_yaml_text is not None:
         extra_files.append("bundleconfig.yaml")
     extra_files.append("data_dictionary.json")
-    if suggestions_yaml_text is not None:
+if suggestions_yaml_text is not None:
         extra_files.append("suggestions.yaml")
-    log(f"[s3] writing {', '.join(extra_files)} ...")
+    logger.info(f"[s3] writing {', '.join(extra_files)} ...")
     t1 = time.time()
 
     for fname, content in (
@@ -478,7 +520,9 @@ def write_ddf_and_yaml_to_s3(
         with fsspec.open(f"{s3_base}{fname}", "w", **storage_options) as fh:
             fh.write(text)
 
-    log(f"[done] wrote dataset and metadata to {s3_base} in {time.time() - t1:.2f}s")
+    logger.info(
+        f"[done] wrote dataset and metadata to {s3_base} in {time.time() - t1:.2f}s"
+    )
     return s3_base
 
 
@@ -493,7 +537,16 @@ def write_outputs(ddf, cfg, meta_json_text: str, config_text: str, partition_on=
         target_mb_per_part=cfg.output.target_mb_per_part,
         force_npartitions=cfg.output.force_npartitions,
         write_index=cfg.output.write_index,
-        show_progress=getattr(cfg.logging, "show_progress", True),
+        # Performance toggles from config
+        shuffle_before_partition_on=getattr(
+            cfg.output, "shuffle_before_partition_on", True
+        ),
+        persist_before_write=getattr(cfg.output, "persist_before_write", True),
+        rebalance_before_write=getattr(cfg.output, "rebalance_before_write", True),
+        # Dtype casting toggles from config
+        cast_bool_to_int8=getattr(cfg.output, "cast_bool_to_int8", True),
+        cast_category_to_string=getattr(cfg.output, "cast_category_to_string", True),
+        cast_object_to_string=getattr(cfg.output, "cast_object_to_string", True),
     )
 
 

@@ -12,7 +12,6 @@
 
 logging:
   level: info
-  show_progress: true
 
 runtime:
   engine: local
