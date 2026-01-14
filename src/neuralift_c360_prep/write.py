@@ -254,6 +254,7 @@ def write_ddf_and_yaml_to_s3(
     config_yaml_text: str,
     meta_json_text: str,  # this is already JSON text
     bundle_config_yaml_text: str | None = None,
+    suggestions_yaml_text: str | None = None,  # Data Doctor suggestions
     partition_on: Iterable[str] | None = None,
     aws_key_env: str = "AWS_ACCESS_KEY_ID",
     aws_secret_env: str = "AWS_SECRET_ACCESS_KEY",
@@ -456,6 +457,8 @@ def write_ddf_and_yaml_to_s3(
     if bundle_config_yaml_text is not None:
         extra_files.append("bundleconfig.yaml")
     extra_files.append("data_dictionary.json")
+    if suggestions_yaml_text is not None:
+        extra_files.append("suggestions.yaml")
     log(f"[s3] writing {', '.join(extra_files)} ...")
     t1 = time.time()
 
@@ -463,6 +466,7 @@ def write_ddf_and_yaml_to_s3(
         ("config.yaml", config_yaml_text),
         ("bundleconfig.yaml", bundle_config_yaml_text),
         ("data_dictionary.json", meta_json_text),
+        ("suggestions.yaml", suggestions_yaml_text),
     ):
         if content is None:
             continue

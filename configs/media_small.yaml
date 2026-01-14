@@ -5,7 +5,7 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep
+    software_env: neuralift_c360_prep_pr-4
     n_workers: 4
     # worker_cpu: 8
     # worker_memory: 32GiB
@@ -20,25 +20,11 @@ input:
   source: uc_table
   uc_table: staging-media-source.default.media_54
   columns: null
-  id_cols: ["Customer_ID"]
-  snapshot:
-    enabled: false
+ids:
+  columns: ["Customer_ID"]
+  auto_detect: true
 
-# feature_functions:
-#   - Partition-wise pandas functions, applied first. Signature: fn(pdf: pd.DataFrame) -> pd.DataFrame.
-#   - Format: "module:function". Runs in order, 0..N entries. Side-effect free; no compute/persist.
-#   - Example: add age/generation from a birth year column:
-#       neuralift_c360_prep.features.birthday:add_age_from_year
-feature_functions: []
-
-# kpi_functions:
-#   - Runs AFTER feature_functions, BEFORE preprocessing. Supports multiple ZSML definitions.
-#   - Each entry:
-#       type: zsml
-#       source_col: <col>
-#       out_col: <optional, defaults to <source_col>_tier>
-#       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
-kpi_functions:
+functions:
   - type: zsml
     source_col: Total_Spent
     out_col: Total_Spent_Tier
@@ -48,13 +34,16 @@ kpi_functions:
     unit: "$"
     range_style: text
     add_prefix: true
+    kpi: true
 
 preprocessing:
   rename_to_snake: true
   bool_fix: true
   drop_empty: true
   drop_constant: true
-  missing_fill: auto
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
   # zsml:
   #   enabled: true
   #   source_col: Total_Spent

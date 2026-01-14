@@ -33,8 +33,14 @@ import yaml
 from .cluster import get_client
 from .config import BundleConfig
 from .databricks_oauth import get_databricks_access_token
+from .data_doctor import (
+    analyze_data as data_doctor_analyze,
+    print_report as data_doctor_print,
+)
+from .functions import apply_functions
+from .id_detection import suggest_id_columns, print_id_suggestions
 from .ingest import load_lazy_dask
-from .preprocess import preprocess
+from .preprocess import preprocess, drop_configured_columns
 from .write import (
     count_parquet_files,
     write_ddf_and_yaml_to_s3,
@@ -54,6 +60,15 @@ logger = logging.getLogger(__name__)
 
 def _strip_scheme(host: str) -> str:
     return host.replace("https://", "").replace("http://", "").rstrip("/")
+
+
+def _configure_third_party_logging(*, debug_mode: bool) -> None:
+    if debug_mode:
+        return
+    logging.getLogger("distributed.shuffle").setLevel(logging.ERROR)
+    logging.getLogger("distributed.shuffle._scheduler_plugin").setLevel(logging.ERROR)
+    logging.getLogger("distributed.scheduler").setLevel(logging.ERROR)
+    os.environ.setdefault("RUST_LOG", "deltalake=error,delta_kernel=error")
 
 
 def _build_dbsql_conn_params(*, require: bool) -> dict | None:
@@ -101,6 +116,7 @@ def _print_output_summary(
     table_name: str,
     parquet_count: int | None,
     volume_info: dict | None,
+    has_suggestions: bool = False,
 ) -> None:
     print("\n=== Output Summary ===")
     print(f"Base URI       : {base_uri}")
@@ -108,7 +124,10 @@ def _print_output_summary(
         print("Parquet files  : unknown")
     else:
         print(f"Parquet files  : {parquet_count}")
-    print("Artifacts      : config.yaml, bundleconfig.yaml, data_dictionary.json")
+    artifacts = "config.yaml, bundleconfig.yaml, data_dictionary.json"
+    if has_suggestions:
+        artifacts += ", suggestions.yaml"
+    print(f"Artifacts      : {artifacts}")
     if volume_info:
         print("\n=== UC Volume ===")
         print(f"Name           : {volume_info['volume_name']}")
@@ -129,6 +148,7 @@ def run_from_config(cfg: BundleConfig) -> str:
 
     # If debug, force progress logs on and emit the resolved config for transparency
     debug_mode = cfg.logging.level == "debug"
+    _configure_third_party_logging(debug_mode=debug_mode)
     if debug_mode and not cfg.logging.show_progress:
         cfg.logging.show_progress = True
 
@@ -163,7 +183,6 @@ def run_from_config(cfg: BundleConfig) -> str:
             columns=cfg.input.columns,
             dtype_overrides=cfg.input.dtype_overrides,
             read_blocksize_mb=cfg.output.target_mb_per_part,
-            snapshot_mode="off",
             show_progress=cfg.logging.show_progress,
             conn_params=conn_params,
             allow_dbsql_fallback=cfg.input.source == "uc_table",
@@ -174,12 +193,48 @@ def run_from_config(cfg: BundleConfig) -> str:
             else 0,
         )
 
+        # ID detection and suggestions (for agentic use)
+        ids_cfg = getattr(cfg, "ids", None)
+        if ids_cfg and getattr(ids_cfg, "auto_detect", True):
+            explicit_ids = list(getattr(ids_cfg, "columns", []) or [])
+            # Also include legacy input.id_cols
+            explicit_ids = explicit_ids or list(cfg.input.id_cols or [])
+            suggestions = suggest_id_columns(
+                ddf,
+                exclude_columns=explicit_ids,
+                check_uniqueness=cfg.logging.show_progress,  # skip expensive uniqueness check if not showing progress
+            )
+            print_id_suggestions(suggestions, explicit_ids=explicit_ids)
+
         ddf = preprocess(ddf, cfg)
+        ddf = apply_functions(ddf, cfg)
+        ddf = drop_configured_columns(
+            ddf, getattr(cfg, "drop_columns", []), verbose=cfg.logging.level == "debug"
+        )
 
         table_name = resolve_output_table_name(cfg)
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
         meta_json = json.loads(meta_text)
+
+        # Run Data Doctor analysis (if enabled)
+        data_doctor_report = None
+        if getattr(cfg.data_doctor, "enabled", True):
+            logger.info("Running Data Doctor analysis...")
+            data_doctor_report = data_doctor_analyze(
+                ddf,
+                meta_json,
+                cfg,
+                show_progress=cfg.logging.show_progress,
+            )
+            data_doctor_print(
+                data_doctor_report,
+                show_alternatives=getattr(
+                    cfg.data_doctor, "show_business_alternatives", True
+                ),
+                use_print=cfg.logging.level in {"info", "debug"},
+            )
+
         wandb_project = _resolve_wandb_project(cfg, cfg.output.run_name or table_name)
         pretty_config = build_pretty_config_from_data_dict(
             data_dict=meta_json,
@@ -242,12 +297,18 @@ def run_from_config(cfg: BundleConfig) -> str:
             }
             base_uri = s3_loc
 
+        # Generate data doctor suggestions yaml if enabled
+        suggestions_yaml_text = None
+        if data_doctor_report and getattr(cfg.data_doctor, "save_yaml", True):
+            suggestions_yaml_text = data_doctor_report.yaml_text
+
         base_uri = write_ddf_and_yaml_to_s3(
             ddf=ddf,
             s3_base=base_uri,
             config_yaml_text=pretty_config_text,
             meta_json_text=meta_text,
             bundle_config_yaml_text=bundle_config_text,
+            suggestions_yaml_text=suggestions_yaml_text,
             partition_on=cfg.output.partitions,
             target_mb_per_part=cfg.output.target_mb_per_part,
             force_npartitions=cfg.output.force_npartitions,
@@ -274,6 +335,7 @@ def run_from_config(cfg: BundleConfig) -> str:
             table_name=table_name,
             parquet_count=parquet_count,
             volume_info=volume_tags,
+            has_suggestions=suggestions_yaml_text is not None,
         )
 
     logger.info("Pipeline complete; output at %s", base_uri)

@@ -1,27 +1,17 @@
 logging:
-  level: debug
+  level: info
   show_progress: true
 
 runtime:
-  engine: coiled
-  coiled:
-    software_env: neuralift_c360_prep_test
-    n_workers: 2
-    # worker_cpu: 4
-    # worker_memory: 16GiB
-    worker_vm_types: [m4.xlarge]
-    scheduler_vm_types: [c5d.xlarge]
-    idle_timeout: 2h
-    no_client_timeout: 2h
-    create_timeout: 15m
-    op_timeout: 45m
+  engine: local
 
 input:
-  source: uc_table
-  uc_table: staging-c360.kaggle-marketing.wine_cheese_20250624_01
+  source: parquet
+  parquet_path: ./example-data/wine_cheese.parquet
   columns: null
+
 ids:
-  columns: ["id"]
+  columns: ["ID"]
   auto_detect: true
 
 preprocessing:
@@ -57,16 +47,43 @@ functions:
 
   - type: binning
     source_col: Age
-    out_col: age_bin
+    out_col: age_band
+    bins: [0, 30, 40, 50, 60, 120]  # Custom age ranges
 
   - type: string_normalize
     source_col: Education
     out_col: education_clean
+    string_case: lower
+    strip: true
+    collapse_whitespace: true
 
   - type: frequency_encode
     source_col: Marital_Status
     out_col: marital_status_freq
     normalize: true
+
+  - type: categorical_bucket
+    source_col: Marital_Status
+    out_col: marital_status_top3
+    top_k: 3
+    other_label: other
+
+  - type: winsorize
+    source_col: Income
+    lower_quantile: 0.05
+    upper_quantile: 0.95
+
+  - type: log_transform
+    source_col: AmmountSpentOnWine
+    out_col: wine_spend_log
+    log_method: log1p
+    log_clip_min: 0
+
+  - type: ratio
+    numerator_col: AmmountSpentOnWine
+    denominator_col: Income
+    out_col: wine_spend_per_income
+    on_zero: zero
 
   - type: days_since
     source_col: CustomerJoinDate
@@ -75,27 +92,8 @@ functions:
 
   - type: date_parts
     source_col: CustomerJoinDate
-
-  - type: winsorize
-    source_col: Income
-    lower_quantile: 0.01
-    upper_quantile: 0.99
-
-  - type: log_transform
-    source_col: AmmountSpentOnWine
-    log_method: log1p
-    log_clip_min: 0
-
-  - type: categorical_bucket
-    source_col: Marital_Status
-    top_k: 3
-    other_label: other
-
-  - type: ratio
-    numerator_col: AmmountSpentOnWine
-    denominator_col: Income
-    out_col: spend_wine_per_income
-    on_zero: zero
+    date_parts: [year, month, day_of_week, is_weekend]
+    drop_source: true
 
 drop_columns: []
 
@@ -103,15 +101,13 @@ metadata:
   model: gpt-5-nano
   sample_rows: 5000
   max_concurrency: 75
-  context: "Wine and cheese demo"
+  context: "Wine and cheese local full function demo"
   op_timeout: 45m
 
 output:
   uc_catalog: staging-c360
   uc_schema: kaggle-marketing
-  uc_volume_name: wine_demo
-  uc_table: wine_demo
-  run_name: wine_cheese_test
-  s3_base: local-output
+  uc_table: wine_cheese_local_full
+  s3_base: local-output/wine_cheese_full
   partitions: []
   target_mb_per_part: 512

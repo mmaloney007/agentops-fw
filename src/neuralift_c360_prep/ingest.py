@@ -2,12 +2,11 @@
 """
 ingest.py (Dask)
 ----------------
-Lazy loaders for CSV/Parquet/UC Databricks tables with optional snapshotting and logical-column remapping.
+Lazy loaders for CSV/Parquet/UC Databricks tables with logical-column remapping.
 
 Purpose:
     - Load Dask DataFrames lazily (CSV/Parquet/UC) with optional column projection, filters, dtype overrides, and row limits.
     - Resolve UC storage_location, apply delta-rs physical->logical renames or DBSQL schema fallback.
-    - Build/read/refresh parquet snapshots with optional preprocessing/repartitioning hooks.
 
 Usage:
     from neuralift_c360_prep.ingest import load_lazy_dask, load_ddf
@@ -458,11 +457,6 @@ def _read_via_dbsql_schema(
         return colnames
 
 
-def _snapshot_exists(uri: str, storage_options: Mapping[str, Any] | None) -> bool:
-    fs, path = fsspec.core.url_to_fs(uri, **(storage_options or {}))
-    return fs.exists(path)
-
-
 def load_lazy_dask(
     *,
     fmt: str,
@@ -483,42 +477,15 @@ def load_lazy_dask(
     debug_head_rows: int = 0,
     max_expected_columns: int = 512,
     filters: Any | None = None,
-    # --- snapshot options ---
-    snapshot_uri: str | None = None,
-    snapshot_mode: str = "off",  # "off" | "read" | "read_or_build" | "refresh"
-    snapshot_storage_options: Mapping[str, Any] | None = None,
-    snapshot_repartition_fn: Any | None = None,
-    snapshot_preprocess_fn: Any | None = None,
 ) -> dd.DataFrame:
     """
-    Lazy Dask loader for CSV / Parquet / UC Databricks tables with optional snapshotting.
+    Lazy Dask loader for CSV / Parquet / UC Databricks tables.
     """
     storage_options = dict(storage_options or {})
     fmt_lc = fmt.lower()
     if read_blocksize_mb <= 0:
         raise ValueError("read_blocksize_mb must be positive")
     blocksize = f"{int(read_blocksize_mb)}MB"
-
-    # Snapshot short-circuit: read existing snapshot if requested
-    use_snapshot = snapshot_uri is not None and snapshot_mode in {
-        "read",
-        "read_or_build",
-    }
-    if use_snapshot:
-        snap_opts = snapshot_storage_options or {}
-        if _snapshot_exists(snapshot_uri, snap_opts):
-            _log(
-                f"[snapshot] using existing snapshot at {snapshot_uri} (mode={snapshot_mode})",
-                show_progress,
-            )
-            return dd.read_parquet(
-                snapshot_uri, storage_options=snap_opts, blocksize=blocksize
-            )
-
-        if snapshot_mode == "read":
-            raise FileNotFoundError(
-                f"Snapshot URI {snapshot_uri} not found and snapshot_mode='read'."
-            )
 
     # Read from ORIGINAL source (UC / Parquet / CSV)
     _log(f"[init] fmt={fmt_lc}, uri={uri}", show_progress)
@@ -805,45 +772,6 @@ def load_lazy_dask(
     if debug_head_rows > 0:
         _log_debug_head(ddf, debug_head_rows, show_progress, head_pdf=head_pdf)
 
-    # Snapshot build/refresh if requested
-    build_snapshot = snapshot_uri is not None and snapshot_mode in {
-        "read_or_build",
-        "refresh",
-    }
-    if build_snapshot:
-        snap_opts = snapshot_storage_options or {}
-        _log(
-            f"[snapshot] building snapshot at {snapshot_uri} (mode={snapshot_mode})",
-            show_progress,
-        )
-
-        snapshot_ddf = ddf
-
-        # optional preprocess for snapshot
-        if snapshot_preprocess_fn is not None:
-            snapshot_ddf = snapshot_preprocess_fn(snapshot_ddf)
-
-        # optional repartition for snapshot
-        if snapshot_repartition_fn is not None:
-            snapshot_ddf = snapshot_repartition_fn(snapshot_ddf)
-
-        snapshot_ddf.to_parquet(
-            snapshot_uri,
-            storage_options=snap_opts,
-            engine="pyarrow",
-            write_index=False,
-            overwrite=True,
-        )
-        _log("[snapshot] parquet snapshot write complete", show_progress)
-
-        # reload snapshot as new lazy Dask DataFrame
-        del snapshot_ddf
-        del ddf
-        ddf = dd.read_parquet(
-            snapshot_uri, storage_options=snap_opts, blocksize=blocksize
-        )
-        _log("[snapshot] reloaded snapshot as new lazy Dask DataFrame", show_progress)
-
     return ddf
 
 
@@ -869,7 +797,6 @@ def load_ddf(cfg):
         columns=cfg.input.columns,
         dtype_overrides=cfg.input.dtype_overrides,
         read_blocksize_mb=cfg.output.target_mb_per_part,
-        snapshot_mode="off",
         require_logical_names=cfg.input.require_logical_names,
         debug_rename_map=cfg.logging.level == "debug",
         debug_head_rows=cfg.logging.debug_head_rows
@@ -880,13 +807,9 @@ def load_ddf(cfg):
 
 
 auto_repartition = None
-snapshot_repartition = None
-snapshot_preprocess = None
 
 __all__ = [
     "load_ddf",
     "load_lazy_dask",
     "auto_repartition",
-    "snapshot_repartition",
-    "snapshot_preprocess",
 ]

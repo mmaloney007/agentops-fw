@@ -8,38 +8,31 @@ runtime:
 input:
   source: csv
   csv_path: /Users/maloney/neuralift_data/heuristics_data/marketing-kaggle/marketing-kaggle-dab.csv
-  id_cols: ["ID"]
   dtype_overrides:
     AverageOrderValue: object
     Income: float64
-  snapshot:
-    enabled: false
+ids:
+  columns: ["ID"]
+  auto_detect: true
 
-# feature_functions:
-#   - Partition-wise pandas functions, applied first. Signature: fn(pdf: pd.DataFrame) -> pd.DataFrame.
-#   - Format: "module:function". Runs in order, 0..N entries. Side-effect free; no compute/persist.
-#   - Example: add age/generation from a birth year column:
-#       neuralift_c360_prep.features.birthday:add_age_from_year
-feature_functions:
-  - neuralift_c360_prep.features.birthday:add_birth_month
-  - neuralift_c360_prep.features.map_state_and_region:map_state_and_region
-  - neuralift_c360_prep.features.zip_utils:clean_zip_codes_dask
+functions:
+  - type: callable
+    callable: neuralift_c360_prep.features.birthday:add_birth_month
 
-# kpi_functions:
-#   - Runs AFTER feature_functions, BEFORE preprocessing. Supports multiple ZSML definitions.
-#   - Each entry:
-#       type: zsml
-#       source_col: <col>
-#       out_col: <optional, defaults to <source_col>_tier>
-#       zero_threshold, quantiles, clip_high_quantile, unit, range_style, add_prefix
-kpi_functions: []
+  - type: callable
+    callable: neuralift_c360_prep.features.map_state_and_region:map_state_and_region
+
+  - type: callable
+    callable: neuralift_c360_prep.features.zip_utils:clean_zip_codes_dask
 
 preprocessing:
   rename_to_snake: true
   bool_fix: true
   drop_empty: true
   drop_constant: true
-  missing_fill: auto
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
   zsml:
     enabled: false
     source_col: null

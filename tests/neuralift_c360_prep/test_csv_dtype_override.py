@@ -13,9 +13,9 @@ def test_csv_dtype_overrides(tmp_path, monkeypatch):
         "input": {
             "source": "csv",
             "csv_path": data_path.as_posix(),
-            "id_cols": ["id"],
             "dtype_overrides": {"revenue": "float64"},
         },
+        "ids": {"columns": ["id"]},
         "output": {
             "uc_catalog": "c",
             "uc_schema": "s",

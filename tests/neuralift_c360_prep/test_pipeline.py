@@ -15,7 +15,8 @@ def test_pipeline_local_end_to_end(tmp_path, monkeypatch):
     data_path = Path("tests/fixtures/wine/wine.csv").resolve()
     cfg_data = {
         "runtime": {"engine": "local"},
-        "input": {"source": "csv", "csv_path": data_path.as_posix(), "id_cols": ["id"]},
+        "input": {"source": "csv", "csv_path": data_path.as_posix()},
+        "ids": {"columns": ["id"]},
         "output": {
             "uc_catalog": "c",
             "uc_schema": "s",
@@ -49,8 +50,8 @@ def test_pipeline_delta_path_maps_to_delta(monkeypatch):
             "input": {
                 "source": "delta_path",
                 "delta_path": "s3://bucket/delta/",
-                "id_cols": ["id"],
             },
+            "ids": {"columns": ["id"]},
             "output": {
                 "uc_catalog": "c",
                 "uc_schema": "s",

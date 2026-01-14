@@ -87,7 +87,7 @@ Optional:
 ### Dask behavior highlights
 
 - Supports parquet/csv/delta paths and UC tables (DBSQL fallback for logical column names).
-- `feature_functions` run first (partition-wise), then `kpi_functions`, then preprocessing.
+- Pipeline order: preprocess → functions (KPIs + features) → drop columns → metadata → write.
 - Metadata (creation of data dictionary) timeout defaults to 45m; parquet shards target ~512 MB unless overridden.
 - If `output.s3_base` is omitted, a managed UC volume is created and used.
 

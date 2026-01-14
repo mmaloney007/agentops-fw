@@ -52,6 +52,7 @@ pyyaml = "*"
 timezonefinder = "*"
 tenacity = ">=9.0.0,<10.0.0"
 tabulate = "==0.9.0"
+pytest = ">=9.0.2,<10"
 
 [tool.pixi.pypi-dependencies]     # PyPI wheels
 openai = ">=1.82,<2"
@@ -60,7 +61,7 @@ uszipcode = ">=0.2.6,<1.0"
 pyarrow = ">=21.0.0,<23"
 weave = "==0.51.42"
 python-dotenv = ">=1.0.0,<2"
-neuralift_c360_prep = { path = "." }
+neuralift_c360_prep = { path = ".", editable = true }
 
 [tool.pixi.feature.dev.dependencies]
 pytest = ">=9.0.2,<10"

@@ -1,5 +1,5 @@
 logging:
-  level: debug
+  level: info
   show_progress: true
 
 runtime:
@@ -7,8 +7,6 @@ runtime:
   coiled:
     software_env: neuralift_c360_prep_test
     n_workers: 2
-    # worker_cpu: 4
-    # worker_memory: 16GiB
     worker_vm_types: [m4.xlarge]
     scheduler_vm_types: [c5d.xlarge]
     idle_timeout: 2h
@@ -103,15 +101,14 @@ metadata:
   model: gpt-5-nano
   sample_rows: 5000
   max_concurrency: 75
-  context: "Wine and cheese demo"
+  context: "Wine and cheese UC read / local write demo"
   op_timeout: 45m
 
 output:
   uc_catalog: staging-c360
   uc_schema: kaggle-marketing
-  uc_volume_name: wine_demo
-  uc_table: wine_demo
-  run_name: wine_cheese_test
-  s3_base: local-output
+  uc_table: wine_cheese_uc_local
+  run_name: wine_cheese_uc_read_local_write
+  s3_base: local-output/wine_cheese_uc
   partitions: []
   target_mb_per_part: 512

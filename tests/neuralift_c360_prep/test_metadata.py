@@ -1,4 +1,5 @@
 import math
+import pytest
 import pandas as pd
 import dask.dataframe as dd
 
@@ -21,11 +22,10 @@ def test_metadata_builds():
     cfg = BundleConfig.model_validate(
         {
             "runtime": {"engine": "local"},
-            "input": {"source": "parquet", "parquet_path": "x", "id_cols": ["id"]},
-            "metadata": {
-                "context": "demo",
-                "tags": {"id_cols": ["id"], "kpi_cols": ["revenue"]},
-            },
+            "input": {"source": "parquet", "parquet_path": "x"},
+            "ids": {"columns": ["id"]},
+            "functions": {"identity_kpis": [{"column": "revenue"}]},
+            "metadata": {"context": "demo"},
             "output": {
                 "uc_catalog": "c",
                 "uc_schema": "s",
@@ -40,6 +40,78 @@ def test_metadata_builds():
     assert "id" in meta["columns"]
     assert "kpi" in meta["columns"]["revenue"]["tags"]
     assert build_table_comment(cfg)
+
+
+def test_lift_validation_warns_and_skips():
+    pdf = pd.DataFrame(
+        {"id": [1, 2], "revenue": [1.0, 2.0], "revenue_tier": ["low", "high"]}
+    )
+    ddf = dd.from_pandas(pdf, npartitions=1)
+    cfg = BundleConfig.model_validate(
+        {
+            "runtime": {"engine": "local"},
+            "input": {"source": "parquet", "parquet_path": "x"},
+            "ids": {"columns": ["id"]},
+            "functions": {
+                "kpis": [
+                    {
+                        "type": "zsml",
+                        "source_col": "revenue",
+                        "out_col": "revenue_tier",
+                        "lift": {
+                            "value_sum_column": "missing_col",
+                            "value_sum_unit": "USD",
+                        },
+                    }
+                ]
+            },
+            "metadata": {"context": "demo"},
+            "output": {
+                "uc_catalog": "c",
+                "uc_schema": "s",
+                "uc_table": "t",
+                "s3_base": "s3://b/",
+            },
+        }
+    )
+    meta, _ = build_metadata(ddf, cfg)
+    assert "lift_value_sum_column" not in meta["columns"]["revenue_tier"]
+
+
+def test_lift_validation_strict_raises():
+    pdf = pd.DataFrame(
+        {"id": [1, 2], "revenue": [1.0, 2.0], "revenue_tier": ["low", "high"]}
+    )
+    ddf = dd.from_pandas(pdf, npartitions=1)
+    cfg = BundleConfig.model_validate(
+        {
+            "runtime": {"engine": "local"},
+            "input": {"source": "parquet", "parquet_path": "x"},
+            "ids": {"columns": ["id"]},
+            "functions": {
+                "kpis": [
+                    {
+                        "type": "zsml",
+                        "source_col": "revenue",
+                        "out_col": "revenue_tier",
+                        "lift": {
+                            "value_sum_column": "missing_col",
+                            "value_sum_unit": "USD",
+                        },
+                    }
+                ]
+            },
+            "metadata": {"context": "demo", "lift_strict": True},
+            "output": {
+                "uc_catalog": "c",
+                "uc_schema": "s",
+                "uc_table": "t",
+                "s3_base": "s3://b/",
+            },
+        }
+    )
+    with pytest.raises(ValueError):
+        build_metadata(ddf, cfg)
 
 
 def test_autoencoder_dims_exclude_latent():

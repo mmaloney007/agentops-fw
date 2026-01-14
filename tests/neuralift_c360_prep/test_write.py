@@ -15,7 +15,8 @@ def test_write_outputs_local(tmp_path, monkeypatch):
     cfg = BundleConfig.model_validate(
         {
             "runtime": {"engine": "local"},
-            "input": {"source": "parquet", "parquet_path": "x", "id_cols": ["id"]},
+            "input": {"source": "parquet", "parquet_path": "x"},
+            "ids": {"columns": ["id"]},
             "output": {
                 "uc_catalog": "c",
                 "uc_schema": "s",

@@ -16,26 +16,41 @@ import pandas as pd
 def clean_zip_codes_dask(
     df: pd.DataFrame, zip_column: str = "ZIP_Code"
 ) -> pd.DataFrame:
+    """
+    Add ZIP5 column with standardized 5-digit ZIPs.
+
+    Handles both original column names (ZIP_Code) and snake_case (zip_code)
+    since preprocessing may run before this function.
+    """
     df = df.copy()
-    if zip_column in df.columns:
-        df["ZIP5"] = (
-            df[zip_column]
+    # Try the specified column first, then common snake_case variants
+    zip_col_candidates = [zip_column, zip_column.lower(), "zip_code", "zipcode", "zip"]
+    actual_col = None
+    for candidate in zip_col_candidates:
+        if candidate in df.columns:
+            actual_col = candidate
+            break
+
+    if actual_col is not None:
+        df["zip5"] = (
+            df[actual_col]
             .astype(str)
             .str.extract(r"(\d{1,5})", expand=False)
             .str.zfill(5)
         )
-        valid = df["ZIP5"].str.fullmatch(r"[0-9]{5}").fillna(False)
-        df.loc[~valid | (df["ZIP5"] == "00000"), "ZIP5"] = pd.NA
+        valid = df["zip5"].str.fullmatch(r"[0-9]{5}")
+        valid = valid.astype("boolean").fillna(False)
+        df.loc[~valid | (df["zip5"] == "00000"), "zip5"] = pd.NA
     return df
 
 
 def add_distance_indicators_dask(
     df: pd.DataFrame,
     distance_df: pd.DataFrame,
-    on: str = "ZIP5",
+    on: str = "zip5",
     keep_cols: tuple[str, ...] = (),
 ) -> pd.DataFrame:
-    """Merge precomputed distance metrics by ZIP5; optional column subset."""
+    """Merge precomputed distance metrics by zip5; optional column subset."""
     merged = df.merge(distance_df, on=on, how="left")
     if keep_cols:
         cols = [c for c in keep_cols if c in merged.columns]

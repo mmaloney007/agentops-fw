@@ -8,7 +8,6 @@ Purpose:
     - Report allocator/ENV info for troubleshooting (jemalloc, CONDA_PREFIX, etc.).
     - Estimate bytes per row from a sample to guide partition sizing.
     - Inspect partition counts/skew and suggest or apply repartitioning heuristics.
-    - Placeholder hooks for snapshot repartition/preprocess (NotImplemented here).
 
 Usage:
     from neuralift_c360_prep.utils import (
@@ -201,19 +200,9 @@ def auto_repartition(
     return ddf2
 
 
-def snapshot_repartition(*args, **kwargs):
-    raise NotImplementedError("snapshot_repartition is not implemented in this module.")
-
-
-def snapshot_preprocess(*args, **kwargs):
-    raise NotImplementedError("snapshot_preprocess is not implemented in this module.")
-
-
 __all__ = [
     "report_allocator",
     "estimate_bytes_per_row",
     "diagnose_partitions",
     "auto_repartition",
-    "snapshot_repartition",
-    "snapshot_preprocess",
 ]
