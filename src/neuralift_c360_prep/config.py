@@ -189,7 +189,7 @@ class InputConfig(BaseModel):
     dtype_overrides: Optional[dict[str, str]] = None
     require_logical_names: bool = True
     id_cols: List[str] = Field(default_factory=list)
-# Performance options
+    # Performance options
     use_pyarrow_strings: bool = (
         True  # Use PyArrow-backed strings for ~50% memory reduction
     )
@@ -690,6 +690,7 @@ class LoggingConfig(BaseModel):
     dask_level: Literal["debug", "info", "warning", "error"] = "info"
     llm_level: Literal["debug", "info", "warning", "error"] = "info"
     debug_head_rows: int = 5
+    show_progress: bool = True  # Show progress bars for long-running operations
 
 
 class BundleConfig(BaseModel):

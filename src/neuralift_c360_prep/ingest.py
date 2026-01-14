@@ -477,7 +477,7 @@ def load_lazy_dask(
         raise ValueError("read_blocksize_mb must be positive")
     blocksize = f"{int(read_blocksize_mb)}MB"
 
-# OPTIMIZATION: Enable PyArrow-backed strings for ~50% memory reduction
+    # OPTIMIZATION: Enable PyArrow-backed strings for ~50% memory reduction
     if use_pyarrow_strings:
         try:
             import pyarrow  # noqa: F401
@@ -771,7 +771,7 @@ def load_ddf(cfg):
         id_cols=cfg.input.id_cols,
         columns=cfg.input.columns,
         dtype_overrides=cfg.input.dtype_overrides,
-read_blocksize_mb=getattr(
+        read_blocksize_mb=getattr(
             cfg.input, "read_blocksize_mb", cfg.output.target_mb_per_part
         ),
         require_logical_names=cfg.input.require_logical_names,

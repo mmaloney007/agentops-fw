@@ -316,12 +316,13 @@ def missing_report_and_fill_dask(
     string_modes: dict[str, Any] = {}
     if fill and str_cols_for_mode:
         _log_step(
-            f"[missing/modes] computing string modes for {len(str_cols_for_mode)} columns (batched)...",
-            verbose,
+            f"[missing/modes] computing string modes for {len(str_cols_for_mode)} columns (batched)..."
         )
         # OPTIMIZATION: Batch all value_counts computations into a single dask_compute call
         # This reduces scheduler round-trips from O(n) to O(1)
-        mode_tasks = [ddf[col].dropna().value_counts().head(1) for col in str_cols_for_mode]
+        mode_tasks = [
+            ddf[col].dropna().value_counts().head(1) for col in str_cols_for_mode
+        ]
         mode_results = dask_compute(*mode_tasks)
 
         for col, vc in zip(str_cols_for_mode, mode_results):
@@ -329,7 +330,9 @@ def missing_report_and_fill_dask(
                 string_modes[col] = vc.index[0]
             else:
                 string_modes[col] = fill_strings_const
-        _log_step(f"[missing/modes] computed modes for {len(str_cols_for_mode)} columns")
+        _log_step(
+            f"[missing/modes] computed modes for {len(str_cols_for_mode)} columns"
+        )
 
     suggestions: list[dict[str, Any]] = []
     fill_map: dict[str, Any] = {}
@@ -412,7 +415,7 @@ def missing_report_and_fill_dask(
             )
         fill_df = pd.DataFrame(fill_rows).sort_values("null_count", ascending=False)
         if verbose:
-            _log_step("[missing] fill summary:", verbose)
+            _log_step("[missing] fill summary:")
             with pd.option_context("display.max_colwidth", None, "display.width", 200):
                 print(fill_df.to_markdown(index=False))
         else:
@@ -1018,7 +1021,7 @@ def preprocess(ddf, cfg):
     Apply core preprocessing only (rename, bool-fix, fill, drop empty/constant).
     Functions and drop-columns are applied in the pipeline stage.
     """
-verbose = getattr(cfg.logging, "level", "info") == "debug"
+    verbose = getattr(cfg.logging, "level", "info") == "debug"
     debug = verbose  # alias for compatibility
     pre_cfg = getattr(cfg, "preprocessing", None) or getattr(cfg, "cleaning", None)
 
@@ -1036,7 +1039,7 @@ verbose = getattr(cfg.logging, "level", "info") == "debug"
     fill_continuous: str | int | float = "median"
     fill_overrides: dict = {}
 
-if fill_explicit and fill_cfg is not None:
+    if fill_explicit and fill_cfg is not None:
         fill_categorical = getattr(fill_cfg, "categorical", "Unknown") or "Unknown"
         fill_continuous = getattr(fill_cfg, "continuous", "median") or "median"
         fill_overrides = dict(getattr(fill_cfg, "overrides", {}) or {})

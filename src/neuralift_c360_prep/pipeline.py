@@ -24,6 +24,7 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import yaml
@@ -46,7 +47,12 @@ from .write import (
     create_managed_uc_volume_via_sql,
     tag_uc_volume_via_sql,
 )
-from .metadata import build_metadata, build_minimal_config, resolve_output_table_name
+from .metadata import (
+    build_metadata,
+    build_pretty_config_from_data_dict,
+    render_config_yaml_with_comments,
+    resolve_output_table_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +68,14 @@ def _configure_third_party_logging(*, debug_mode: bool) -> None:
     logging.getLogger("distributed.shuffle._scheduler_plugin").setLevel(logging.ERROR)
     logging.getLogger("distributed.scheduler").setLevel(logging.ERROR)
     os.environ.setdefault("RUST_LOG", "deltalake=error,delta_kernel=error")
+
+
+def _resolve_wandb_project(cfg: BundleConfig, fallback: str) -> str | None:
+    """Resolve W&B project name from config or use fallback."""
+    meta_cfg = getattr(cfg, "metadata", None)
+    if meta_cfg and getattr(meta_cfg, "use_wandb", False):
+        return getattr(meta_cfg, "wandb_project", None) or fallback
+    return fallback
 
 
 def _build_dbsql_conn_params(*, require: bool) -> dict | None:
@@ -123,7 +137,7 @@ def run_from_config(cfg: BundleConfig) -> str:
     """
     Execute the pipeline and return the output base URI.
     """
-# Re-setup logging in case run_from_config() is called directly (e.g., from tests)
+    # Re-setup logging in case run_from_config() is called directly (e.g., from tests)
     # This is idempotent, so it's safe even if cli.py already called it
     setup_logging(
         cfg.logging.level,
@@ -242,7 +256,7 @@ def run_from_config(cfg: BundleConfig) -> str:
         table_name = resolve_output_table_name(cfg)
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
-meta_json = json.loads(meta_text)
+        meta_json = json.loads(meta_text)
 
         # Run Data Doctor analysis (if enabled)
         data_doctor_report = None
@@ -272,12 +286,7 @@ meta_json = json.loads(meta_text)
             wandb_project=wandb_project,
             max_card_for_cat=cfg.metadata.tags.max_card,
         )
-        pretty_config_text = render_config_yaml_with_comments(
-            pretty_config,
-            sort_keys=False,
-            default_flow_style=False,
-            allow_unicode=False,
-        )
+        pretty_config_text = render_config_yaml_with_comments(pretty_config)
 
         base_uri = cfg.output.s3_base
         volume_tags = None

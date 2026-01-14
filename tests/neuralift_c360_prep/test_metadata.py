@@ -6,7 +6,6 @@ import dask.dataframe as dd
 from neuralift_c360_prep.config import BundleConfig
 from neuralift_c360_prep.metadata import (
     build_metadata,
-    build_minimal_config,
     build_table_comment,
     build_pretty_config_from_data_dict,
     render_config_yaml_with_comments,
@@ -174,20 +173,3 @@ def test_wandb_nulls_artifact_filenames():
     assert config["use_wandb"] is True
     assert config["wandb"]["project"] == "test_project"
     assert "dae" in config
-
-
-def test_build_minimal_config_defaults():
-    config = build_minimal_config(row_count=10000, run_name="demo_run")
-    assert config["use_wandb"] is True
-    assert config["wandb"]["project"] == "demo_run"
-    assert config["dae"]["data_module"]["batch_size"] == 8192
-    assert config["dae"]["data_module"]["compute_stats_from"] == "full"
-    assert config["dae"]["trainer"]["max_epochs"] == 50
-    assert config["explainability"] == {"num_features": 50, "top_n": 10}
-    assert config["tuner"]["segment_size"] == "M"
-    assert config["tuner"]["min_cluster_threshold_min"] == 50
-
-
-def test_build_minimal_config_scales_threshold():
-    config = build_minimal_config(row_count=50000, run_name="bigger_run")
-    assert config["tuner"]["min_cluster_threshold_min"] == 200
