@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T5 Patch Response",
+  "description": "Schema for SWE-bench style patch responses",
+  "type": "object",
+  "properties": {
+    "thinking": {
+      "type": "string",
+      "description": "Analysis of the issue and approach to fix"
+    },
+    "patch": {
+      "type": "string",
+      "description": "Unified diff patch to resolve the issue"
+    },
+    "files_modified": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of files modified by the patch"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Confidence level in the fix"
+    }
+  },
+  "required": ["patch"],
+  "additionalProperties": false
+}

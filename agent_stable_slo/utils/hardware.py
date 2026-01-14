@@ -1,4 +1,6 @@
-import os, platform, json
+import os
+import platform
+import json
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any
 

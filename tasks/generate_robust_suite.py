@@ -7,7 +7,9 @@ academic and industry settings. Outputs JSONL with fields:
 Schemas live under tasks/schemas/*.json. You can re-run this script any time to
 refresh the suite deterministically.
 """
-import json, random, pathlib
+import json
+import random
+import pathlib
 random.seed(42)
 ROOT = pathlib.Path(__file__).parent
 SCHEMAS = {

@@ -8,7 +8,7 @@ import argparse
 import json
 import random
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 
 def load_jsonl(path: Path) -> List[dict]:

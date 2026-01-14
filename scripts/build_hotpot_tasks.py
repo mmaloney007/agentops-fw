@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Build a tasks JSONL from HotpotQA (distractor) for grounded QA + reasoning summary."""
-import argparse, json, random
+import argparse
+import json
+import random
 from pathlib import Path
 from datasets import load_dataset
 

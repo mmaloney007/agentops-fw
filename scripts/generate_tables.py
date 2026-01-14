@@ -17,7 +17,9 @@ Notes:
 - "run" = training output dir (passed via --out), containing train_log.jsonl/eval.jsonl and checkpoints/.
 - If --sweep-checkpoints is set, we evaluate all checkpoints under run_dir/checkpoints on the provided tasks.
 """
-import argparse, os, json
+import argparse
+import os
+import json
 from pathlib import Path
 from typing import List
 
@@ -25,7 +27,6 @@ import pandas as pd
 
 from scripts.summarize_logs import summarize_file
 from scripts.eval_checkpoints import eval_checkpoint, _load_tasks
-from agent_stable_slo.utils.repro import env_snapshot, atomic_write_json
 from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
 
 

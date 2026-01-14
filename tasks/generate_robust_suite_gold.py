@@ -4,7 +4,9 @@ Generate a gold-labeled robust evaluation suite (~500 tasks) with schemas and
 answer keys for accuracy/faithfulness/citation scoring.
 Outputs: tasks/robust_eval_gold.jsonl
 """
-import json, random, pathlib
+import json
+import random
+import pathlib
 random.seed(123)
 ROOT = pathlib.Path(__file__).parent
 SCHEMAS = {
@@ -27,7 +29,7 @@ def mk_summary(id_suffix: int, title: str, bullets: list[str], sources: list[str
         txt = bullets[idx % len(bullets)] if bullets else f"Fact {idx}"
         src_lines.append(f"[{s}]: {txt}")
     prompt = (
-        f"Sources:\n" + "\n".join(src_lines) + "\n"
+        "Sources:\n" + "\n".join(src_lines) + "\n"
         f"Write a title and 3-6 bullets summarizing: {title}. Cite sources using [id] tokens."
     )
     return {

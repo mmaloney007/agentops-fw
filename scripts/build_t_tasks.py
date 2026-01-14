@@ -10,7 +10,9 @@ network access. Each record includes a task_type key for scoring.
 """
 from __future__ import annotations
 
-import argparse, json, random
+import argparse
+import json
+import random
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

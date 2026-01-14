@@ -1,6 +1,11 @@
 
-import os, glob, json, ast
-import numpy as np, pandas as pd, matplotlib.pyplot as plt
+import os
+import glob
+import json
+import ast
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 P1="papers/P1_stable_slo/arxiv/figs"; P2="papers/P2_reward_stability/arxiv/figs"
 os.makedirs(P1, exist_ok=True); os.makedirs(P2, exist_ok=True)
 def save(p): plt.tight_layout(); plt.savefig(p, dpi=200, bbox_inches="tight"); plt.close()
@@ -29,7 +34,7 @@ def qps_vs_p95():
 def success_at_slo():
     path="out/aggregate/slo_curves.csv"
     if not os.path.exists(path): return
-    df=pd.read_csv(path); 
+    df=pd.read_csv(path) 
     if df.empty: return
     plt.figure()
     for name,g in df.groupby("source"):
@@ -40,7 +45,7 @@ def success_at_slo():
 def pareto():
     path="out/aggregate/p2_sweeps_eval.csv"
     if not os.path.exists(path): return
-    df=pd.read_csv(path); 
+    df=pd.read_csv(path) 
     if df.empty: return
     plt.figure(); plt.scatter(df["p95_ms"], df["json_valid_pct"])
     plt.xlabel("p95 latency (ms)"); plt.ylabel("success (%)")

@@ -3,7 +3,9 @@
 Package a run directory into a checksum manifest (and optional tar.gz archive).
 Optionally logs to W&B if WANDB_PROJECT is set.
 """
-import argparse, hashlib, os, tarfile
+import argparse
+import hashlib
+import tarfile
 from pathlib import Path
 from typing import Dict, Any, List
 

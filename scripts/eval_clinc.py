@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Evaluate CLINC predictions vs gold JSONL; compute macro F1 over intent and accuracy for is_oos."""
-import argparse, json
+import argparse
+import json
 from pathlib import Path
-from collections import defaultdict
 
 
 def macro_f1(y_true, y_pred):
     labels = sorted(set(y_true) | set(y_pred))
     f1s = []
-    for l in labels:
-        tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == l and yp == l)
-        fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt != l and yp == l)
-        fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == l and yp != l)
+    for label in labels:
+        tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == label and yp == label)
+        fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt != label and yp == label)
+        fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == label and yp != label)
         prec = tp / (tp + fp + 1e-9)
         rec = tp / (tp + fn + 1e-9)
         f1 = 2 * prec * rec / (prec + rec + 1e-9)

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T4 Function Call Response",
+  "description": "Schema for BFCL-style function calling responses",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the function to call"
+    },
+    "arguments": {
+      "type": "object",
+      "description": "Arguments to pass to the function",
+      "additionalProperties": true
+    }
+  },
+  "required": ["name", "arguments"],
+  "additionalProperties": false
+}

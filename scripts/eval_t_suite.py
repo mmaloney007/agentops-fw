@@ -10,7 +10,10 @@ Set AOFW_PROVIDER/LMSTUDIO_MODEL/OLLAMA_MODEL/VLLM_MODEL env vars as needed.
 """
 from __future__ import annotations
 
-import argparse, json, os, statistics, time
+import argparse
+import json
+import os
+import statistics
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -111,6 +114,73 @@ def _score_t3(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     return metrics
 
 
+def _score_t4(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float]:
+    """Score T4 BFCL function calling tasks.
+
+    BFCL gold format: {func_name: {param: [possible_values], ...}}
+    Output format: {name: func_name, arguments: {param: value, ...}}
+    """
+    metrics: Dict[str, float] = {}
+    if not gold:
+        return metrics
+
+    pred_name = out_json.get("name", "")
+    pred_args = out_json.get("arguments", {}) if isinstance(out_json.get("arguments"), dict) else {}
+
+    # BFCL gold is {func_name: {param: [possible_values]}}
+    # Check if predicted function name matches any gold function
+    gold_funcs = list(gold.keys())
+    name_match = pred_name in gold_funcs
+    metrics["t4_func_match"] = 1.0 if name_match else 0.0
+
+    if name_match and pred_name in gold:
+        gold_args = gold[pred_name]
+        if gold_args:
+            # For each gold param, check if pred value is in possible values
+            arg_matches = 0
+            for param, possible_vals in gold_args.items():
+                pred_val = pred_args.get(param)
+                # possible_vals is a list of acceptable values
+                if isinstance(possible_vals, list):
+                    if any(_norm(pred_val) == _norm(v) for v in possible_vals):
+                        arg_matches += 1
+                    elif pred_val in possible_vals:
+                        arg_matches += 1
+                elif _norm(pred_val) == _norm(possible_vals):
+                    arg_matches += 1
+            metrics["t4_args_acc"] = arg_matches / len(gold_args) if gold_args else 1.0
+        else:
+            metrics["t4_args_acc"] = 1.0
+    else:
+        metrics["t4_args_acc"] = 0.0
+
+    metrics["t4_success"] = 1.0 if name_match and metrics.get("t4_args_acc", 0) >= 0.99 else 0.0
+    return metrics
+
+
+def _score_t5(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float]:
+    """Score T5 SWE-bench tasks (patch generation)."""
+    metrics: Dict[str, float] = {}
+    if not gold:
+        return metrics
+    # For SWE-bench, we check if a patch was generated (basic validity)
+    # Full evaluation requires running tests, which is out of scope for quick eval
+    patch = out_json.get("patch", "")
+    metrics["t5_has_patch"] = 1.0 if patch and len(patch.strip()) > 10 else 0.0
+    # Check if patch looks like a diff
+    is_diff = "diff" in patch.lower() or "@@" in patch or patch.startswith("---")
+    metrics["t5_valid_diff"] = 1.0 if is_diff else 0.0
+    # Token overlap with gold patch (rough similarity)
+    gold_patch = gold.get("patch", "")
+    if gold_patch:
+        pred_tokens = _token_set(patch)
+        gold_tokens = _token_set(gold_patch)
+        metrics["t5_patch_f1"] = _f1_sets(pred_tokens, gold_tokens)
+    else:
+        metrics["t5_patch_f1"] = 0.0
+    return metrics
+
+
 def _score_record(task: Dict[str, Any], out_json: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, float]:
     metrics: Dict[str, float] = {}
     metrics["json_valid"] = 1.0 if _validate_json(out_json, schema) else 0.0
@@ -122,6 +192,10 @@ def _score_record(task: Dict[str, Any], out_json: Dict[str, Any], schema: Dict[s
         metrics.update(_score_t2(out_json, gold))
     elif ttype == "t3":
         metrics.update(_score_t3(out_json, gold))
+    elif ttype == "t4":
+        metrics.update(_score_t4(out_json, gold))
+    elif ttype == "t5":
+        metrics.update(_score_t5(out_json, gold))
     return metrics
 
 

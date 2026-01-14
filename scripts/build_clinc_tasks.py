@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Build tasks JSONL from CLINC OOS (subset plus) for intent classification and oos flag."""
-import argparse, json, random
+import argparse
+import json
+import random
 from pathlib import Path
 from datasets import load_dataset
 

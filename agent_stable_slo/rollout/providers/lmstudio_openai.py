@@ -1,5 +1,8 @@
 
-import os, json, time, re
+import os
+import json
+import time
+import re
 from typing import Optional, Tuple
 from openai import OpenAI
 
@@ -199,8 +202,9 @@ def generate_raw(
         if isinstance(j.get("citations"), list):
             norm = []
             for c in j["citations"]:
-                c=str(c).strip()
-                if not c.startswith("["): c=f"[{c}]"
+                c = str(c).strip()
+                if not c.startswith("["):
+                    c = f"[{c}]"
                 norm.append(c)
             j["citations"] = norm
         # If bullets exist but lack citations, append the first source id if available

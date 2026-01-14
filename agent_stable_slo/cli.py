@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
 
 from agent_stable_slo.eval.p1_eval_harness import run_eval
 

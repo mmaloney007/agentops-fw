@@ -1,19 +1,27 @@
-import json, os, csv, random, time
-from typing import Dict, Any, List, Tuple, Callable, Optional
+import json
+import os
+import csv
+import random
+import time
+from typing import Dict, Any, List, Tuple, Callable
 from .validators import validate_json
 
 # --- Simple plugin registry ---
 _PLUGINS = {}
+
+
 def plugin(name: str):
     def wrap(fn: Callable):
         _PLUGINS[name] = fn
         return fn
     return wrap
 
+
 def get_plugin(name: str) -> Callable:
     if name not in _PLUGINS:
         raise ValueError(f"Unknown mode '{name}'. Available: {list(_PLUGINS)}")
     return _PLUGINS[name]
+
 
 # --- Stub LLM (replace with your vLLM call) ---
 class StubLLM:
@@ -31,12 +39,18 @@ class StubLLM:
             out = {}
             for k, v in schema.get("properties", {}).items():
                 t = v.get("type")
-                if t == "string": out[k] = "example"
-                elif t == "integer": out[k] = 1
-                elif t == "number": out[k] = 1.0
-                elif t == "array": out[k] = ["item1", "item2"]
-                elif t == "object": out[k] = {"key": "value"}
-                else: out[k] = None
+                if t == "string":
+                    out[k] = "example"
+                elif t == "integer":
+                    out[k] = 1
+                elif t == "number":
+                    out[k] = 1.0
+                elif t == "array":
+                    out[k] = ["item1", "item2"]
+                elif t == "object":
+                    out[k] = {"key": "value"}
+                else:
+                    out[k] = None
 
         # inject a validation error occasionally in post-hoc mode
         if not constrained:
@@ -48,16 +62,19 @@ class StubLLM:
                     out["extra"] = "oops"
         return out
 
+
 # --- W&B helper ---
 def maybe_log_wandb(rows: List[Dict[str, Any]], project: str, table_name: str):
     try:
-        import wandb, pandas as pd
+        import wandb
+        import pandas as pd
         wandb.init(project=project, reinit=True)
         df = pd.DataFrame(rows)
         wandb.log({table_name: wandb.Table(dataframe=df)})
         wandb.finish()
     except Exception as e:
         print(f"[info] W&B not available or failed to log: {e}")
+
 
 # --- Modes ---
 @plugin("posthoc")
@@ -68,6 +85,7 @@ def run_posthoc(llm: StubLLM, prompt: str, schema: Dict[str, Any]) -> Tuple[Dict
     latency_ms = (time.time() - t0) * 1000.0
     return pred, ok, err, latency_ms
 
+
 @plugin("constrained")
 def run_constrained(llm: StubLLM, prompt: str, schema: Dict[str, Any]) -> Tuple[Dict[str, Any], bool, str, float]:
     t0 = time.time()
@@ -75,6 +93,7 @@ def run_constrained(llm: StubLLM, prompt: str, schema: Dict[str, Any]) -> Tuple[
     ok, err = validate_json(pred, schema)
     latency_ms = (time.time() - t0) * 1000.0
     return pred, ok, err, latency_ms
+
 
 @plugin("contracts")
 def run_contracts(llm: StubLLM, prompt: str, schema: Dict[str, Any]) -> Tuple[Dict[str, Any], bool, str, float]:
@@ -87,19 +106,22 @@ def run_contracts(llm: StubLLM, prompt: str, schema: Dict[str, Any]) -> Tuple[Di
     latency_ms = (time.time() - t0) * 1000.0
     return pred, ok, err, latency_ms
 
+
 @plugin("budgeted")
 def run_budgeted(llm: StubLLM, prompt: str, schema: Dict[str, Any], budget: int = 3, early_exit: bool = True) -> Tuple[Dict[str, Any], bool, str, float]:
     # Sample budgeted self-consistency (toy): try a few post-hoc samples; repair with constrained
     for i in range(budget):
         pred = llm.generate(prompt, schema, constrained=False)
         ok, _ = validate_json(pred, schema)
-        if early_exit and ok: break
+        if early_exit and ok:
+            break
     # final "repair"
     t0 = time.time()
     final = llm.generate(prompt, schema, constrained=True)
     ok, err = validate_json(final, schema)
     latency_ms = (time.time() - t0) * 1000.0
     return final, ok, err, latency_ms
+
 
 def run_tasks(taskfile: str, mode: str, out: str, project: str = "agentops-fw"):
     with open(taskfile, "r", encoding="utf-8") as f:

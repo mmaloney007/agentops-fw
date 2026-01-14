@@ -10,7 +10,8 @@ Usage examples:
 
 Here, "run" means a directory produced by the trainer (e.g., --out out/my_run) containing train_log.jsonl or eval.jsonl.
 """
-import argparse, json, math
+import argparse
+import json
 from pathlib import Path
 from typing import List, Dict
 

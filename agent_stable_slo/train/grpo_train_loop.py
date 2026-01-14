@@ -38,7 +38,7 @@ from agent_stable_slo.utils.config import (
     validate_or_raise,
 )
 from agent_stable_slo.utils.data import cache_dataset, fingerprint_tasks, validate_fingerprint
-from agent_stable_slo.utils.dist import barrier, destroy_distributed, init_distributed, rank_world, seed_with_rank
+from agent_stable_slo.utils.dist import destroy_distributed, init_distributed, rank_world, seed_with_rank
 from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
 from agent_stable_slo.utils.repro import atomic_write_json, env_snapshot, set_seed
 
@@ -515,7 +515,7 @@ def train_loop(cfg: GRPOTrainConfig):
                             temperature=cfg.judge_temperature,
                         )
                         faithfulness_score = faith_result.faithfulness
-                    except Exception as e:
+                    except Exception:
                         # Log error but continue with default score
                         faithfulness_score = 0.5  # Neutral on error
 

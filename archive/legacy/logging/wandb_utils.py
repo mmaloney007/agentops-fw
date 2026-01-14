@@ -1,5 +1,6 @@
 
-import os, contextlib
+import os
+import contextlib
 def _active(): return bool(os.getenv("WANDB_PROJECT"))
 @contextlib.contextmanager
 def maybe_run(name: str, config: dict | None = None):
@@ -19,7 +20,8 @@ def log(run, metrics: dict, step: int | None = None):
 def log_artifact(run, path: str, name: str, type_: str = "dataset"):
     if run is None: return
     try:
-        import wandb, os
+        import wandb
+        import os
         if not os.path.exists(path): return
         art = wandb.Artifact(name=name, type=type_); art.add_file(path, name=os.path.basename(path))
         run.log_artifact(art)
