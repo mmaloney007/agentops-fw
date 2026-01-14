@@ -1,3 +1,14 @@
+# =============================================================================
+# MEDIA SMALL - Coiled Cloud Config (54K rows)
+# =============================================================================
+# Input:  Unity Catalog table (staging-media-source.default.media_54)
+# Output: Unity Catalog (staging-c360.media.media_dask_test_54k)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  ZSML KPI tiering on Total_Spent with lift metadata. Small dataset
+#         for quick validation of media streaming use case.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true

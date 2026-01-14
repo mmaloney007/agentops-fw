@@ -1,3 +1,14 @@
+# =============================================================================
+# MARKETING KAGGLE - Local CSV Config
+# =============================================================================
+# Input:  Local CSV file (marketing-kaggle-dab.csv)
+# Output: S3 bucket (dummy-bucket/marketing-kaggle-local/)
+# Engine: Local (no cluster)
+#
+# Tests:  Callable functions only - birthday, state/region mapping, zip utils.
+#         Tests CSV ingestion with dtype overrides.
+# =============================================================================
+
 logging:
   level: info
   show_progress: true

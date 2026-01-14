@@ -1,3 +1,14 @@
+# =============================================================================
+# WINE AND CHEESE - Coiled Cloud Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-c360.kaggle-marketing.wine_cheese_*)
+# Output: Unity Catalog (staging-c360.kaggle-marketing.wine_demo)
+# Engine: Coiled (2 workers, m4.xlarge)
+#
+# Tests:  Full function suite with KPIs and lift metadata. Primary test config
+#         for validating the unified functions format with real cloud data.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true

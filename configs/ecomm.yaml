@@ -1,3 +1,14 @@
+# =============================================================================
+# ECOMM - Coiled Cloud Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-ecomm.default.*)
+# Output: Unity Catalog (staging-c360.ecomm.*)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
+#         generation for e-commerce transaction data.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true

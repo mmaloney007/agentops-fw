@@ -1,3 +1,14 @@
+# =============================================================================
+# ECOMM LOYALTY - Coiled Cloud Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-ecomm-loyalty.default.*)
+# Output: Unity Catalog (staging-c360.ecomm-loyalty.*)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
+#         generation for loyalty program data with rewards/points tracking.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true
