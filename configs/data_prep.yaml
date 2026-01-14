@@ -1,3 +1,15 @@
+# =============================================================================
+# DATA PREP - Local Development Config
+# =============================================================================
+# Input:  Local parquet file (wine_cheese.parquet)
+# Output: local-output/
+# Engine: Local (no cluster)
+#
+# Tests:  Full function suite - all 12 function types including zsml, identity,
+#         binning, winsorize, log_transform, date_parts, categorical_bucket,
+#         ratio, string_normalize, frequency_encode, days_since, callable.
+# =============================================================================
+
 logging:
   level: info
   show_progress: true

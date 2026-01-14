@@ -1,3 +1,14 @@
+# =============================================================================
+# MEDIA TESTING MILS - Coiled Cloud Config (Millions of rows)
+# =============================================================================
+# Input:  Unity Catalog table (staging-media-source.default.media_*)
+# Output: Unity Catalog (staging-c360.media.*)
+# Engine: Coiled (8 workers, m5.2xlarge)
+#
+# Tests:  ZSML KPI tiering at scale. Tests partition handling and distributed
+#         computation with large media streaming datasets.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true

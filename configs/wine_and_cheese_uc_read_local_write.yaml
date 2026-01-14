@@ -1,3 +1,14 @@
+# =============================================================================
+# WINE AND CHEESE UC READ LOCAL WRITE - Hybrid Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-c360.kaggle-marketing.wine_cheese_*)
+# Output: local-output/ (local filesystem)
+# Engine: Coiled (2 workers)
+#
+# Tests:  UC read → local write workflow. Full function suite with KPIs.
+#         Tests hybrid cloud/local output pattern for debugging UC data.
+# =============================================================================
+
 logging:
   level: info
   show_progress: true

@@ -1,3 +1,14 @@
+# =============================================================================
+# MEDIA DEMO SCALE - Coiled Cloud Config (Demo)
+# =============================================================================
+# Input:  Unity Catalog table (staging-media-source.default.*)
+# Output: Unity Catalog (staging-c360.media.*)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  ZSML KPI tiering for demo purposes. Configured for customer demos
+#         with pre-processed snake_case column names.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true

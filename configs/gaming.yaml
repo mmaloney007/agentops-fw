@@ -1,3 +1,14 @@
+# =============================================================================
+# GAMING - Coiled Cloud Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-gaming.default.*)
+# Output: Unity Catalog (staging-c360.gaming.*)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
+#         generation for gaming/player engagement data.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true

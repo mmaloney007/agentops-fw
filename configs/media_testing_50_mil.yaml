@@ -1,3 +1,14 @@
+# =============================================================================
+# MEDIA TESTING 50 MIL - Coiled Cloud Config (50M rows)
+# =============================================================================
+# Input:  Unity Catalog table (staging-media-source.default.*)
+# Output: Unity Catalog (staging-c360.media.*)
+# Engine: Coiled (5 workers, i7i.8xlarge - high I/O)
+#
+# Tests:  Large scale testing at 50 million rows. Uses high-performance
+#         instances optimized for parallelizable I/O workloads.
+# =============================================================================
+
 logging:
   level: info
 
@@ -7,7 +18,7 @@ runtime:
     software_env: neuralift_c360_prep_test
     n_workers: 5
     worker_vm_types:
-      - i7i.8xlarge # scale out; good if you can parallelize well
+      - i7i.8xlarge  # scale out; good if you can parallelize well
     scheduler_vm_types:
       - i7i.8xlarge
     idle_timeout: 2h

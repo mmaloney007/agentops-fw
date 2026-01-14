@@ -1,3 +1,14 @@
+# =============================================================================
+# MEDIA TESTING 5 MIL - Coiled Cloud Config (5M rows)
+# =============================================================================
+# Input:  Unity Catalog table (staging-media-source.default.*)
+# Output: Unity Catalog (staging-c360.media.*)
+# Engine: Coiled (4 workers, i3.2xlarge - storage optimized)
+#
+# Tests:  Scale testing at 5 million rows. Uses storage-optimized instances
+#         for I/O heavy workloads with large media datasets.
+# =============================================================================
+
 logging:
   level: info
 

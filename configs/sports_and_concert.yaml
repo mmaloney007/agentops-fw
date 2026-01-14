@@ -1,3 +1,14 @@
+# =============================================================================
+# SPORTS AND CONCERT - Coiled Cloud Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-sports-and-concerts.default.*)
+# Output: Unity Catalog (staging-c360.sports-and-concerts.*)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
+#         generation for ticketing/events data without transformations.
+# =============================================================================
+
 logging:
   level: debug
   show_progress: true
