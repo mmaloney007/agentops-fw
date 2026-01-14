@@ -27,9 +27,11 @@ pip install -r requirements.txt -r requirements-dev.txt
 pytest -q
 
 # Generate results (and log to W&B if configured)
-python -m agentops_fw.cli --tasks tasks/pilot.json --mode posthoc --out results/posthoc.csv --project agentops-fw
-python -m agentops_fw.cli --tasks tasks/pilot.json --mode constrained --out results/constrained.csv --project agentops-fw
+python -m agentops_fw.cli --tasks tasks/pilot.json --mode posthoc --out out/posthoc.csv --project agentops-fw
+python -m agentops_fw.cli --tasks tasks/pilot.json --mode constrained --out out/constrained.csv --project agentops-fw
 ```
+
+Dependencies and environment notes live in `docs/requirements.md`.
 
 ## GRPO/LoRA training presets (4090 + Mac)
 Preset script: `scripts/run_grpo_presets.sh` (defaults timestamp outputs and uses W&B if configured).
@@ -74,10 +76,13 @@ python scripts/wandb_bootstrap.py
 ```
 
 ## GitHub CI
-This repo includes GitHub Actions (Python 3.11) to lint (ruff/black) and run tests (pytest).
+This repo includes GitHub Actions (Python 3.12) to lint (ruff/black) and run tests (pytest).
 
 ## Paper
-See `paper/paper.md` (JOSS).
+See `papers/P1_stable_slo/arxiv/main.tex` and `papers/P2_reward_stability/arxiv/main.tex`.
+
+## Archive
+Legacy drafts and older results live under `archive/`.
 
 ## License
 MIT. See `LICENSE`.

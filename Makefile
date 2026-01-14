@@ -13,4 +13,4 @@ format:
 	black .
 
 run-pilot:
-	python -m agentops_fw.cli --tasks tasks/pilot.json --mode constrained --out results/constrained.csv --project agentops-fw
+	python -m agentops_fw.cli --tasks tasks/pilot.json --mode constrained --out out/constrained.csv --project agentops-fw
