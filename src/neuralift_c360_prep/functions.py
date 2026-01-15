@@ -617,7 +617,9 @@ def _apply_categorical_bucket(
     out_col = feat.out_col or f"{source_col}_bucket"
     out_col = _to_snake(out_col)
 
-    series = ddf[source_col].astype("object")  # object dtype serializes cleanly in distributed
+    series = ddf[source_col].astype(
+        "object"
+    )  # object dtype serializes cleanly in distributed
     counts = series.value_counts().compute()
     keep = None
     if feat.top_k:
@@ -687,7 +689,9 @@ def _apply_frequency_encode(
     out_col = feat.out_col or f"{source_col}_freq"
     out_col = _to_snake(out_col)
 
-    series = ddf[source_col].astype("object")  # object dtype serializes cleanly in distributed
+    series = ddf[source_col].astype(
+        "object"
+    )  # object dtype serializes cleanly in distributed
     counts = series.value_counts(dropna=True).compute()
     total = int(ddf.map_partitions(len).sum().compute())
     if feat.normalize and total:
