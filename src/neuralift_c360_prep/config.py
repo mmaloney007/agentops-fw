@@ -428,7 +428,13 @@ class FunctionConfig(BaseModel):
             data["log_on_nonpositive"] = data.pop("on_nonpositive")
         if "parts" in data and "date_parts" not in data:
             data["date_parts"] = data.pop("parts")
-        if "unit" in data and "timestamp_unit" not in data:
+        # Only map unit -> timestamp_unit for date_parts functions
+        # (zsml uses `unit` for currency formatting like "$")
+        if (
+            "unit" in data
+            and "timestamp_unit" not in data
+            and data.get("type") == "date_parts"
+        ):
             data["timestamp_unit"] = data.pop("unit")
         if "tz" in data and "timezone" not in data:
             data["timezone"] = data.pop("tz")

@@ -123,6 +123,6 @@ output:
   uc_volume_name: wine_demo
   uc_table: wine_demo
   run_name: wine_cheese_test
-  s3_base: local-output
+  # s3_base: local-output
   partitions: []
   target_mb_per_part: 512
