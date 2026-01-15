@@ -495,7 +495,8 @@ def write_ddf_and_yaml_to_s3(
             logger.info(f"[s3] finished task {i}/{n_parts}")
         logger.info(f"[s3] Parquet write complete in {time.time() - t0:.2f}s.")
 
-    extra_files = ["config.yaml"]
+    extra_files = []
+    # extra_files.append("config.yaml")  # disabled for now
     if bundle_config_yaml_text is not None:
         extra_files.append("bundleconfig.yaml")
     extra_files.append("data_dictionary.json")
@@ -505,7 +506,7 @@ def write_ddf_and_yaml_to_s3(
     t1 = time.time()
 
     for fname, content in (
-        ("config.yaml", config_yaml_text),
+        # ("config.yaml", config_yaml_text),  # disabled for now
         ("bundleconfig.yaml", bundle_config_yaml_text),
         ("data_dictionary.json", meta_json_text),
         ("suggestions.yaml", suggestions_yaml_text),

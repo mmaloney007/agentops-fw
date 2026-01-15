@@ -1089,8 +1089,7 @@ def drop_configured_columns(
     if to_drop:
         ddf = ddf.drop(columns=sorted(set(to_drop)))
         _log_step(
-            f"[drop] drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}",
-            verbose,
+            f"[drop] drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}"
         )
     return ddf
 
