@@ -15,7 +15,7 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep
+    software_env: neuralift_c360_prep_pr-5
     n_workers: 6
     worker_vm_types:
       - i3.2xlarge #- i3.2xlarge
