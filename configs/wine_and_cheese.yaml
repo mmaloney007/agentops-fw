@@ -10,7 +10,7 @@
 # =============================================================================
 
 logging:
-  level: debug
+  level: info
   show_progress: true
 
 runtime:

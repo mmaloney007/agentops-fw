@@ -747,6 +747,18 @@ def load_lazy_dask(
     if debug_head_rows > 0:
         _log_debug_head(ddf, debug_head_rows, head_pdf=head_pdf)
 
+    # Convert string dtypes (string[python] or string[pyarrow]) to object for
+    # distributed serialization compatibility. Both have known pickling issues
+    # in Dask distributed environments with version mismatches.
+    string_cols = [c for c in ddf.columns if str(ddf[c].dtype).startswith("string")]
+    if string_cols:
+        logger.info(
+            "[dtype] converting %s string columns to object for distributed compat: %s",
+            len(string_cols),
+            string_cols[:5],
+        )
+        ddf = ddf.astype({c: "object" for c in string_cols})
+
     return ddf
 
 
