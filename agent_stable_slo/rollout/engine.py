@@ -107,6 +107,10 @@ def _provider_generate_raw(
         from .providers.vllm_openai import generate_raw
 
         return generate_raw(prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens)
+    if backend == "hf_local":
+        from .providers.hf_local import generate_raw
+
+        return generate_raw(prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens)
     # Fallback: empty output
     return "", {}, 5.0, 5.0, -1, -1
 

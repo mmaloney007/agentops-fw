@@ -14,20 +14,19 @@ The problem with standard RL for agents is that it optimizes the wrong thing. Yo
 
 We fix this by training with a **composite reward** that reflects deployment requirements: schema validity, task accuracy, faithfulness to context, output stability across runs, and latency. We penalize slow responses and flaky outputs directly in the reward signal, not as afterthoughts. The whole thing runs on a single RTX 4090 using LoRA adapters.
 
-**Verified Results (January 2026):**
+**Verified Results (January 2026, GRPO Training):**
 
-| Model | Steps | JSON Valid | Reward | Latency (ms) |
-|-------|-------|------------|--------|--------------|
-| Qwen3-4B | 250 | 95.6% | 2.0 | 1,625 |
-| Qwen3-4B | 500 | 97.4% | 2.0 | 1,520 |
-| Mistral-7B | 250 | 98.0% | 2.0 | 868 |
-| Mistral-7B | 500 | 98.0% | 2.0 | 886 |
+| Model | Steps | JSON Valid | Last-50 Valid | Avg Reward | Latency (ms) |
+|-------|-------|------------|---------------|------------|--------------|
+| Qwen3-4B | 500 | 22.2% | 0% | 0.120 | 3,203 |
+| Llama-3.2-3B | 500 | 14.2% | 0% | -0.128 | 4,029 |
+| Gemma-3-12B | 500 | **41.4%** | **78%** | **0.263** | 5,606 |
 
 **Key Findings:**
-- Training improves JSON validity (Qwen: 95.6% → 97.4% over 500 steps)
-- Both models converge to 2.0 reward ceiling (schema valid + task correct)
-- Mistral-7B runs 40% faster than Qwen with higher validity
-- All training on consumer hardware ($1,600 GPU)
+- **Gemma-3-12B shows clear learning**: JSON validity improves to 78% in final 50 steps, with positive reward
+- **Model capacity matters**: 12B model significantly outperforms 3B-4B models on structured output learning
+- Smaller models (Qwen3-4B, Llama-3.2-3B) plateau with degraded late-training performance
+- All training on consumer hardware (RTX 4090, $1,600 GPU)
 
 ---
 

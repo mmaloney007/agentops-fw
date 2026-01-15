@@ -31,10 +31,24 @@ AgentOps-FW: Open-source framework for evaluating and training production-ready 
 
 ### Verified Results (January 2026)
 
-| Model | JSON Valid | Reward | Latency |
-|-------|------------|--------|---------|
-| Qwen3-4B | 97.4% | 2.0 | 1,520ms |
-| Mistral-7B | 98.0% | 2.0 | 868ms |
+**P1 Baseline Evaluation (Spec-Driven Decoding)**
+
+| Model | JSON Valid | CLINC Acc | Hotpot F1 | p95 Latency | Success@SLO |
+|-------|------------|-----------|-----------|-------------|-------------|
+| Llama-3.2-3B | 100% | 54% | 0.47 | 3,869ms | 35.5% |
+| Qwen3-4B | 100% | 58% | 0.39 | 6,043ms | 25.9% |
+| Ministral-8B | 100% | 66% | 0.39 | 11,731ms | 1.2% |
+| Gemma-3-12B | 100% | 78% | 0.27 | 1,555ms | **48.0%** |
+
+**P2 GRPO Training (500 steps, single RTX 4090)**
+
+| Model | JSON Valid | Last-50 Valid | Avg Reward | Latency |
+|-------|------------|---------------|------------|---------|
+| Qwen3-4B | 22.2% | 0% | 0.120 | 3,203ms |
+| Llama-3.2-3B | 14.2% | 0% | -0.128 | 4,029ms |
+| Gemma-3-12B | 41.4% | **78%** | **0.263** | 5,606ms |
+
+*Key insight: Gemma-3-12B shows clear learning trajectory (78% valid in final steps), while smaller models plateau.*
 
 ### The Ask
 - Technical review of W&B integration patterns

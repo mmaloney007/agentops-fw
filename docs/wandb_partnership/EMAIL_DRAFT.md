@@ -32,12 +32,14 @@ AgentOps-FW is an open-source framework demonstrating exactly how to use W&B for
 
 **Verified Results (January 2026):**
 
-| Model | JSON Valid | Reward | Latency |
-|-------|------------|--------|---------|
-| Qwen3-4B | 97.4% | 2.0 | 1,520ms |
-| Mistral-7B | 98.0% | 2.0 | 868ms |
+| Model | JSON Valid | CLINC Acc | Hotpot F1 | p95 Latency | Success@SLO |
+|-------|------------|-----------|-----------|-------------|-------------|
+| Llama-3.2-3B | 100% | 54% | 0.47 | 3,869ms | 35.5% |
+| Qwen3-4B | 100% | 58% | 0.39 | 6,043ms | 25.9% |
+| Ministral-8B | 100% | 66% | 0.39 | 11,731ms | 1.2% |
+| Gemma-3-12B | 100% | 78% | 0.27 | 1,555ms | 48.0% |
 
-All training runs on a single RTX 4090 ($1,600 GPU). No cluster required.
+All evaluations on single-GPU hardware. Gemma-3-12B achieves highest Success@SLO (48%).
 
 ## The Research Program
 

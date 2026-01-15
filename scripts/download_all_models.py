@@ -34,12 +34,14 @@ def download_model(repo_id: str, local_dir: str, token: str = None):
 
 
 def main():
-    # Model configurations: (HuggingFace repo, local directory)
+    # Model configurations for P2 4-model lineup (2025 releases)
+    # Rationale: geographic diversity (China, France, US×2), company diversity,
+    # size ladder (3B→4B→8B→12B), all trainable on single 4090 with QLoRA
     models = [
-        ("Qwen/Qwen3-4B", "./models/qwen3-4b"),
-        ("mistralai/Ministral-8B-Instruct-2410", "./models/ministral-3b-instruct"),  # Using 8B as 3B may not exist
-        ("google/gemma-3-12b-it", "./models/gemma-3-12b-it"),
-        # GPT-OSS-20B may need special handling if it's a private/custom model
+        ("Qwen/Qwen3-4B-Instruct-2507", "./models/qwen3-4b-instruct"),        # Alibaba (China) - July 2025
+        ("mistralai/Ministral-3-8B-Instruct-2512", "./models/ministral-8b-instruct"),  # Mistral AI (France) - Dec 2025
+        ("meta-llama/Llama-3.2-3B-Instruct", "./models/llama-3.2-3b-instruct"),        # Meta (US) - Sept 2024
+        ("google/gemma-3-12b-it", "./models/gemma-3-12b-it"),              # Google (US) - March 2025
     ]
 
     # Check for HF token (needed for gated models like Gemma)

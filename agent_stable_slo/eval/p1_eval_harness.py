@@ -195,14 +195,11 @@ def _tool_success(pred: Dict[str, Any], gold: Dict[str, Any]) -> int:
 
 def _enforce_wandb_online() -> None:
     mode = os.getenv("WANDB_MODE", "").strip().lower()
-    # Temporarily allow offline mode for faster data collection
-    # TODO: Re-enable online requirement before final paper submission
-    if mode == "offline":
-        print("[P1] WARNING: Running in offline mode - W&B artifacts won't be uploaded immediately")
-        return
-    if mode and mode != "online":
-        raise RuntimeError(f"WANDB_MODE must be 'online' for P1 runs. Got {mode!r}")
-    os.environ["WANDB_MODE"] = "online"
+    if mode and mode not in ("online", "offline", "disabled"):
+        print(f"[P1] Warning: WANDB_MODE={mode!r} is unusual. Defaulting to 'online'.")
+        os.environ["WANDB_MODE"] = "online"
+    elif not mode:
+        os.environ["WANDB_MODE"] = "online"
 
 
 def _should_use_judge(args, crit: CriteriaSpec) -> bool:

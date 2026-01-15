@@ -8,7 +8,8 @@
 \bibitem[Achiam et~al.(2017)Achiam, Held, Tamar, and Abbeel]{achiam2017cpo}
 Joshua Achiam, David Held, Aviv Tamar, and Pieter Abbeel.
 \newblock Constrained policy optimization.
-\newblock In \emph{International Conference on Machine Learning}, pages 22--31. PMLR, 2017.
+\newblock In \emph{International Conference on Machine Learning}, pages 22--31.
+  PMLR, 2017.
 
 \bibitem[Altman(1999)]{altman1999cmdp}
 Eitan Altman.
@@ -21,7 +22,8 @@ Anonymous.
 \newblock \emph{arXiv preprint arXiv:2308.03688}, 2023.
 \newblock URL \url{https://arxiv.org/abs/2308.03688}.
 
-\bibitem[Dettmers et~al.(2023)Dettmers, Pagnoni, Holtzman, and Zettlemoyer]{dettmers2023qlora}
+\bibitem[Dettmers et~al.(2023)Dettmers, Pagnoni, Holtzman, and
+  Zettlemoyer]{dettmers2023qlora}
 Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer.
 \newblock {QLoRA}: Efficient finetuning of quantized {LLMs}.
 \newblock \emph{arXiv preprint arXiv:2305.14314}, 2023.
@@ -31,30 +33,41 @@ Shahul Es, Jithin James, Luis Espinosa-Anke, and Steven Schockaert.
 \newblock {RAGAS}: Automated evaluation of retrieval augmented generation.
 \newblock \emph{arXiv preprint arXiv:2309.15217}, 2023.
 
-\bibitem[Hu et~al.(2021)Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and Chen]{hu2021lora}
-Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu~Wang, and Weizhu Chen.
+\bibitem[Hu et~al.(2021)Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and
+  Chen]{hu2021lora}
+Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean
+  Wang, Lu~Wang, and Weizhu Chen.
 \newblock {LoRA}: Low-rank adaptation of large language models.
 \newblock \emph{arXiv preprint arXiv:2106.09685}, 2021.
 
 \bibitem[Mangrulkar et~al.(2022)]{mangrulkar2022peft}
 Sourab Mangrulkar et~al.
-\newblock {PEFT}: Parameter-efficient fine-tuning of billion-scale models on low-resource hardware.
+\newblock {PEFT}: Parameter-efficient fine-tuning of billion-scale models on
+  low-resource hardware.
 \newblock \url{https://github.com/huggingface/peft}, 2022.
 
-\bibitem[Min et~al.(2023)Min, Krishna, Lyu, Lewis, Yih, Koh, Iyyer, Zettlemoyer, and Hajishirzi]{min2023factscore}
-Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis, Wen-tau Yih, Pang~Wei Koh, Mohit Iyyer, Luke Zettlemoyer, and Hannaneh Hajishirzi.
-\newblock {FActScore}: Fine-grained atomic evaluation of factual precision in long form text generation.
+\bibitem[Min et~al.(2023)Min, Krishna, Lyu, Lewis, Yih, Koh, Iyyer,
+  Zettlemoyer, and Hajishirzi]{min2023factscore}
+Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis, Wen-tau Yih, Pang~Wei Koh,
+  Mohit Iyyer, Luke Zettlemoyer, and Hannaneh Hajishirzi.
+\newblock {FActScore}: Fine-grained atomic evaluation of factual precision in
+  long form text generation.
 \newblock \emph{arXiv preprint arXiv:2305.14251}, 2023.
 
-\bibitem[Ouyang et~al.(2022)Ouyang, Wu, Jiang, Almeida, Wainwright, Mishkin, Zhang, Agarwal, Slama, Ray, et~al.]{ouyang2022rlhf}
-Long Ouyang, Jeffrey Wu, Xu~Jiang, Diogo Almeida, Carroll~L. Wainwright, Pamela Mishkin, Chong Zhang, Sandhini Agarwal, Katarina Slama, Alex Ray, et~al.
+\bibitem[Ouyang et~al.(2022)Ouyang, Wu, Jiang, Almeida, Wainwright, Mishkin,
+  Zhang, Agarwal, Slama, Ray, et~al.]{ouyang2022rlhf}
+Long Ouyang, Jeffrey Wu, Xu~Jiang, Diogo Almeida, Carroll~L. Wainwright, Pamela
+  Mishkin, Chong Zhang, Sandhini Agarwal, Katarina Slama, Alex Ray, et~al.
 \newblock Training language models to follow instructions with human feedback.
 \newblock \emph{arXiv preprint arXiv:2203.02155}, 2022.
 \newblock InstructGPT / RLHF.
 
-\bibitem[Rafailov et~al.(2023)Rafailov, Sharma, Mitchell, Ermon, Manning, and Finn]{rafailov2023dpo}
-Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher~D. Manning, and Chelsea Finn.
-\newblock Direct preference optimization: Your language model is secretly a reward model.
+\bibitem[Rafailov et~al.(2023)Rafailov, Sharma, Mitchell, Ermon, Manning, and
+  Finn]{rafailov2023dpo}
+Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher~D.
+  Manning, and Chelsea Finn.
+\newblock Direct preference optimization: Your language model is secretly a
+  reward model.
 \newblock \emph{arXiv preprint arXiv:2305.18290}, 2023.
 
 \bibitem[Ray et~al.(2019)Ray, Achiam, and Amodei]{ray2019benchmarking}
@@ -70,7 +83,8 @@ John Schulman et~al.
 
 \bibitem[Williams(1992)]{williams1992reinforce}
 Ronald~J. Williams.
-\newblock Simple statistical gradient-following algorithms for connectionist reinforcement learning.
+\newblock Simple statistical gradient-following algorithms for connectionist
+  reinforcement learning.
 \newblock \emph{Machine Learning}, 8\penalty0 (3-4):\penalty0 229--256, 1992.
 
 \end{thebibliography}

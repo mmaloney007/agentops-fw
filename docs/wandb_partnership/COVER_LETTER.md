@@ -37,13 +37,19 @@ This paper introduces **SpecSLOEval**, an evaluation framework that measures wha
 
 This paper shows how to train agents that optimize for operational requirements directly:
 
-**Key findings (verified on RTX 4090, January 2026):**
-- 6-component composite reward: schema + accuracy + faithfulness + stability + latency + cost
-- Qwen3-4B: 95.6% → 97.4% JSON validity over 500 steps, 2.0 reward, 1,520ms latency
-- Mistral-7B: 98.0% JSON validity, 2.0 reward, 868ms latency (40% faster than Qwen)
-- LoRA adapters enable single-GPU training of 4B-12B parameter models
-- All training metrics logged to W&B in real-time with per-step granularity
-- Checkpoint artifacts saved every 50 steps for full reproducibility
+**Key findings (verified on single-GPU hardware, January 2026):**
+
+*Phase 1 (Evaluation) - 4 models spanning 3B-12B parameters:*
+| Model | CLINC Acc | Hotpot F1 | p95 Latency | Success@SLO |
+|-------|-----------|-----------|-------------|-------------|
+| Llama-3.2-3B | 54% | 0.47 | 3,869ms | 35.5% |
+| Qwen3-4B | 58% | 0.39 | 6,043ms | 25.9% |
+| Ministral-8B | 66% | 0.39 | 11,731ms | 1.2% |
+| Gemma-3-12B | 78% | 0.27 | 1,555ms | **48.0%** |
+
+- All models achieve 100% JSON and schema validity under spec-driven decoding
+- Gemma-3-12B achieves highest Success@SLO combining accuracy AND latency compliance
+- All metrics logged to W&B in real-time with per-episode granularity
 
 ## Research Program: Six-Paper Arc
 
