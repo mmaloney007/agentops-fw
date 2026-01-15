@@ -32,7 +32,7 @@ jobs:
       - name: Pixi Environment
         uses: prefix-dev/setup-pixi@v0.9.0
         with:
-          pixi-version: v0.62.2
+          pixi-version: v0.63.0
           locked: true
           cache: true
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
@@ -60,7 +60,7 @@ jobs:
       - name: Pixi Environment
         uses: prefix-dev/setup-pixi@v0.9.0
         with:
-          pixi-version: v0.62.1
+          pixi-version: v0.63.0
           locked: true
           cache: true
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}

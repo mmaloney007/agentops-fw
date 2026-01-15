@@ -450,7 +450,7 @@ def _apply_binning(
         )
         if labels is None:
             cut = cut.map(_format_interval)
-        out[out_col] = cut.astype("string")
+        out[out_col] = cut.astype(str)
         return out
 
     meta = ddf._meta.copy()
@@ -601,7 +601,7 @@ def _apply_date_parts(
         if part.startswith("is_"):
             meta[col] = pd.Series(dtype="boolean")
         elif part == "daypart":
-            meta[col] = pd.Series(dtype="string")
+            meta[col] = pd.Series(dtype="object")  # object for distributed compat
         else:
             meta[col] = pd.Series(dtype="Int64")
     if feat.drop_source and source_col in meta.columns:
@@ -633,14 +633,14 @@ def _apply_categorical_bucket(
 
     def _bucket_partition(pdf: pd.DataFrame) -> pd.DataFrame:
         out = pdf.copy()
-        vals = out[source_col].astype("string")
+        vals = out[source_col].astype(str)
         bucketed = vals.where(vals.isin(keep), other_label)
         bucketed = bucketed.where(~vals.isna(), pd.NA)
         out[out_col] = bucketed
         return out
 
     meta = ddf._meta.copy()
-    meta[out_col] = pd.Series(dtype="string")
+    meta[out_col] = pd.Series(dtype="object")  # object for distributed compat
     return ddf.map_partitions(_bucket_partition, meta=meta)
 
 
@@ -655,7 +655,7 @@ def _apply_string_normalize(
 
     def _normalize_partition(pdf: pd.DataFrame) -> pd.DataFrame:
         out = pdf.copy()
-        series = out[source_col].astype("string")
+        series = out[source_col].astype(str)
         if feat.strip:
             series = series.str.strip()
         if feat.replace_regex:
@@ -676,7 +676,7 @@ def _apply_string_normalize(
         return out
 
     meta = ddf._meta.copy()
-    meta[out_col] = pd.Series(dtype="string")
+    meta[out_col] = pd.Series(dtype="object")  # object for distributed compat
     return ddf.map_partitions(_normalize_partition, meta=meta)
 
 
@@ -701,7 +701,7 @@ def _apply_frequency_encode(
 
     def _freq_partition(pdf: pd.DataFrame) -> pd.DataFrame:
         out = pdf.copy()
-        vals = out[source_col].astype("string")
+        vals = out[source_col].astype(str)
         out[out_col] = vals.map(freq_map)
         return out
 
