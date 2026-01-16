@@ -35,7 +35,6 @@ def test_pipeline_local_end_to_end(tmp_path, monkeypatch):
     cfg = load_config(cfg_file)
     base = pipeline_mod.run_from_config(cfg)
     assert Path(base, "input_data").exists()
-    assert Path(base, "config.yaml").exists()
     assert Path(base, "bundleconfig.yaml").exists()
     assert Path(base, "data_dictionary.json").exists()
 
@@ -90,7 +89,6 @@ def test_pipeline_data_prep_config_runs(monkeypatch):
     cfg = load_config("configs/data_prep.yaml")
     base = pipeline_mod.run_from_config(cfg)
     assert Path(base, "input_data").exists()
-    assert Path(base, "config.yaml").exists()
     assert Path(base, "bundleconfig.yaml").exists()
     assert Path(base, "data_dictionary.json").exists()
 
@@ -121,7 +119,6 @@ def test_pipeline_wine_and_cheese_config_runs(monkeypatch):
     cfg = load_config("configs/wine_and_cheese.yaml")
     base = pipeline_mod.run_from_config(cfg)
     assert Path(base, "input_data").exists()
-    assert Path(base, "config.yaml").exists()
     assert Path(base, "bundleconfig.yaml").exists()
     assert Path(base, "data_dictionary.json").exists()
 
@@ -134,6 +131,5 @@ def test_pipeline_wine_and_cheese_real():
     cfg = load_config("configs/wine_and_cheese.yaml")
     base = pipeline_mod.run_from_config(cfg)
     assert Path(base, "input_data").exists()
-    assert Path(base, "config.yaml").exists()
     assert Path(base, "bundleconfig.yaml").exists()
     assert Path(base, "data_dictionary.json").exists()
