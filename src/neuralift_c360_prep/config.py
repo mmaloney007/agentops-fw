@@ -142,11 +142,39 @@ class AzureConfig(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class LLMProviderConfig(BaseModel):
+    """Configuration for LLM provider."""
+
+    provider: Literal["openai", "anthropic", "auto"] = "auto"
+    model: Optional[str] = None  # Provider-specific model name
+    timeout_seconds: int = 60
+    max_retries: int = 4
+
+
+class IdDetectionConfig(BaseModel):
+    """Configuration for LLM-enhanced ID/Primary Key detection."""
+
+    # LLM enhancement options
+    llm_enabled: bool = False  # Opt-in by default
+    llm_provider: LLMProviderConfig = Field(default_factory=LLMProviderConfig)
+
+    # Cost control
+    max_llm_columns: int = 20  # Max columns to analyze with LLM
+    llm_cache_enabled: bool = True
+    llm_cache_dir: str = ".nl_id_cache"
+
+    # Detection tuning
+    uniqueness_threshold: float = 0.95  # Ratio to consider unique
+    gray_zone_lower: float = 0.80  # Lower bound for ambiguous uniqueness
+    detect_uuid_format: bool = True  # Enable UUID/GUID format detection
+
+
 class IdsConfig(BaseModel):
     """ID column configuration with auto-detection support."""
 
     columns: List[str] = Field(default_factory=list)
     auto_detect: bool = True
+    detection: IdDetectionConfig = Field(default_factory=IdDetectionConfig)
 
 
 class FillConfig(BaseModel):
@@ -870,6 +898,8 @@ __all__ = [
     "CleaningConfig",
     # New config classes
     "IdsConfig",
+    "IdDetectionConfig",
+    "LLMProviderConfig",
     "FillConfig",
     "LiftConfig",
     "FunctionConfig",  # NEW: Unified function config

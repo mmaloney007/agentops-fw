@@ -246,9 +246,84 @@ def resolve_id_columns(
     return explicit
 
 
+def resolve_id_columns_with_llm(
+    ddf: dd.DataFrame,
+    *,
+    explicit_ids: Sequence[str] | None = None,
+    auto_detect: bool = True,
+    row_count: int | None = None,
+    ids_config=None,
+    table_context: str | None = None,
+) -> tuple[list[str], list]:
+    """
+    Resolve ID columns with optional LLM enhancement.
+
+    Args:
+        ddf: Dask DataFrame
+        explicit_ids: Explicitly configured ID columns
+        auto_detect: Whether to run auto-detection
+        row_count: Pre-computed row count
+        ids_config: IdsConfig with LLM settings
+        table_context: Optional table context for LLM
+
+    Returns:
+        Tuple of (resolved_ids, all_suggestions)
+    """
+    explicit = list(explicit_ids or [])
+
+    if not auto_detect:
+        return explicit, []
+
+    # Check if LLM is enabled via config
+    detection_config = getattr(ids_config, "detection", None) if ids_config else None
+    llm_enabled = getattr(detection_config, "llm_enabled", False) if detection_config else False
+
+    if llm_enabled and detection_config:
+        # Use LLM-enhanced detection
+        from .id_detection_llm import suggest_id_columns_with_llm, print_llm_id_suggestions
+        from .llm import get_llm_provider
+
+        try:
+            provider_config = detection_config.llm_provider
+            provider = get_llm_provider(
+                provider=provider_config.provider,
+                model=provider_config.model,
+                timeout=float(provider_config.timeout_seconds),
+            )
+
+            suggestions = suggest_id_columns_with_llm(
+                ddf,
+                row_count=row_count,
+                uniqueness_threshold=detection_config.uniqueness_threshold,
+                exclude_columns=explicit,
+                llm_provider=provider,
+                llm_enabled=True,
+                table_context=table_context,
+                max_llm_columns=detection_config.max_llm_columns,
+                cache_dir=detection_config.llm_cache_dir if detection_config.llm_cache_enabled else None,
+            )
+
+            print_llm_id_suggestions(suggestions, explicit_ids=explicit)
+            return explicit, suggestions
+
+        except Exception as e:
+            logger.warning("[ids] LLM detection failed, falling back to rule-based: %s", e)
+
+    # Fall back to standard detection
+    suggestions = suggest_id_columns(
+        ddf,
+        row_count=row_count,
+        exclude_columns=explicit,
+    )
+    print_id_suggestions(suggestions, explicit_ids=explicit)
+
+    return explicit, suggestions
+
+
 __all__ = [
     "IdSuggestion",
     "suggest_id_columns",
     "print_id_suggestions",
     "resolve_id_columns",
+    "resolve_id_columns_with_llm",
 ]
