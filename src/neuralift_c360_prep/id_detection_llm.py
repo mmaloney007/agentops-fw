@@ -17,7 +17,6 @@ from typing import Sequence
 import dask.dataframe as dd
 
 from .id_detection_models import (
-    IdColumnAnalysis,
     IdDetectionResult,
     IdFormat,
     KeyType,

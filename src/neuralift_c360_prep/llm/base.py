@@ -8,7 +8,7 @@ Copyright (c) 2025 Neuralift, Inc.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Type, TypeVar
+from typing import Type, TypeVar
 
 from pydantic import BaseModel
 

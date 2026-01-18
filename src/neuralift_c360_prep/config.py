@@ -653,6 +653,13 @@ class DataDoctorConfig(BaseModel):
     high_null_threshold: int = 100  # Null count threshold for high priority
     high_cardinality_threshold: int = 50  # Unique count for high-card categoricals
     top_k_bucket: int = 10  # Default top_k for categorical bucketing suggestions
+    # LLM enhancement settings
+    llm_enabled: bool = False  # Opt-in for LLM analysis
+    llm_provider: LLMProviderConfig = Field(default_factory=LLMProviderConfig)
+    llm_cache_enabled: bool = True
+    llm_cache_dir: str = ".nl_doctor_cache"
+    max_llm_columns: int = 30  # Max columns to send to LLM
+    generate_executive_summary: bool = True  # Generate LLM executive summary
 
 
 class MetadataConfig(BaseModel):

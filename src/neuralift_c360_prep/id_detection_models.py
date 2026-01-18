@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field
 
 # ASCII pattern for structured output validation
 ASCII = r"^[\x20-\x7E]*$"

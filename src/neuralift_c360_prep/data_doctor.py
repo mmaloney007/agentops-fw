@@ -139,6 +139,9 @@ class DataDoctorReport:
     kpi_candidates: List[Suggestion] = field(default_factory=list)
     ratio_opportunities: List[Suggestion] = field(default_factory=list)
     yaml_text: str = ""
+    # LLM-enhanced fields (optional)
+    _llm_executive_summary: Optional[Any] = field(default=None, repr=False)
+    _llm_suggestions: List[Any] = field(default_factory=list, repr=False)
 
 
 # ---------------------------------------------------------------------------
@@ -698,7 +701,7 @@ def analyze_data(
         ddf: Dask DataFrame to analyze.
         data_dict: Data dictionary with column metadata.
         cfg: Optional configuration object (BundleConfig).
-        use_llm: Whether to use LLM for additional analysis (not implemented).
+        use_llm: Whether to use LLM for additional analysis.
         llm_model: Model to use for LLM analysis.
         show_progress: Whether to log progress.
         show_business_alternatives: Include business-friendly fill alternatives.
@@ -710,6 +713,13 @@ def analyze_data(
         DataDoctorReport with categorized suggestions.
     """
     # Extract config values if BundleConfig provided
+    llm_enabled = use_llm
+    llm_provider_config = None
+    llm_cache_dir = ".nl_doctor_cache"
+    max_llm_columns = 30
+    generate_exec_summary = True
+    organization_context = None
+
     if cfg is not None:
         dd_cfg = getattr(cfg, "data_doctor", None)
         if dd_cfg is not None:
@@ -723,6 +733,17 @@ def analyze_data(
                 dd_cfg, "high_cardinality_threshold", high_cardinality_threshold
             )
             top_k_bucket = getattr(dd_cfg, "top_k_bucket", top_k_bucket)
+            # LLM settings
+            llm_enabled = getattr(dd_cfg, "llm_enabled", llm_enabled)
+            llm_provider_config = getattr(dd_cfg, "llm_provider", None)
+            llm_cache_dir = getattr(dd_cfg, "llm_cache_dir", llm_cache_dir)
+            max_llm_columns = getattr(dd_cfg, "max_llm_columns", max_llm_columns)
+            generate_exec_summary = getattr(dd_cfg, "generate_executive_summary", True)
+
+        # Get organization context from metadata config
+        meta_cfg = getattr(cfg, "metadata", None)
+        if meta_cfg is not None:
+            organization_context = getattr(meta_cfg, "context", None)
 
     if show_progress:
         logger.info(
@@ -773,8 +794,84 @@ def analyze_data(
         logger.info("[data-doctor] Finding ratio opportunities...")
     report.ratio_opportunities = _analyze_ratio_opportunities(ddf, data_dict)
 
+    # LLM-enhanced analysis (optional)
+    llm_executive_summary = None
+    llm_suggestions = []
+
+    if llm_enabled:
+        if show_progress:
+            logger.info("[data-doctor] Running LLM-enhanced analysis...")
+
+        try:
+            from .data_doctor_llm import (
+                analyze_with_llm,
+                generate_executive_summary,
+                convert_llm_result_to_suggestions,
+            )
+            from .llm import get_llm_provider, LLMResponseCache
+
+            # Get LLM provider
+            provider_type = "auto"
+            provider_model = None
+            if llm_provider_config is not None:
+                provider_type = getattr(llm_provider_config, "provider", "auto")
+                provider_model = getattr(llm_provider_config, "model", None)
+
+            provider = get_llm_provider(
+                provider=provider_type,
+                model=provider_model,
+            )
+
+            # Initialize cache if enabled
+            cache = None
+            if llm_cache_dir:
+                cache = LLMResponseCache(llm_cache_dir)
+
+            # Get table context from data_dict
+            table_context = data_dict.get("table_comment", "")
+
+            if generate_exec_summary:
+                # Generate executive summary
+                llm_executive_summary = generate_executive_summary(
+                    ddf,
+                    data_dict,
+                    provider,
+                    table_context=table_context,
+                    organization_context=organization_context,
+                    cache=cache,
+                )
+                if show_progress:
+                    logger.info("[data-doctor] LLM executive summary generated")
+
+            # Full LLM analysis
+            llm_result = analyze_with_llm(
+                ddf,
+                data_dict,
+                provider,
+                table_context=table_context,
+                organization_context=organization_context,
+                cache=cache,
+                max_columns=max_llm_columns,
+            )
+
+            # Convert to suggestions
+            llm_suggestions = convert_llm_result_to_suggestions(llm_result)
+
+            if show_progress:
+                logger.info(
+                    "[data-doctor] LLM analysis complete. %d additional suggestions.",
+                    len(llm_suggestions),
+                )
+
+        except Exception as e:
+            logger.warning("[data-doctor] LLM analysis failed: %s", e)
+
+    # Store LLM results in report (using a simple attribute for now)
+    report._llm_executive_summary = llm_executive_summary
+    report._llm_suggestions = llm_suggestions
+
     # Generate combined YAML
-    report.yaml_text = _generate_suggestions_yaml(report)
+    report.yaml_text = _generate_suggestions_yaml(report, llm_executive_summary)
 
     if show_progress:
         total = (
@@ -788,8 +885,19 @@ def analyze_data(
     return report
 
 
-def _generate_suggestions_yaml(report: DataDoctorReport) -> str:
-    """Generate YAML representation of all suggestions with legend header."""
+def _generate_suggestions_yaml(
+    report: DataDoctorReport,
+    executive_summary: Optional[Any] = None,
+) -> str:
+    """Generate YAML representation of all suggestions with legend header.
+
+    Args:
+        report: DataDoctorReport with suggestions.
+        executive_summary: Optional LLM-generated executive summary.
+
+    Returns:
+        YAML formatted string.
+    """
     # Build the YAML content with a header/legend
     lines = [
         "# ============================================================================",
@@ -809,6 +917,32 @@ def _generate_suggestions_yaml(report: DataDoctorReport) -> str:
         "# ============================================================================",
         "",
     ]
+
+    # Add executive summary if available
+    if executive_summary is not None:
+        lines.extend([
+            "# EXECUTIVE SUMMARY",
+            "# -----------------",
+            f"# {getattr(executive_summary, 'table_description', 'N/A')}",
+            "#",
+            "# Key Findings:",
+        ])
+        for finding in getattr(executive_summary, 'key_findings', [])[:5]:
+            lines.append(f"#   - {finding}")
+        lines.extend([
+            "#",
+            "# Immediate Actions:",
+        ])
+        for action in getattr(executive_summary, 'immediate_actions', [])[:3]:
+            lines.append(f"#   - {action}")
+        lines.extend([
+            "#",
+            f"# Data Quality: {getattr(executive_summary, 'data_quality_summary', 'N/A')}",
+            f"# Cross-Column Insights: {getattr(executive_summary, 'cross_column_insights', 'N/A')}",
+            "#",
+            "# ============================================================================",
+            "",
+        ])
 
     suggestions_dict: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -925,6 +1059,36 @@ def print_report(
     out("=" * 70)
     out("  DATA DOCTOR - Your prescription for better data!")
     out("=" * 70)
+
+    # Print executive summary if available
+    exec_summary = getattr(report, "_llm_executive_summary", None)
+    if exec_summary is not None:
+        out("")
+        out("-" * 70)
+        out("  EXECUTIVE SUMMARY")
+        out("-" * 70)
+        out("")
+        out(f"  {getattr(exec_summary, 'table_description', 'N/A')}")
+        out("")
+        out("  KEY FINDINGS:")
+        for i, finding in enumerate(getattr(exec_summary, 'key_findings', [])[:5], 1):
+            out(f"    {i}. {finding}")
+        out("")
+        out("  IMMEDIATE ACTIONS:")
+        for i, action in enumerate(getattr(exec_summary, 'immediate_actions', [])[:3], 1):
+            out(f"    {i}. {action}")
+        out("")
+        dq_summary = getattr(exec_summary, 'data_quality_summary', '')
+        if dq_summary:
+            out(f"  Data Quality: {dq_summary}")
+        fe_opps = getattr(exec_summary, 'feature_engineering_opportunities', '')
+        if fe_opps:
+            out(f"  Feature Engineering: {fe_opps}")
+        cross_col = getattr(exec_summary, 'cross_column_insights', '')
+        if cross_col:
+            out(f"  Cross-Column Insights: {cross_col}")
+        out("")
+
     out("")
     out("  Legend:")
     out(f"    {SEVERITY_HIGH}  HIGH   - Action recommended (significant issue)")
