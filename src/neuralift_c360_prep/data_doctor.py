@@ -920,29 +920,35 @@ def _generate_suggestions_yaml(
 
     # Add executive summary if available
     if executive_summary is not None:
-        lines.extend([
-            "# EXECUTIVE SUMMARY",
-            "# -----------------",
-            f"# {getattr(executive_summary, 'table_description', 'N/A')}",
-            "#",
-            "# Key Findings:",
-        ])
-        for finding in getattr(executive_summary, 'key_findings', [])[:5]:
+        lines.extend(
+            [
+                "# EXECUTIVE SUMMARY",
+                "# -----------------",
+                f"# {getattr(executive_summary, 'table_description', 'N/A')}",
+                "#",
+                "# Key Findings:",
+            ]
+        )
+        for finding in getattr(executive_summary, "key_findings", [])[:5]:
             lines.append(f"#   - {finding}")
-        lines.extend([
-            "#",
-            "# Immediate Actions:",
-        ])
-        for action in getattr(executive_summary, 'immediate_actions', [])[:3]:
+        lines.extend(
+            [
+                "#",
+                "# Immediate Actions:",
+            ]
+        )
+        for action in getattr(executive_summary, "immediate_actions", [])[:3]:
             lines.append(f"#   - {action}")
-        lines.extend([
-            "#",
-            f"# Data Quality: {getattr(executive_summary, 'data_quality_summary', 'N/A')}",
-            f"# Cross-Column Insights: {getattr(executive_summary, 'cross_column_insights', 'N/A')}",
-            "#",
-            "# ============================================================================",
-            "",
-        ])
+        lines.extend(
+            [
+                "#",
+                f"# Data Quality: {getattr(executive_summary, 'data_quality_summary', 'N/A')}",
+                f"# Cross-Column Insights: {getattr(executive_summary, 'cross_column_insights', 'N/A')}",
+                "#",
+                "# ============================================================================",
+                "",
+            ]
+        )
 
     suggestions_dict: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -1071,20 +1077,22 @@ def print_report(
         out(f"  {getattr(exec_summary, 'table_description', 'N/A')}")
         out("")
         out("  KEY FINDINGS:")
-        for i, finding in enumerate(getattr(exec_summary, 'key_findings', [])[:5], 1):
+        for i, finding in enumerate(getattr(exec_summary, "key_findings", [])[:5], 1):
             out(f"    {i}. {finding}")
         out("")
         out("  IMMEDIATE ACTIONS:")
-        for i, action in enumerate(getattr(exec_summary, 'immediate_actions', [])[:3], 1):
+        for i, action in enumerate(
+            getattr(exec_summary, "immediate_actions", [])[:3], 1
+        ):
             out(f"    {i}. {action}")
         out("")
-        dq_summary = getattr(exec_summary, 'data_quality_summary', '')
+        dq_summary = getattr(exec_summary, "data_quality_summary", "")
         if dq_summary:
             out(f"  Data Quality: {dq_summary}")
-        fe_opps = getattr(exec_summary, 'feature_engineering_opportunities', '')
+        fe_opps = getattr(exec_summary, "feature_engineering_opportunities", "")
         if fe_opps:
             out(f"  Feature Engineering: {fe_opps}")
-        cross_col = getattr(exec_summary, 'cross_column_insights', '')
+        cross_col = getattr(exec_summary, "cross_column_insights", "")
         if cross_col:
             out(f"  Cross-Column Insights: {cross_col}")
         out("")

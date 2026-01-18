@@ -47,11 +47,15 @@ def sample_ddf():
     pdf = pd.DataFrame(
         {
             "customer_id": range(1, 101),  # Sequential integers
-            "uuid_col": [f"550e8400-e29b-41d4-a716-{str(i).zfill(12)}" for i in range(100)],
+            "uuid_col": [
+                f"550e8400-e29b-41d4-a716-{str(i).zfill(12)}" for i in range(100)
+            ],
             "hash_col": [f"{hex(i)[2:].zfill(32)}" for i in range(100)],  # MD5-like
             "name": [f"Name_{i}" for i in range(100)],
             "status": ["active"] * 50 + ["inactive"] * 50,
-            "ambiguous_ref": [f"REF{i:05d}" for i in range(100)],  # ID-like but not obviously named
+            "ambiguous_ref": [
+                f"REF{i:05d}" for i in range(100)
+            ],  # ID-like but not obviously named
         }
     )
     return dd.from_pandas(pdf, npartitions=2)
@@ -158,7 +162,9 @@ class TestHashPatterns:
 
     def test_sha256_pattern(self):
         """Test SHA256 pattern (64 hex chars)."""
-        valid_sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        valid_sha256 = (
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        )
         invalid_sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85"  # 63 chars
 
         assert SHA256_PATTERN.match(valid_sha256)
@@ -263,6 +269,7 @@ class TestDetectSequentialInt:
     def test_rejects_random(self):
         """Test rejection of random integers."""
         import random
+
         random.seed(42)
         values = [random.randint(1, 10000) for _ in range(100)]
         assert detect_sequential_int(values) is False
@@ -308,13 +315,31 @@ class TestBuildIdDetectionPrompt:
 
     def test_includes_table_context(self):
         """Test that table context is included."""
-        profiles = [{"name": "id", "dtype": "int", "unique_ratio": 1.0, "null_pct": 0, "samples": []}]
-        prompt = _build_id_detection_prompt(profiles, table_context="Customer transactions")
+        profiles = [
+            {
+                "name": "id",
+                "dtype": "int",
+                "unique_ratio": 1.0,
+                "null_pct": 0,
+                "samples": [],
+            }
+        ]
+        prompt = _build_id_detection_prompt(
+            profiles, table_context="Customer transactions"
+        )
         assert "Customer transactions" in prompt
 
     def test_includes_composite_key_warning(self):
         """Test that composite key warning is included."""
-        profiles = [{"name": "id", "dtype": "int", "unique_ratio": 1.0, "null_pct": 0, "samples": []}]
+        profiles = [
+            {
+                "name": "id",
+                "dtype": "int",
+                "unique_ratio": 1.0,
+                "null_pct": 0,
+                "samples": [],
+            }
+        ]
         prompt = _build_id_detection_prompt(profiles)
         assert "composite" in prompt.lower()
         assert "unique" in prompt.lower()
@@ -344,7 +369,15 @@ class TestAnalyzeColumnsWithLlm:
         )
         mock_llm_provider.complete_structured.return_value = expected_result
 
-        profiles = [{"name": "id", "dtype": "int64", "unique_ratio": 1.0, "null_pct": 0, "samples": ["1", "2"]}]
+        profiles = [
+            {
+                "name": "id",
+                "dtype": "int64",
+                "unique_ratio": 1.0,
+                "null_pct": 0,
+                "samples": ["1", "2"],
+            }
+        ]
         result = analyze_columns_with_llm(profiles, mock_llm_provider)
 
         assert mock_llm_provider.complete_structured.called
@@ -360,7 +393,15 @@ class TestAnalyzeColumnsWithLlm:
         )
         mock_cache.get.return_value = cached_result
 
-        profiles = [{"name": "id", "dtype": "int64", "unique_ratio": 1.0, "null_pct": 0, "samples": []}]
+        profiles = [
+            {
+                "name": "id",
+                "dtype": "int64",
+                "unique_ratio": 1.0,
+                "null_pct": 0,
+                "samples": [],
+            }
+        ]
         result = analyze_columns_with_llm(profiles, mock_llm_provider, cache=mock_cache)
 
         assert mock_cache.get.called
@@ -379,7 +420,15 @@ class TestAnalyzeColumnsWithLlm:
         )
         mock_llm_provider.complete_structured.return_value = expected
 
-        profiles = [{"name": "id", "dtype": "int64", "unique_ratio": 1.0, "null_pct": 0, "samples": []}]
+        profiles = [
+            {
+                "name": "id",
+                "dtype": "int64",
+                "unique_ratio": 1.0,
+                "null_pct": 0,
+                "samples": [],
+            }
+        ]
         analyze_columns_with_llm(profiles, mock_llm_provider, cache=mock_cache)
 
         assert mock_cache.set.called
@@ -394,10 +443,12 @@ class TestIdentifyAmbiguousColumns:
     def test_identifies_gray_zone_uniqueness(self, sample_ddf):
         """Test identification of columns in uniqueness gray zone."""
         # Create a DataFrame with a column that's ~90% unique
-        pdf = pd.DataFrame({
-            "col1": list(range(90)) + [1] * 10,  # 90% unique
-            "col2": list(range(100)),  # 100% unique
-        })
+        pdf = pd.DataFrame(
+            {
+                "col1": list(range(90)) + [1] * 10,  # 90% unique
+                "col2": list(range(100)),  # 100% unique
+            }
+        )
         ddf = dd.from_pandas(pdf, npartitions=1)
 
         ambiguous = identify_ambiguous_columns(
@@ -544,10 +595,7 @@ class TestIdDetectionLlmIntegration:
     def test_uuid_format_detection_integration(self):
         """Test UUID format detection in full flow."""
         # Create DataFrame with valid UUID v4 values
-        uuids = [
-            f"550e8400-e29b-41d4-a716-{str(i).zfill(12)}"
-            for i in range(100)
-        ]
+        uuids = [f"550e8400-e29b-41d4-a716-{str(i).zfill(12)}" for i in range(100)]
         pdf = pd.DataFrame({"user_uuid": uuids})
         ddf = dd.from_pandas(pdf, npartitions=1)
 
@@ -560,6 +608,7 @@ class TestIdDetectionLlmIntegration:
         # Should detect as UUID - Note: detection depends on sample matching v4 pattern exactly
         # Our samples may not perfectly match v4 (the variant byte)
         _ = [
-            s for s in suggestions
+            s
+            for s in suggestions
             if s.column == "user_uuid" and s.id_format == IdFormat.UUID_V4
         ]  # noqa: F841

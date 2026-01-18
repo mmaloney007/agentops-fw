@@ -115,9 +115,7 @@ class AnthropicProvider(LLMProvider):
                 logger.warning("Retryable error from Anthropic: %s", e)
             raise
 
-    def get_cost_estimate(
-        self, prompt_tokens: int, completion_tokens: int
-    ) -> float:
+    def get_cost_estimate(self, prompt_tokens: int, completion_tokens: int) -> float:
         """Estimate cost based on Anthropic pricing (approximate)."""
         # Pricing as of late 2024 (USD per 1M tokens)
         pricing = {
@@ -126,7 +124,9 @@ class AnthropicProvider(LLMProvider):
             "claude-3-opus-latest": (15.00, 75.00),
         }
         input_rate, output_rate = pricing.get(self.model, (1.0, 5.0))
-        return (prompt_tokens * input_rate + completion_tokens * output_rate) / 1_000_000
+        return (
+            prompt_tokens * input_rate + completion_tokens * output_rate
+        ) / 1_000_000
 
 
 __all__ = ["AnthropicProvider"]

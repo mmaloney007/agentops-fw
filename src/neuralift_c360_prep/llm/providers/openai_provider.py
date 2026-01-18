@@ -123,9 +123,7 @@ class OpenAIProvider(LLMProvider):
                 logger.warning("Retryable error from OpenAI: %s", e)
             raise
 
-    def get_cost_estimate(
-        self, prompt_tokens: int, completion_tokens: int
-    ) -> float:
+    def get_cost_estimate(self, prompt_tokens: int, completion_tokens: int) -> float:
         """Estimate cost based on OpenAI pricing (approximate)."""
         # Pricing as of late 2024 (USD per 1M tokens)
         pricing = {
@@ -135,7 +133,9 @@ class OpenAIProvider(LLMProvider):
             "gpt-3.5-turbo": (0.50, 1.50),
         }
         input_rate, output_rate = pricing.get(self.model, (1.0, 3.0))
-        return (prompt_tokens * input_rate + completion_tokens * output_rate) / 1_000_000
+        return (
+            prompt_tokens * input_rate + completion_tokens * output_rate
+        ) / 1_000_000
 
 
 __all__ = ["OpenAIProvider"]

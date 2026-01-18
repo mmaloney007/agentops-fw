@@ -254,7 +254,16 @@ class TestBuildAnalysisPrompt:
 
     def test_includes_organization_context(self):
         """Test that organization context is included."""
-        profiles = [{"name": "col", "dtype": "int", "null_pct": 0, "unique_count": 5, "column_type": "id", "samples": []}]
+        profiles = [
+            {
+                "name": "col",
+                "dtype": "int",
+                "null_pct": 0,
+                "unique_count": 5,
+                "column_type": "id",
+                "samples": [],
+            }
+        ]
         prompt = _build_analysis_prompt(
             profiles,
             organization_context="Retail Company",
@@ -263,7 +272,16 @@ class TestBuildAnalysisPrompt:
 
     def test_includes_table_context(self):
         """Test that table context is included."""
-        profiles = [{"name": "col", "dtype": "int", "null_pct": 0, "unique_count": 5, "column_type": "id", "samples": []}]
+        profiles = [
+            {
+                "name": "col",
+                "dtype": "int",
+                "null_pct": 0,
+                "unique_count": 5,
+                "column_type": "id",
+                "samples": [],
+            }
+        ]
         prompt = _build_analysis_prompt(
             profiles,
             table_context="Customer transactions",
@@ -282,7 +300,9 @@ class TestBuildAnalysisPrompt:
 class TestAnalyzeWithLlm:
     """Tests for analyze_with_llm function."""
 
-    def test_calls_llm_provider(self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result):
+    def test_calls_llm_provider(
+        self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result
+    ):
         """Test that LLM provider is called correctly."""
         mock_llm_provider.complete_structured.return_value = sample_llm_result
 
@@ -294,9 +314,14 @@ class TestAnalyzeWithLlm:
 
         assert mock_llm_provider.complete_structured.called
         assert isinstance(result, LLMDataDoctorResult)
-        assert result.executive_summary.table_description == "Customer transaction data table"
+        assert (
+            result.executive_summary.table_description
+            == "Customer transaction data table"
+        )
 
-    def test_uses_cache_when_available(self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result):
+    def test_uses_cache_when_available(
+        self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result
+    ):
         """Test that cache is used when available."""
         mock_cache = MagicMock()
         mock_cache.get.return_value = sample_llm_result
@@ -313,7 +338,9 @@ class TestAnalyzeWithLlm:
         assert not mock_llm_provider.complete_structured.called
         assert result == sample_llm_result
 
-    def test_caches_result(self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result):
+    def test_caches_result(
+        self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result
+    ):
         """Test that result is cached."""
         mock_cache = MagicMock()
         mock_cache.get.return_value = None  # Cache miss
@@ -342,7 +369,9 @@ class TestAnalyzeWithLlm:
         assert isinstance(result, LLMDataDoctorResult)
         assert "LLM analysis unavailable" in result.executive_summary.table_description
 
-    def test_respects_max_columns(self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result):
+    def test_respects_max_columns(
+        self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result
+    ):
         """Test that max_columns limits analysis."""
         mock_llm_provider.complete_structured.return_value = sample_llm_result
 
@@ -588,7 +617,9 @@ class TestGenerateTransformYaml:
 
     def test_categorical_bucket_yaml(self):
         """Test generating categorical_bucket YAML."""
-        yaml = _generate_transform_yaml("category", TransformationType.CATEGORICAL_BUCKET)
+        yaml = _generate_transform_yaml(
+            "category", TransformationType.CATEGORICAL_BUCKET
+        )
         assert "type: categorical_bucket" in yaml
         assert "top_k" in yaml
         assert "other_label" in yaml
@@ -611,7 +642,9 @@ class TestGenerateTransformYaml:
 class TestDataDoctorLlmIntegration:
     """Integration tests for data_doctor_llm module."""
 
-    def test_full_analysis_flow(self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result):
+    def test_full_analysis_flow(
+        self, sample_ddf, sample_data_dict, mock_llm_provider, sample_llm_result
+    ):
         """Test full analysis flow from ddf to suggestions."""
         mock_llm_provider.complete_structured.return_value = sample_llm_result
 
@@ -634,4 +667,11 @@ class TestDataDoctorLlmIntegration:
         for s in suggestions:
             assert s.column != ""
             assert s.message != ""
-            assert s.category in ["fill", "transform", "kpi", "ratio", "derived", "quality"]
+            assert s.category in [
+                "fill",
+                "transform",
+                "kpi",
+                "ratio",
+                "derived",
+                "quality",
+            ]

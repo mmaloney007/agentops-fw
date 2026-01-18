@@ -107,8 +107,8 @@ def _build_analysis_prompt(
     return textwrap.dedent(f"""\
         Analyze this dataset and provide recommendations for data preparation and feature engineering.
 
-        Organization: {organization_context or 'Not specified'}
-        Table Context: {table_context or 'Not specified'}
+        Organization: {organization_context or "Not specified"}
+        Table Context: {table_context or "Not specified"}
 
         Columns ({len(column_profiles)} total):
         {profiles_text}
@@ -297,13 +297,13 @@ def generate_executive_summary(
     prompt = textwrap.dedent(f"""\
         Provide an executive summary for this dataset:
 
-        Organization: {organization_context or 'Not specified'}
-        Table: {table_context or 'Data table'}
+        Organization: {organization_context or "Not specified"}
+        Table: {table_context or "Data table"}
         Rows: {row_count:,}
         Columns: {len(ddf.columns)}
 
         Column names and types:
-        {', '.join(col_info)}
+        {", ".join(col_info)}
 
         Provide:
         1. A plain-English description of what this data represents (1-2 sentences)
@@ -462,7 +462,11 @@ def _generate_transform_yaml(
         YAML snippet string.
     """
     # Handle both enum and string values (due to use_enum_values=True in models)
-    type_str = transform_type.value if hasattr(transform_type, "value") else str(transform_type)
+    type_str = (
+        transform_type.value
+        if hasattr(transform_type, "value")
+        else str(transform_type)
+    )
 
     templates = {
         "log_transform": f"""- type: log_transform
@@ -531,22 +535,26 @@ def format_executive_summary(summary: ExecutiveSummary) -> str:
     for i, finding in enumerate(summary.key_findings, 1):
         lines.append(f"    {i}. {finding}")
 
-    lines.extend([
-        "",
-        "  IMMEDIATE ACTIONS:",
-    ])
+    lines.extend(
+        [
+            "",
+            "  IMMEDIATE ACTIONS:",
+        ]
+    )
 
     for i, action in enumerate(summary.immediate_actions, 1):
         lines.append(f"    {i}. {action}")
 
-    lines.extend([
-        "",
-        f"  Data Quality: {summary.data_quality_summary}",
-        f"  Feature Engineering: {summary.feature_engineering_opportunities}",
-        f"  Cross-Column Insights: {summary.cross_column_insights}",
-        "",
-        "=" * 70,
-    ])
+    lines.extend(
+        [
+            "",
+            f"  Data Quality: {summary.data_quality_summary}",
+            f"  Feature Engineering: {summary.feature_engineering_opportunities}",
+            f"  Cross-Column Insights: {summary.cross_column_insights}",
+            "",
+            "=" * 70,
+        ]
+    )
 
     return "\n".join(lines)
 

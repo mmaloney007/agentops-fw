@@ -27,12 +27,14 @@ from neuralift_c360_prep.llm.base import LLMProvider as BaseLLMProvider
 # ---------------------------------------------------------------------------
 class SimpleResponse(BaseModel):
     """Simple test response model."""
+
     message: str
     confidence: float
 
 
 class ComplexResponse(BaseModel):
     """Complex test response model."""
+
     name: str
     items: list[str]
     metadata: dict
@@ -255,6 +257,7 @@ class TestOpenAIProvider:
     def test_unavailable_without_api_key(self):
         """Test that provider is unavailable without API key."""
         from neuralift_c360_prep.llm.providers.openai_provider import OpenAIProvider
+
         # Create provider without API key set in env
         with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
             provider = OpenAIProvider()

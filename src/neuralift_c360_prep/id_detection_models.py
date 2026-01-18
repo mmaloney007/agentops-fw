@@ -72,9 +72,7 @@ class CompositeKeyCandidate(BaseModel):
     Note: Only suggested when individual columns are NOT unique on their own.
     """
 
-    columns: list[str] = Field(
-        ..., min_length=2, description="Columns forming the key"
-    )
+    columns: list[str] = Field(..., min_length=2, description="Columns forming the key")
     confidence: float = Field(..., ge=0.0, le=1.0)
     reasoning: str = Field(
         ...,
@@ -123,8 +121,12 @@ class LLMIdSuggestion(BaseModel):
             "reason": self.reason,
             "confidence": self.confidence,
             "confidence_score": self.confidence_score,
-            "key_type": self.key_type.value if isinstance(self.key_type, KeyType) else self.key_type,
-            "id_format": self.id_format.value if isinstance(self.id_format, IdFormat) else self.id_format,
+            "key_type": self.key_type.value
+            if isinstance(self.key_type, KeyType)
+            else self.key_type,
+            "id_format": self.id_format.value
+            if isinstance(self.id_format, IdFormat)
+            else self.id_format,
         }
         if self.uniqueness_ratio is not None:
             result["uniqueness_ratio"] = self.uniqueness_ratio

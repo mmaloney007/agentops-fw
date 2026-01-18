@@ -111,7 +111,9 @@ class ColumnRelationship(BaseModel):
         min_length=2,
         description="Columns involved in this relationship",
     )
-    relationship_type: Literal["ratio", "derived", "correlated", "grouped", "temporal"] = Field(
+    relationship_type: Literal[
+        "ratio", "derived", "correlated", "grouped", "temporal"
+    ] = Field(
         ...,
         description="Type of relationship",
     )
@@ -240,9 +242,11 @@ class LLMSuggestion(BaseModel):
     """Enhanced suggestion with LLM-derived insights."""
 
     priority: Priority = Field(..., description="Priority level")
-    category: Literal["fill", "transform", "kpi", "ratio", "derived", "quality"] = Field(
-        ...,
-        description="Category of suggestion",
+    category: Literal["fill", "transform", "kpi", "ratio", "derived", "quality"] = (
+        Field(
+            ...,
+            description="Category of suggestion",
+        )
     )
     column: str = Field(..., description="Column(s) this applies to")
     message: str = Field(..., max_length=500, description="Suggestion message")
@@ -269,7 +273,9 @@ class LLMSuggestion(BaseModel):
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
-            "priority": self.priority if isinstance(self.priority, str) else self.priority.value,
+            "priority": self.priority
+            if isinstance(self.priority, str)
+            else self.priority.value,
             "category": self.category,
             "column": self.column,
             "message": self.message,

@@ -276,11 +276,16 @@ def resolve_id_columns_with_llm(
 
     # Check if LLM is enabled via config
     detection_config = getattr(ids_config, "detection", None) if ids_config else None
-    llm_enabled = getattr(detection_config, "llm_enabled", False) if detection_config else False
+    llm_enabled = (
+        getattr(detection_config, "llm_enabled", False) if detection_config else False
+    )
 
     if llm_enabled and detection_config:
         # Use LLM-enhanced detection
-        from .id_detection_llm import suggest_id_columns_with_llm, print_llm_id_suggestions
+        from .id_detection_llm import (
+            suggest_id_columns_with_llm,
+            print_llm_id_suggestions,
+        )
         from .llm import get_llm_provider
 
         try:
@@ -300,14 +305,18 @@ def resolve_id_columns_with_llm(
                 llm_enabled=True,
                 table_context=table_context,
                 max_llm_columns=detection_config.max_llm_columns,
-                cache_dir=detection_config.llm_cache_dir if detection_config.llm_cache_enabled else None,
+                cache_dir=detection_config.llm_cache_dir
+                if detection_config.llm_cache_enabled
+                else None,
             )
 
             print_llm_id_suggestions(suggestions, explicit_ids=explicit)
             return explicit, suggestions
 
         except Exception as e:
-            logger.warning("[ids] LLM detection failed, falling back to rule-based: %s", e)
+            logger.warning(
+                "[ids] LLM detection failed, falling back to rule-based: %s", e
+            )
 
     # Fall back to standard detection
     suggestions = suggest_id_columns(

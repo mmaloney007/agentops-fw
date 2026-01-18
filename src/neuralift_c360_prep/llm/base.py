@@ -65,9 +65,7 @@ class LLMProvider(ABC):
         """
         return len(text) // 4
 
-    def get_cost_estimate(
-        self, prompt_tokens: int, completion_tokens: int
-    ) -> float:
+    def get_cost_estimate(self, prompt_tokens: int, completion_tokens: int) -> float:
         """Estimate cost in USD for a request.
 
         Override in subclasses with actual pricing.

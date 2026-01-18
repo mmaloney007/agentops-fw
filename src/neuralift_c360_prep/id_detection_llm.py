@@ -150,7 +150,7 @@ def _build_id_detection_prompt(
     return textwrap.dedent(f"""\
         Analyze these columns from a data table to identify primary key candidates.
 
-        Context: {table_context or 'Unknown table'}
+        Context: {table_context or "Unknown table"}
 
         Columns:
         {profiles_text}
@@ -393,7 +393,9 @@ def suggest_id_columns_with_llm(
 
         if ambiguous:
             ambiguous = ambiguous[:max_llm_columns]  # Cost control
-            logger.info("[id-llm] Analyzing %d ambiguous columns with LLM", len(ambiguous))
+            logger.info(
+                "[id-llm] Analyzing %d ambiguous columns with LLM", len(ambiguous)
+            )
 
             # Build column profiles for LLM
             profiles = []
@@ -431,7 +433,9 @@ def suggest_id_columns_with_llm(
                                 LLMIdSuggestion(
                                     column=analysis.column_name,
                                     reason="llm",
-                                    confidence="high" if analysis.confidence > 0.85 else "medium",
+                                    confidence="high"
+                                    if analysis.confidence > 0.85
+                                    else "medium",
                                     confidence_score=analysis.confidence,
                                     key_type=analysis.key_type,
                                     id_format=analysis.id_format,
