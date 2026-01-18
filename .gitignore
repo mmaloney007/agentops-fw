@@ -210,3 +210,5 @@ __marimo__/
 plan.md
 /run-logs
 /local-output 2
+/.nl_doctor_cache
+.tool-versions
