@@ -18,7 +18,6 @@ Copyright (c) 2025 Neuralift, Inc.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -52,23 +51,31 @@ def validate_all_configs(configs_dir: Path) -> dict:
             missing = [r for r in required if r not in config]
 
             if missing:
-                results["failed"].append((config_file.name, f"Missing sections: {missing}"))
+                results["failed"].append(
+                    (config_file.name, f"Missing sections: {missing}")
+                )
                 print(f"  FAIL  {config_file.name}: Missing {missing}")
             else:
                 # Check LLM settings
-                ids_llm = config.get("ids", {}).get("detection", {}).get("llm_enabled", False)
+                ids_llm = (
+                    config.get("ids", {}).get("detection", {}).get("llm_enabled", False)
+                )
                 dd_llm = config.get("data_doctor", {}).get("llm_enabled", False)
                 source = config.get("input", {}).get("source", "unknown")
 
                 results["passed"].append(config_file.name)
                 print(f"  OK    {config_file.name}")
-                print(f"        source={source}, ids_llm={ids_llm}, doctor_llm={dd_llm}")
+                print(
+                    f"        source={source}, ids_llm={ids_llm}, doctor_llm={dd_llm}"
+                )
 
         except Exception as e:
             results["failed"].append((config_file.name, str(e)))
             print(f"  FAIL  {config_file.name}: {e}")
 
-    print(f"\n  Summary: {len(results['passed'])} passed, {len(results['failed'])} failed")
+    print(
+        f"\n  Summary: {len(results['passed'])} passed, {len(results['failed'])} failed"
+    )
     return results
 
 
@@ -126,7 +133,9 @@ def run_data_doctor_test(config_path: Path, enable_llm: bool = False) -> dict:
         "fill_suggestions": len(report.fill_suggestions),
         "kpi_candidates": len(report.kpi_candidates),
         "ratio_opportunities": len(report.ratio_opportunities),
-        "llm_suggestions_count": len(report._llm_suggestions) if report._llm_suggestions else 0,
+        "llm_suggestions_count": len(report._llm_suggestions)
+        if report._llm_suggestions
+        else 0,
         "executive_summary": report._llm_executive_summary is not None,
     }
 
@@ -174,16 +183,21 @@ def run_full_pipeline_tests(configs_dir: Path, enable_llm: bool = False) -> dict
             results["failed"].append((config_name, str(e)))
             print(f"  FAIL  {e}")
             import traceback
+
             traceback.print_exc()
 
-    print(f"\n  Summary: {len(results['passed'])} passed, {len(results['failed'])} failed, {len(results['skipped'])} skipped")
+    print(
+        f"\n  Summary: {len(results['passed'])} passed, {len(results['failed'])} failed, {len(results['skipped'])} skipped"
+    )
     return results
 
 
 def main():
     parser = argparse.ArgumentParser(description="Test configs with Data Doctor")
     parser.add_argument("--llm", action="store_true", help="Enable LLM analysis")
-    parser.add_argument("--skip-validation", action="store_true", help="Skip config validation")
+    parser.add_argument(
+        "--skip-validation", action="store_true", help="Skip config validation"
+    )
     args = parser.parse_args()
 
     configs_dir = Path(__file__).parent.parent / "configs"
@@ -207,9 +221,13 @@ def main():
     print("=" * 70)
 
     if not args.skip_validation:
-        print(f"  Config Validation: {len(validation_results['passed'])}/{len(validation_results['passed']) + len(validation_results['failed'])} passed")
+        print(
+            f"  Config Validation: {len(validation_results['passed'])}/{len(validation_results['passed']) + len(validation_results['failed'])} passed"
+        )
 
-    print(f"  Data Doctor Tests: {len(pipeline_results['passed'])}/{len(pipeline_results['passed']) + len(pipeline_results['failed'])} passed")
+    print(
+        f"  Data Doctor Tests: {len(pipeline_results['passed'])}/{len(pipeline_results['passed']) + len(pipeline_results['failed'])} passed"
+    )
 
     if pipeline_results["failed"]:
         print("\n  Failed tests:")

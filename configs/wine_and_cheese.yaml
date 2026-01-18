@@ -35,18 +35,14 @@ ids:
   columns: ["id"]
   auto_detect: true
   # ---------------------------------------------------------------------------
-  # LLM-Enhanced ID Detection (optional, disabled by default)
+  # LLM-Enhanced ID Detection (enabled for testing)
   # ---------------------------------------------------------------------------
-  # detection:
-  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
-  #   llm_provider:
-  #     provider: auto             # Options: openai, anthropic, auto
-  #     model: null                # Use provider default or specify: gpt-4o-mini
-  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
-  #   llm_cache_enabled: true      # Cache LLM responses to save cost
-  #   uniqueness_threshold: 0.95   # Ratio to consider column unique
-  #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
-  #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
+  detection:
+    llm_enabled: true            # LLM semantic analysis enabled
+    llm_provider:
+      provider: auto             # Options: openai, anthropic, auto
+    max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+    llm_cache_enabled: true      # Cache LLM responses to save cost
 
 preprocessing:
   rename_to_snake: true
@@ -140,15 +136,13 @@ data_doctor:
   enabled: true                    # Run Data Doctor analysis (rule-based)
   save_yaml: true                  # Save suggestions.yaml alongside output
   # ---------------------------------------------------------------------------
-  # LLM Enhancement (optional, disabled by default)
+  # LLM Enhancement (enabled for testing)
   # ---------------------------------------------------------------------------
-  # llm_enabled: false             # Set to true to enable LLM analysis
-  # llm_provider:
-  #   provider: auto               # Options: openai, anthropic, auto
-  #   model: null                  # Use provider default or specify: gpt-4o-mini
-  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
-  # llm_cache_enabled: true        # Cache LLM responses to save cost
-  # generate_executive_summary: true  # Generate natural language summary
+  llm_enabled: true                # LLM analysis enabled
+  llm_provider:
+    provider: auto                 # Options: openai, anthropic, auto
+  llm_cache_enabled: true          # Cache LLM responses to save cost
+  generate_executive_summary: true # Generate natural language summary
 
 output:
   uc_catalog: staging-c360

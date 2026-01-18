@@ -73,7 +73,7 @@ def add_llm_config_to_file(file_path: Path) -> bool:
             new_ids_section = ids_section + IDS_LLM_TEMPLATE
             content = content.replace(ids_section, new_ids_section)
             modified = True
-            print(f"  Added IDs LLM config")
+            print("  Added IDs LLM config")
 
     # Check if data_doctor section exists
     if "data_doctor:" not in content:
@@ -81,7 +81,7 @@ def add_llm_config_to_file(file_path: Path) -> bool:
         if "output:" in content:
             content = content.replace("output:", DATA_DOCTOR_TEMPLATE + "output:")
             modified = True
-            print(f"  Added Data Doctor section")
+            print("  Added Data Doctor section")
     elif "llm_enabled" not in content:
         # data_doctor exists but no LLM config - add LLM comments
         dd_pattern = r"(data_doctor:\n(?:  [^\n]+\n)*)"
@@ -103,13 +103,13 @@ def add_llm_config_to_file(file_path: Path) -> bool:
             new_dd_section = dd_section + llm_comments
             content = content.replace(dd_section, new_dd_section)
             modified = True
-            print(f"  Added Data Doctor LLM comments")
+            print("  Added Data Doctor LLM comments")
 
     if modified:
         file_path.write_text(content)
         return True
 
-    print(f"  No changes needed (LLM config already present or structure different)")
+    print("  No changes needed (LLM config already present or structure different)")
     return False
 
 
