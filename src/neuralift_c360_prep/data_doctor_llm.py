@@ -165,7 +165,7 @@ def analyze_with_llm(
     table_context: str | None = None,
     organization_context: str | None = None,
     cache: LLMResponseCache | None = None,
-    max_columns: int = 30,
+    max_columns: int | None = None,
 ) -> LLMDataDoctorResult:
     """Analyze data using LLM for enhanced insights.
 
@@ -176,13 +176,14 @@ def analyze_with_llm(
         table_context: Optional table description.
         organization_context: Optional organization context.
         cache: Optional response cache.
-        max_columns: Maximum columns to include in prompt.
+        max_columns: Maximum columns to include in prompt (None = all columns).
 
     Returns:
         LLMDataDoctorResult with analysis.
     """
-    # Build column profiles
-    columns = list(ddf.columns)[:max_columns]
+    # Build column profiles (all columns if max_columns is None)
+    all_columns = list(ddf.columns)
+    columns = all_columns if max_columns is None else all_columns[:max_columns]
     profiles = [_build_column_profile(col, ddf, data_dict) for col in columns]
 
     # Build prompt

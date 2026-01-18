@@ -658,7 +658,7 @@ class DataDoctorConfig(BaseModel):
     llm_provider: LLMProviderConfig = Field(default_factory=LLMProviderConfig)
     llm_cache_enabled: bool = True
     llm_cache_dir: str = ".nl_doctor_cache"
-    max_llm_columns: int = 30  # Max columns to send to LLM
+    max_llm_columns: int | None = None  # Max columns to send to LLM (None = all)
     generate_executive_summary: bool = True  # Generate LLM executive summary
 
 

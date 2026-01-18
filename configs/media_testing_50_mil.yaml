@@ -93,7 +93,7 @@ metadata:
   model: gpt-5-nano
   sample_rows: 5000
   max_concurrency: 50
-  tags
+  tags:
     id_cols: ["customer_id"]
     kpi_cols:
       - at_risk
@@ -117,6 +117,26 @@ metadata:
     VistaStream is a premium streaming platform dedicated to delivering an exceptional
     entertainment experience to a diverse and discerning subscriber base.
   op_timeout: 45m
+
+# -----------------------------------------------------------------------------
+# Data Doctor - Automated data quality analysis and suggestions
+# -----------------------------------------------------------------------------
+# Runs after metadata generation to provide actionable improvement suggestions.
+# Rule-based analysis is always on. LLM enhancement is optional.
+# -----------------------------------------------------------------------------
+data_doctor:
+  enabled: true                    # Run Data Doctor analysis (rule-based)
+  save_yaml: true                  # Save suggestions.yaml alongside output
+  # ---------------------------------------------------------------------------
+  # LLM Enhancement (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # llm_enabled: false             # Set to true to enable LLM analysis
+  # llm_provider:
+  #   provider: auto               # Options: openai, anthropic, auto
+  #   model: null                  # Use provider default or specify: gpt-4o-mini
+  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
+  # llm_cache_enabled: true        # Cache LLM responses to save cost
+  # generate_executive_summary: true  # Generate natural language summary
 
 output:
   uc_catalog: staging-c360
