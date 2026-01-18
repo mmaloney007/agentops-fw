@@ -293,8 +293,8 @@ class TestProviderType:
             # Should not raise TypeError for valid types
             try:
                 get_llm_provider(provider=ptype)
-            except ValueError:
-                # ValueError for missing API key is OK
+            except (ValueError, RuntimeError):
+                # ValueError/RuntimeError for missing/invalid API key is OK
                 pass
 
 
