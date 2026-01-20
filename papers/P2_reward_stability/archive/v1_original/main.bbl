@@ -1,4 +1,4 @@
-\begin{thebibliography}{14}
+\begin{thebibliography}{13}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -53,11 +53,6 @@ Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis, Wen-tau Yih, Pang~Wei Koh,
 \newblock {FActScore}: Fine-grained atomic evaluation of factual precision in
   long form text generation.
 \newblock \emph{arXiv preprint arXiv:2305.14251}, 2023.
-
-\bibitem[{NVIDIA}(2025)]{nvidia2025slm}
-{NVIDIA}.
-\newblock Small language models are the future of agentic ai, 2025.
-\newblock Demonstrates 10-30x cost reduction for SLMs in agentic systems.
 
 \bibitem[Ouyang et~al.(2022)Ouyang, Wu, Jiang, Almeida, Wainwright, Mishkin,
   Zhang, Agarwal, Slama, Ray, et~al.]{ouyang2022rlhf}

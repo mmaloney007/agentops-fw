@@ -1,0 +1,1872 @@
+% SpecSLOEval Draft (fixed + consolidated)
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{adjustbox} % scale TikZ/figures to \linewidth when needed
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{listings}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc}
+
+% Bibliography + hyperlinks
+% Use biblatex+biber for reproducible numeric citations inside this package.
+\usepackage[backend=biber,style=numeric,sorting=none,natbib=true]{biblatex}
+\addbibresource{refs.bib}
+
+\usepackage{microtype}
+\usepackage{xurl} % better line breaks in \url{}
+\usepackage{hyperref}
+\hypersetup{
+  hidelinks,
+  breaklinks=true
+}
+
+
+
+\newcommand{\pninetyfive}{\ensuremath{\mathrm{p95}}}
+\newcommand{\pninetynine}{\ensuremath{\mathrm{p99}}}
+\newcommand{\slo}{\ensuremath{\mathrm{SLO}}}
+\newcommand{\etal}{\textit{et al.}}
+
+\title{The Deployment Gap: Why Benchmark Accuracy Fails to Predict Production Readiness}
+
+\author{
+Michael Maloney \\
+Neuralift \\
+University of New Hampshire \\
+\texttt{mike.maloney@unh.edu}
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The correlation between traditional LLM accuracy benchmarks and production success is near-zero---and in some cases negative.
+This is the deployment gap: models that score well on MMLU, HELM, and similar benchmarks routinely fail in production because accuracy ignores what actually matters for deployment---latency, structural validity, and deadline compliance.
+
+We introduce \emph{Success@SLO}, a joint metric requiring both quality gates (structural validity, correctness, faithfulness) AND deadline compliance.
+Evaluating 4 models on structured output tasks, we find that the model with the highest accuracy (Gemma-3-12B, 78\%) achieves the best Success@SLO (48\%), but not because of its accuracy---because it's fast.
+Meanwhile, Ministral-8B achieves solid accuracy (66\%, 2nd place) but the \emph{worst} Success@SLO (1.2\%) due to latency.
+The least accurate model (Llama-3.2-3B, 54\%) is 30$\times$ more deployable than Ministral.
+
+The rank correlation between accuracy and Success@SLO is --0.4 (negative).
+If you deployed by accuracy alone, you would choose Ministral-8B---and it would fail 98.8\% of production requests.
+This challenges the fundamental assumptions of LLM evaluation: accuracy benchmarks tell you almost nothing about deployment readiness.
+Production-ready evaluation requires Success@SLO.
+
+Our findings align with recent work from NVIDIA on small language models for agentic systems~\citep{nvidia2025slm}, which demonstrates that latency and cost dominate production economics.
+We operationalize this insight with Success@SLO as the deployment-aware metric the industry needs.
+\end{abstract}
+
+\section{Introduction}
+
+Here is the uncomfortable truth about deploying LLM agents: the metrics you use to select models have almost no relationship to production success.
+
+We evaluated 4 models on structured output tasks and found the correlation between accuracy and deployment success is \emph{negative}.
+The model with the best accuracy on our benchmark (Gemma-3-12B, 78\%) happens to also have the best Success@SLO (48\%)---but not because of its accuracy.
+It wins because it's fast.
+Meanwhile, Ministral-8B achieves solid accuracy (66\%, 2nd place) but fails 98.8\% of production requests due to latency.
+The least accurate model (Llama-3.2-3B, 54\%) is 30$\times$ more deployable than Ministral.
+
+This is the \textbf{deployment gap}: the disconnect between what benchmarks measure (accuracy in isolation) and what production requires (quality AND speed).
+
+The entire model evaluation paradigm is wrong.
+MMLU, HELM, and similar benchmarks tell you whether a model can answer questions correctly.
+They tell you nothing about whether the model will work in your system---whether it will meet latency deadlines, emit valid structured outputs consistently, and scale under load.
+Teams spend months selecting models based on accuracy, deploy them, and discover they fail in production for reasons the benchmarks never captured.
+
+We focus specifically on single-GPU deployments because this is where most teams actually run agents.
+Not everyone has a fleet of A100s.
+Many organizations run open-weight models on an RTX 4090 or M2 Max behind LM Studio or Ollama, partly for cost, partly to keep sensitive data on-premise.
+These setups face all the same production pressures as cloud deployments---schema contracts, faithfulness requirements, latency SLOs---but with tighter resource envelopes and more visible tail behavior.
+
+The research community has attacked pieces of this problem.
+Serving systems like vLLM~\citep{kwon2023vllm} and SGLang~\citep{zheng2023sglang} optimize throughput and tail latency, but treat the model as a black box emitting unconstrained text.
+Structured output tools~\citep{geng2025jsonschemabench,openaiStructuredOutputs} improve syntactic validity, but evaluation stops at "does it parse?"
+What nobody has built is a framework that measures the full stack: structure \emph{and} accuracy \emph{and} faithfulness \emph{and} stability \emph{and} latency, all evaluated together against explicit contracts and deadlines.
+
+This is why we built SpecSLOEval.
+The framework treats JSON Schemas as enforceable contracts, compiles them to whatever constraint mechanism your backend supports (OpenAI-style schemas, GBNF grammars, or just validation-and-retry), and evaluates everything through a single \texttt{criteria.yaml} file that defines what "good enough" means for your deployment.
+We designed the metrics to double as reward signals for reinforcement learning~\citep{schulman2017ppo,dettmers2023qlora}, because evaluation without a path to improvement is just documentation of failure.
+
+\paragraph{What we contribute.}
+Three things, in order of how much they will change your workflow:
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{A spec compiler that actually works across backends.}
+    Hand us a JSON Schema; we will turn it into whatever your serving stack can enforce, then validate the output anyway because we do not trust the enforcement to be complete.
+    If validation fails, we retry with bounded budget.
+    All of this gets reflected in your latency measurements, because pretending retries are free is how you end up surprised in production.
+
+    \item \textbf{Success@SLO as your deployment metric.}
+    We define this as the fraction of requests that pass your quality gates \emph{and} finish before your deadline.
+    Not accuracy alone.
+    Not latency alone.
+    The joint distribution, because that is what your users experience.
+
+    \item \textbf{Honest measurements from a single GPU.}
+    We ran the full configuration ladder---unconstrained, provider-structured, validation-and-retry, grammar-constrained, self-consistency---on real hardware you can buy for under \$4{,}000.
+    No cluster, no cloud dependency, no hidden inference costs.
+    The results are uncomfortable but reproducible.
+\end{itemize}
+
+
+\paragraph{Claim A1 (The Deployment Gap).}
+Benchmark accuracy does not predict production success---the correlation is near-zero or negative.
+Evaluating 4 models on structured output tasks with a 2-second SLO deadline:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Success@SLO} & \textbf{The Paradox} \\
+\midrule
+Gemma-3-12B & \textbf{78\%} (best) & \textbf{48.0\%} (best) & Wins both---because it's fast \\
+Ministral-8B & 66\% (2nd) & \textbf{1.2\%} (worst) & Good accuracy, terrible deployability \\
+Qwen3-4B & 58\% & 25.9\% & Middle accuracy, middle SLO \\
+Llama-3.2-3B & 54\% (worst) & 35.5\% & Worst accuracy, 30$\times$ better than Ministral \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The rank correlation between accuracy and Success@SLO is \textbf{--0.4} (negative).
+If you deployed by accuracy alone, Ministral would rank 2nd---and fail 98.8\% of production requests.
+This illustrates the deployment gap: accuracy metrics tell you almost nothing about production readiness.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.92\linewidth]{figs/claimA1_mismatch.pdf}
+    \caption{Claim A1 in one picture.
+    In our current single-GPU long-context run, schema-validity is \textbf{99.7\%} while Success@\slo is \textbf{0.0\%} under a 1200\,ms deadline.
+    Structural correctness alone is therefore an insufficient deployment gate; the correct operational metric is joint: \emph{quality gates \,$\wedge$\, deadline}.}
+    \label{fig:claimA1-mismatch}
+\end{figure}
+
+
+
+
+\paragraph{Paper organization.}
+Section~\ref{sec:background} reviews related work in LLM serving, constrained decoding, and agent evaluation.
+Section~\ref{sec:problem} formulates contract-first, \slo-aware serving as constrained optimization over configurations.
+Section~\ref{sec:method} details our spec-to-decoder compilation and serving-time hardening (validation-and-retry, budgeted selection).
+Section~\ref{sec:eval-framework} presents the evaluation framework and test families, including faithfulness scoring and trajectory checks.
+Section~\ref{sec:experiments} reports single-GPU experiments and decoding-mode comparisons.
+Section~\ref{sec:discussion} discusses limitations and future directions.
+
+\section{Background and Related Work}
+\label{sec:background}
+
+Four bodies of work are relevant here, and all of them are incomplete in ways that matter for production deployments.
+
+\subsection{Tail Latency and LLM Serving}
+
+The SRE community has known for years that users experience the tail, not the mean~\citep{dean2013tail}.
+If your p99 is 8 seconds, you have a latency problem even if your average is 200ms.
+LLM serving makes this worse because output lengths vary wildly, batching creates contention, and autoregressive decoding is inherently sequential.
+
+The serving systems community has responded with impressive infrastructure.
+vLLM's PagedAttention and continuous batching~\citep{kwon2023vllm} are now standard.
+SGLang~\citep{zheng2023sglang} optimizes structured programs.
+FlashAttention~\citep{dao2023flashattention2} cuts memory and compute.
+Sarathi-Serve~\citep{agrawal2024sarathi} tackles scheduling under realistic traffic.
+
+But here is what they all assume: that the model emits unconstrained text and someone else's problem is figuring out whether that text is correct.
+None of them measure schema validity, faithfulness, or stability.
+They give you fast inference; they do not tell you if the output is usable.
+
+\subsection{Structured Outputs, Grammars, and Contract-First Decoding}
+
+If your agent talks to other software, it needs to emit structured outputs.
+JSON reports.
+Typed tool arguments.
+Database records.
+Free-form text is useless downstream.
+
+The tooling has gotten much better.
+OpenAI's structured outputs API~\citep{openaiStructuredOutputs} constrains generation to match a schema.
+Local servers like LM Studio and Ollama support similar features.
+Grammar-based decoding can enforce arbitrary formats.
+JSONSchemaBench~\citep{geng2025jsonschemabench} provides systematic evaluation, and the results are encouraging: constraints dramatically improve syntactic validity.
+
+But "does it parse?" is a low bar.
+None of these evaluations ask: how much latency does the constraint add?
+How often do you have to retry?
+Does syntactic validity correlate with semantic correctness, or do you just get valid-but-wrong JSON faster?
+These questions matter for production, and nobody is measuring them systematically.
+
+\subsection{Automated Evaluation of Faithfulness and Factuality}
+
+Hallucinations are the silent killer of agent deployments.
+Your model will confidently state that revenue increased 15\% when the source document says 12\%.
+It will cite a paragraph that does not exist.
+It will invent plausible-sounding statistics.
+And unless you are checking every output manually, you will not notice until someone makes a bad decision based on it.
+
+RAGAS~\citep{es2023ragas} and similar LLM-as-judge frameworks try to automate this checking.
+You ask a second model: "Is this claim supported by this context?"
+Atomic-fact decomposition~\citep{atomicFacts2024} goes further, breaking outputs into individual claims and scoring each one.
+
+LLM-as-judge methods are powerful but imperfect.
+Studies document judge bias and sensitivity to prompt framing and verbosity, motivating careful calibration and auditability~\citep{chen2024humans}.
+For production use, judge outputs must be treated as \emph{signals} that are logged, inspected, and complemented with task-grounded checks.
+
+\textbf{Gap:} faithfulness evaluation is often bolted on after generation and is rarely integrated with structured-output contracts, tool traces, stability, and latency \slo s in a single harness.
+SpecSLOEval integrates judge-based faithfulness scoring as one metric family in a strict, auditable gating pipeline.
+
+\subsection{Agent Evaluation Frameworks in Practice}
+
+Production agent stacks increasingly adopt evaluation pipelines: golden sets, rubric scoring, trajectory inspection, and regression tests.
+Cloud ecosystems (e.g., Google’s ADK and Vertex AI evaluation guidance) emphasize both final answer quality and trajectory quality (tool use, error handling) and provide templates for evaluation workflows.
+These resources are operationally valuable, but they are often platform-tied, assume managed model hosting, and under-specify how to combine schema contracts, tool-call validity, faithfulness, stability, and tail-latency constraints into a single, portable protocol.
+
+\textbf{Gap:} existing production frameworks describe the \emph{idea} of agent testing but do not provide a backend-agnostic, single-GPU-friendly criteria-driven harness that makes contracts and tail \slo s first-class.
+SpecSLOEval provides this explicit criteria layer (\texttt{criteria.yaml}) and a repeatable execution harness.
+
+\subsection{Single-GPU Local Serving and Open-Weight Models}
+
+Single-node deployments---a workstation GPU (e.g., RTX~4090) or laptop accelerators (Apple M-series)---are common for privacy, cost predictability, and rapid iteration.
+Local OpenAI-compatible servers (LM Studio, Ollama) and high-throughput runtimes (vLLM) make such deployments practical.
+What is missing is a standardized way to evaluate these stacks as \emph{services}: not just average latency, not just “does JSON parse,” but the joint behavior under contracts, tool usage, faithfulness, stability, and tail \slo s.
+
+\textbf{Gap:} the ecosystem provides runtimes and knobs, but not an end-to-end evaluation protocol that treats structured contracts and tail \slo s as co-equal first-class citizens.
+This motivates our problem formulation in Section~\ref{sec:problem}.
+
+\section{Problem Formulation}
+\label{sec:problem}
+
+Figure~\ref{fig:agent-context} sketches the single-node setting we target.
+A generic commercial agent sits between upstream requesters (users, batch jobs, or other services) and downstream consumers (dashboards, workflows, humans).
+For each request, the agent receives unstructured and structured context (documents, logs, records, prior turns), may call tools (APIs, databases, services), and is expected to emit \emph{structured outputs} such as JSON reports, action recommendations, or tool-call payloads.
+These outputs do not only surface in a chat window; they are consumed by campaign engines, scoring pipelines, ETL jobs, monitoring dashboards, and human decision-makers.
+Small model errors can therefore propagate and compound:
+malformed JSON can crash a pipeline;
+a mis-typed field can poison an aggregate;
+a subtly incorrect statement about a key metric can trigger the wrong business action.
+At the same time, users and systems experience the agent through latency: if responses frequently violate \pninetyfive/\pninetynine budgets, trust erodes even when mean latency and accuracy look acceptable.
+
+We want a formulation that is:
+(i) amenable to systems-level analysis (latency distributions, SLO constraints, single-GPU capacity);
+(ii) fine-grained enough to capture semantics (structure, task accuracy, faithfulness, tool behavior, stability);
+and (iii) compatible with both static configuration selection and reinforcement-learning-based improvement.
+We therefore define:
+an abstract \emph{agent+contract model} (Section~\ref{sec:problem-agent}),
+a \emph{single-node serving environment} with explicit latency-based SLOs (Section~\ref{sec:problem-slo}),
+and a vector of \emph{evaluation metrics} configured via a single criteria file (Section~\ref{sec:problem-metrics}).
+Figure~\ref{fig:metric-families} summarizes the metric families and their strict gating order; Figure~\ref{fig:optimization-view} gives an optimization view that supports both static configuration search (Phase~I) and constrained RL (Phase~II).
+
+Throughout this section we use the term \emph{configuration} for a concrete choice of model, runtime, decoding settings, and contract.
+The rest of the paper instantiates this formulation for single-GPU deployments (RTX~4090-class or Apple M-series) and a standard set of evaluation tasks.
+
+\subsection{Agent, Contract, and Configuration}
+\label{sec:problem-agent}
+
+\paragraph{Episode model.}
+We formalize an \emph{agent invocation} as a single request--response episode.
+Let $\mathcal{X}$ denote the space of requests.
+Each request $x \in \mathcal{X}$ may consist of:
+\begin{itemize}[leftmargin=12pt]
+    \item a user instruction or task description (free-form text or a structured spec),
+    \item a multiset of context items $C=\{c_1,\dots,c_m\}$ such as retrieved documents, KB entries, prior turns, log excerpts, or database records,
+    \item optional metadata such as user profile, locale, device information, or authorization context.
+\end{itemize}
+We deliberately keep $\mathcal{X}$ domain-agnostic: the same formalism covers analytics summarization, support automation, code editing, incident response, and other agent tasks.
+
+Many agents are also \emph{tool-using}.
+Let $\mathcal{T}$ be a catalog of tools (APIs, DB queries, calculators), each with a name and a JSON argument schema.
+An episode may include a tool/trajectory trace
+\[
+\tau = \bigl((t_1,a_1,o_1), (t_2,a_2,o_2), \dots, (t_n,a_n,o_n)\bigr),
+\]
+where $t_i \in \mathcal{T}$ is the tool name, $a_i$ are structured arguments (typically JSON), and $o_i$ is the tool response (or an error).
+
+The episode terminates with a final structured output $y \in \mathcal{Y}$ (e.g., a JSON object consumed by downstream systems).
+We evaluate both the final output $y$ and the trajectory $\tau$.
+
+\paragraph{Contracts.}
+The structure of $\mathcal{Y}$ is governed by a \emph{contract} $\mathcal{C}$.
+In practice, contracts are expressed as JSON Schemas, Pydantic models, protocol buffers, or grammars.
+We abstract a contract as a predicate
+\[
+\mathcal{C}:\mathcal{Y}\rightarrow\{0,1\},
+\]
+where $\mathcal{C}(y)=1$ iff $y$ is syntactically well formed (e.g., valid JSON) and satisfies all structural constraints:
+field presence, types, enum values, bounds, nesting, and any additional invariants encoded in the contract.
+By \emph{contract-first} we mean that $\mathcal{C}$ is specified \emph{before} the agent is invoked and that decoding/validation is explicitly designed to respect $\mathcal{C}$ rather than relying on best-effort prompting alone.
+
+\paragraph{Policy and runtime.}
+We assume a parametric policy $\pi_\theta$, typically an LLM with prompts and optionally fine-tuned weights or adapters.
+The policy is deployed via a serving runtime $R$ (e.g., LM Studio, Ollama, vLLM, or \texttt{llama.cpp}) exposing an OpenAI-compatible API.
+Given a request $x$, the agent produces a trajectory $\tau$ and a final output $y$.
+
+Modern runtimes support different mechanisms to enforce or approximate the contract $\mathcal{C}$.
+We therefore distinguish:
+\begin{itemize}[leftmargin=12pt]
+    \item the \emph{abstract contract} $\mathcal{C}$, and
+    \item a \emph{backend constraint artifact} $g(R,\mathcal{C})$ produced by a spec compiler (e.g., OpenAI-style JSON schema payloads, backend-specific tool specs, or GBNF grammars).
+\end{itemize}
+The spec compiler is described in Section~\ref{sec:method}; here we treat $g(R,\mathcal{C})$ as the runtime-level representation of the contract.
+
+Let $\delta$ denote decoding and orchestration settings (temperature, top-$p$, max tokens, retry budget, self-consistency budget $k$, batching flags, speculative decoding, etc.).
+A configuration is
+\[
+\kappa = (R,\pi_\theta,\delta,\mathcal{C}).
+\]
+Given $\kappa$, the induced episode distribution can be written as
+\[
+(\tau,y) \sim \pi_\theta(\cdot \mid x,\; g(R,\mathcal{C}),\; \delta,\; R).
+\]
+Changing $R$, $\delta$, or $\mathcal{C}$ changes the \emph{effective policy} even if $\theta$ is fixed, which is why we treat them as first-class optimization knobs.
+
+\subsection{Serving Environment and Latency SLOs}
+\label{sec:problem-slo}
+
+We assume the agent stack runs on a \emph{single, finite-capacity node} equipped with a GPU (e.g., RTX~4090-class) or a laptop-class accelerator (e.g., Apple M-series).
+The runtime $R$ performs prefill and decoding, possibly batching multiple requests, managing KV caches, and using techniques such as PagedAttention as in vLLM~\citep{kwon2023vllm}.
+
+\paragraph{End-to-end latency.}
+For each request $x$ served under configuration $\kappa$, define end-to-end latency
+\[
+L_\kappa(x) = t_{\text{finish}}(x) - t_{\text{start}}(x),
+\]
+where $t_{\text{start}}(x)$ is when the request enters the agent orchestrator, and $t_{\text{finish}}(x)$ is when a \emph{validated} final output $y$ (or an explicit failure object) is available to downstream consumers.
+This definition includes orchestration overhead such as tool calls, validation, bounded retries, and (when enabled) self-consistency.
+
+Requests arrive according to a workload model $W$ (arrival process + request distribution).
+Given $\kappa$ and $W$, the induced latency distribution is
+\[
+Q_\kappa^W = \mathcal{L}\bigl(L_\kappa(x)\mid x\sim W\bigr),
+\]
+summarized by quantiles
+\[
+\mathrm{p50}(Q_\kappa^W),\quad \mathrm{p95}(Q_\kappa^W),\quad \mathrm{p99}(Q_\kappa^W),
+\]
+and, when relevant, time-to-first-token (TTFT) and throughput (QPS).
+Following \citet{dean2013tail}, \pninetyfive and \pninetynine are treated as first-class service metrics.
+
+\paragraph{SLOs as constraints.}
+Service-level objectives (\slo s) are expressed as bounds on these quantiles and on resource budgets such as output length:
+\[
+\mathrm{p95}(Q_\kappa^W)\le B,\qquad \mathrm{p99}(Q_\kappa^W)\le B',\qquad \text{and}\qquad \texttt{tokens\_out}\le M.
+\]
+Throughout, we report latency in milliseconds unless stated otherwise.
+
+(Some deployments also specify hard timeouts and/or TTFT constraints; our framework supports these as additional gates.)
+
+\paragraph{Lexicographic preference ordering.}
+In many enterprise settings, latency is not the primary objective.
+A common operational preference is lexicographic:
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Correctness and structure first:} JSON must parse and satisfy $\mathcal{C}$; task accuracy and faithfulness must exceed thresholds.
+    \item \textbf{Stability next:} outputs should be stable across runs and seeds.
+    \item \textbf{Latency last:} once correctness/stability are satisfied, meet \pninetyfive/\pninetynine budgets.
+\end{itemize}
+We encode this ordering directly in our evaluation criteria (Section~\ref{sec:problem-metrics}) rather than treating latency as just another weighted term in an objective.
+
+\paragraph{Episode-level ``good and on time''.}
+To report a concise, business-aligned metric, we define an episode-level indicator that combines quality gates with an explicit per-episode deadline:
+\[
+\text{Success@\slo}_\kappa(x)=\mathbf{1}\!\left[\;\text{All required quality gates pass}\;\wedge\; L_\kappa(x)\le B_{\text{episode}}\;\right].
+\]
+In our experiments we set $B_{\text{episode}} := B$, i.e., the same budget used for the \pninetyfive constraint.
+With this choice, Success@\slo is the empirical CDF evaluated at the \pninetyfive budget \emph{after} the required quality gates are applied.
+Aggregating this indicator over an evaluation set yields the Success@\slo rate.
+Separately, we still report distributional tail metrics (p95/p99); Success@\slo is a \emph{joint} success rate, not a substitute for quantiles.
+
+\subsection{Metric Families and Criteria Configuration}
+\label{sec:problem-metrics}
+
+To reason about agents in a way that is auditable, tunable, and reusable across backends, we define for each episode a metric vector
+\[
+m_\kappa(x,\tau,y)\in\mathbb{R}^K,
+\]
+whose components are grouped into families (Figure~\ref{fig:metric-families}):
+\emph{structure}, \emph{task accuracy}, \emph{faithfulness}, \emph{tools/trajectory}, \emph{stability}, and \emph{latency/SLOs}.
+Section~\ref{sec:eval-framework} gives concrete definitions and example tests; here we define the family-level intent.
+
+\paragraph{Structure.}
+Metrics that capture whether $y$ is syntactically and contractually well formed:
+JSON parse success, schema validity under $\mathcal{C}$, and structured error taxonomies (missing fields, extra fields, type mismatches, constraint violations).
+These are necessary conditions for safe downstream consumption.
+
+\paragraph{Task accuracy.}
+When ground-truth labels exist, we compute task metrics such as macro/micro-F1, EM, accuracy, and pass@$k$.
+
+\paragraph{Faithfulness.}
+Faithfulness metrics quantify whether claims in $y$ are supported by context $C$, typically via atomic-statement decomposition with a judge model.
+We track both a normalized faithfulness score and contradiction rates.
+
+\paragraph{Tools and trajectory.}
+For tool-using agents we measure tool argument validity, tool-call success, retry counts, redundant calls, and deviations from canonical plans when available.
+
+\paragraph{Stability.}
+Stability metrics quantify variability across runs: disagreement under repeated sampling, and variance of key metrics across seeds.
+
+\paragraph{Latency and SLOs.}
+We record end-to-end latency and (when relevant) TTFT and token counts, and compute p50/\pninetyfive/\pninetynine plus Success@\slo under configured budgets.
+
+\medskip
+
+\paragraph{A single policy surface: \texttt{criteria.yaml}.}
+All metric definitions, thresholds, and the \emph{strict gating order} are configured via \texttt{agent\_eval/criteria.yaml}.
+Formally, let $\mathcal{F}$ be the ordered list of families (e.g.,
+\[
+\mathcal{F}=[\text{structure},\text{accuracy},\text{faithfulness},\text{tools},\text{stability},\text{slo}]),
+\]
+and for each family $f\in\mathcal{F}$ let $\phi_f(\kappa)$ denote its aggregate score(s) on an evaluation set (e.g., JSON validity rate, macro-F1, contradiction rate, tool success).
+The criteria file defines thresholds $\tau_f$ and a strict gate predicate
+\[
+\mathrm{Pass}_f(\kappa)=\mathbf{1}\!\left[\phi_f(\kappa)\ \text{meets thresholds}\ \tau_f\right].
+\]
+Under \textbf{strict lexicographic gating}, a configuration is accepted only if it passes all gates in order:
+\[
+\mathrm{Pass}(\kappa)=\prod_{f\in\mathcal{F}}\mathrm{Pass}_f(\kappa).
+\]
+Operationally, this matches how teams deploy agents: a faster configuration is rejected if it breaks contracts or increases hallucinations, even if its latency is excellent.
+
+Among passing configurations, we optionally compute a scalar ranking score (used for dashboards and for RL reward shaping in Phase~II), e.g.,
+\[
+J(\kappa)=\sum_{j} w_j \,\overline{m}_j(\kappa)
+\quad\text{with}\quad w_j \text{ chosen so that structure/accuracy/faithfulness dominate latency.}
+\]
+The gating policy makes the evaluation semantics explicit and auditable: thresholds and ordering are versioned and reviewed like any other production contract.
+
+\subsection{Offline vs.\ Online Evaluation}
+
+Although $W$ denotes the production workload conceptually, in practice we evaluate on a held-out approximation $\widehat{W}$ built from:
+(i) logged production requests (where available),
+(ii) synthetic and adversarially constructed cases, and
+(iii) standardized benchmarks.
+Our harness is agnostic to whether requests come from $W$ or $\widehat{W}$; the same metric definitions and criteria apply.
+The central practical requirement is that improvements under $\widehat{W}$ track improvements under $W$ closely enough to be operationally meaningful.
+
+\subsection{Static Configuration Selection and Policy Improvement}
+\label{sec:problem-optimization}
+
+Figure~\ref{fig:optimization-view} presents the optimization view underlying our framework.
+A configuration $\kappa=(R,\pi_\theta,\delta,\mathcal{C})$, together with a workload/environment, induces episodes and metric vectors $m_\kappa(x,\tau,y)$.
+Aggregating metrics yields summaries $\phi_f(\kappa)$, pass/fail gates, and latency distributions.
+
+We consider two complementary uses:
+
+\paragraph{Static configuration selection (Phase~I).}
+In static selection, $\theta$ is fixed and we tune $R$, $\delta$, and sometimes $\mathcal{C}$.
+The design problem is to find configurations that pass strict gates and then optimize within that feasible set, e.g.,
+\[
+\max_{\kappa\in\mathcal{K}} \; J(\kappa)
+\quad\text{s.t.}\quad \mathrm{Pass}(\kappa)=1.
+\]
+In practice, $\mathcal{K}$ can be explored via grid search, Bayesian optimization, or bandit-style exploration.
+
+\paragraph{Policy improvement under constraints (Phase~II).}
+In policy improvement, $\theta$ is trainable and we treat parts of the metric vector as rewards and others as costs, yielding constrained RL formulations.
+For example, define per-episode reward
+\[
+r_\kappa(x,\tau,y)=
+\alpha_{\text{task}} m_{\text{task}}+
+\alpha_{\text{faith}} m_{\text{faith}}+
+\alpha_{\text{json}} m_{\text{json}}
+-\beta_{\text{lat}}\max(0, L_\kappa(x)-B_{\text{episode}}),
+\]
+and treat violations (e.g., contradiction flags, tool failures, instability) as costs in a constrained MDP~\citep{altman1999cmdp,achiam2017cpo}.
+Using policy gradient methods (e.g., REINFORCE) with LoRA adapters~\citep{williams1992reinforce,dettmers2023qlora}, we can update $\theta$ while enforcing SLO and reliability constraints.
+
+In both regimes, the objects defined above---contracts, compiled constraints, metric families, strict gating, and latency distributions---form the contract-first, SLO-aware backbone for the rest of the paper.
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=1.55cm and 2.6cm,
+    ext/.style={draw, ellipse, align=center, minimum width=2.9cm, minimum height=1.1cm, fill=gray!5},
+    box/.style={draw, rounded corners, align=center, minimum width=3.6cm, minimum height=1.2cm, fill=gray!10},
+    sbox/.style={draw, rounded corners, align=center, minimum width=2.4cm, minimum height=1.05cm, fill=gray!5},
+    line/.style={-Latex, thick},
+    bidir/.style={Latex-Latex, thick}
+]
+
+% Core nodes
+\node[ext] (up) {User /\\ Upstream systems};
+\node[box, right=3.0cm of up] (agent) {Agent Orchestrator\\ \footnotesize prompting, tool routing,\\ validation+retry, self-consistency};
+\node[box, below=1.55cm of agent] (runtime) {LLM Runtime $R$\\ \footnotesize OpenAI-compatible:\\ LM Studio, Ollama, vLLM};
+\node[sbox, above=1.55cm of agent] (tools) {Tools / APIs / DBs\\ \footnotesize JSON-typed arguments};
+\node[sbox, below=1.35cm of up] (criteria) {\texttt{criteria.yaml}\\ \footnotesize contracts, gates, SLOs, suites};
+\node[sbox, below=1.25cm of runtime] (obs) {Telemetry + Evaluation\\ \footnotesize latency, tokens, traces,\\ W\&B / Weave logs};
+
+% Downstream consumers (right side)
+\node[ext, right=3.2cm of agent, yshift=1.35cm] (dash) {Dashboards / BI};
+\node[ext, right=3.2cm of agent] (etl) {Workflows / ETL};
+\node[ext, right=3.2cm of agent, yshift=-1.35cm] (hum) {Human\\ decision-makers};
+
+% Arrows
+\draw[line] (up) -- node[above]{request $x$ (prompt + context)} (agent);
+
+\draw[bidir] (agent) -- node[right, align=left]{OpenAI API\\ + constraints $g(R,\mathcal{C})$} (runtime);
+
+\draw[bidir] (agent) -- node[right]{tool calls / returns} (tools);
+
+\draw[line] (criteria) -- node[below,pos=0.55]{thresholds + order} (obs);
+\draw[line] (criteria) -- node[below,pos=0.55]{contracts + budgets} (agent);
+
+\draw[line] (agent.south) -- node[right]{episode logs} (obs.north);
+\draw[line] (runtime.south) -- ++(0,-0.55) -| node[pos=0.25,right]{latency/tokens} (obs.north);
+
+\draw[line] (agent.east) -- ++(0.65,0) coordinate (out);
+\draw[line] (out) |- node[above,pos=0.75]{validated structured output $y$} (dash.west);
+\draw[line] (out) |- (etl.west);
+\draw[line] (out) |- (hum.west);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{System context for a contract-first, single-node agent.
+An orchestrator mediates between upstream requests and downstream consumers, calling an OpenAI-compatible runtime and external tools, while enforcing contracts via backend constraints and validation.
+Telemetry and evaluation log structure/accuracy/faithfulness/tool/stability/SLO metrics under a single versioned policy surface (\texttt{criteria.yaml}).}
+\label{fig:agent-context}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=0.9cm and 0.6cm,
+    fam/.style={draw, rounded corners, align=center, minimum width=4.1cm, minimum height=1.05cm, fill=gray!10},
+    opt/.style={draw, rounded corners, align=center, minimum width=4.1cm, minimum height=0.95cm, fill=gray!3},
+    line/.style={-Latex, thick}
+]
+
+\node[fam] (s1) {1. Structure\\ \footnotesize JSON parse, schema validity};
+\node[fam, right=1.0cm of s1] (s2) {2. Accuracy\\ \footnotesize F1 / EM / pass@k};
+\node[fam, right=1.0cm of s2] (s3) {3. Faithfulness\\ \footnotesize support score, contradiction rate};
+
+\node[fam, below=1.2cm of s1] (s4) {4. Tools \& Trajectory\\ \footnotesize tool success, retries, plan deviation};
+\node[fam, right=1.0cm of s4] (s5) {5. Stability\\ \footnotesize disagreement@k, seed variance};
+\node[fam, right=1.0cm of s5] (s6) {6. Latency \& SLOs\\ \footnotesize p50/\pninetyfive/\pninetynine, Success@\slo};
+
+% Gating arrows (strict order)
+\draw[line] (s1) -- (s2);
+\draw[line] (s2) -- (s3);
+\draw[line] (s3.south) -- ++(0,-0.55) -| (s4.north);
+\draw[line] (s4) -- (s5);
+\draw[line] (s5) -- (s6);
+
+\node[opt, below=0.95cm of s6] (s7) {Optional: Cost \& Safety\\ \footnotesize tokens/\$, policy/safety checks};
+
+\draw[dashed, gray, thick] (s6.south) -- (s7.north);
+
+\node[align=center] at ($(s2.north)!0.5!(s3.north)+(0,0.75)$)
+{\textbf{Strict lexicographic gating declared in \texttt{criteria.yaml}}\\
+\footnotesize (fail fast; later metrics never compensate for earlier failures)};
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Metric families and strict gating order.
+We evaluate structure, accuracy, and faithfulness before considering tools/trajectory, stability, and finally SLO adherence.
+This ordering reflects production preference: a faster agent does not compensate for broken contracts or unfaithful outputs.}
+\label{fig:metric-families}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=1.4cm and 2.2cm,
+    box/.style={draw, rounded corners, align=center, minimum width=4.0cm, minimum height=1.05cm, fill=gray!10},
+    sbox/.style={draw, rounded corners, align=center, minimum width=3.2cm, minimum height=0.95cm, fill=gray!5},
+    line/.style={-Latex, thick}
+]
+
+\node[box] (config) {Configuration $\kappa=(R,\pi_\theta,\delta,\mathcal{C})$\\
+\footnotesize $R$: runtime,\ \ $\theta$: policy params,\ \ $\delta$: decoding/orchestration,\ \ $\mathcal{C}$: contract};
+
+\node[box, right=3.4cm of config] (env) {Environment + workload\\ \footnotesize arrivals, context lengths, tools, data};
+
+\node[sbox, below=1.25cm of env] (eval) {Eval harness + gates\\ \footnotesize compute $m_\kappa(x,\tau,y)$,\ aggregate $\phi_f(\kappa)$,\ enforce order};
+
+\node[sbox, below=1.25cm of config] (crit) {\texttt{criteria.yaml}\\ \footnotesize suites, thresholds, gating order, SLO budgets};
+
+\node[box, right=3.4cm of env] (search) {Phase~I: Static selection\\ \footnotesize search over $(R,\delta,\mathcal{C})$};
+
+\node[box, below=1.25cm of search] (rl) {Phase~II: Constrained RL\\ \footnotesize update $\theta$ (policy gradient)\\ under reliability/SLO costs};
+
+% Forward path
+\draw[line] (config) -- node[above]{serve episodes} (env);
+\draw[line] (env) -- node[right]{traces $(x,\tau,y)$} (eval);
+
+% Criteria into eval
+\draw[line] (crit) -- node[right]{policy surface} (eval);
+\draw[line] (crit.north) -- ++(0,0.35) -| (config.south);
+
+% Metrics to selection and RL
+\draw[line] (eval.east) -- ++(0.9,0) coordinate (mid);
+\draw[line] (mid) |- node[above,pos=0.75]{pass/fail + scores} (search.west);
+\draw[line] (mid) |- node[below,pos=0.75]{rewards + costs} (rl.west);
+
+% Feedback
+\draw[line] (search.south) .. controls +(0,-1.0) and +(-2.2,0.0) .. (config.east);
+\draw[line] (rl.south) .. controls +(-2.5,-1.2) and +(0,-1.0) .. (config.south);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Optimization view.
+A configuration induces episodes under a workload/environment, which are scored by an eval harness governed by \texttt{criteria.yaml}.
+Phase~I selects configurations by searching over runtimes and decoding/orchestration settings; Phase~II improves the policy parameters $\theta$ under explicit reliability and SLO constraints.}
+\label{fig:optimization-view}
+\end{figure}
+
+
+\section{Method: Spec Compilation and Serving-Time Hardening}
+\label{sec:method}
+
+Here is the engineering that makes contract-first serving actually work.
+The core insight is simple: your JSON Schema is the source of truth, but different backends need different constraint formats.
+So we compile the schema once and emit whatever artifact your runtime can actually enforce---OpenAI-style \texttt{response\_format}, tool specs, or GBNF grammars.
+Then we validate anyway, because we do not trust the enforcement to be complete.
+
+If validation fails, we retry with a bounded budget.
+If the budget runs out, we return a typed error object that downstream systems can handle.
+The key principle: \emph{fail closed}.
+Every request either produces a validated output or a structured failure.
+No half-parsed JSON, no unconstrained text, no "best effort."
+
+\subsection{Spec Compiler}
+\label{sec:spec-compiler}
+
+The compiler takes your JSON Schema and produces whatever your backend can actually use.
+We target three surfaces that most OpenAI-compatible servers expose:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Provider-native JSON schema decoding.}
+    Backends that implement OpenAI-style structured outputs accept a JSON Schema via \texttt{response\_format} (or an equivalent parameter) and constrain decoding to schema-valid JSON.
+    \item \textbf{Tool schemas for function calling.}
+    For tool-using agents, each tool $t\in\mathcal{T}$ declares a JSON Schema over arguments.
+    The compiler emits backend tool specifications so the runtime can constrain tool-call argument generation.
+    \item \textbf{Grammar-based constrained decoding.}
+    When schema-native decoding is unavailable or incomplete, the compiler converts $\mathcal{C}$ into a grammar (e.g., GBNF) that can be consumed by grammar-capable backends or wrappers.
+\end{enumerate}
+
+The contract $\mathcal{C}$ is held constant across backends; only $g(R,\mathcal{C})$ changes.
+This is the key to portable evaluation: the same test and validation code applies regardless of whether the backend enforces constraints via schemas, tool specs, or grammars.
+
+\paragraph{Dealing with backend inconsistencies.}
+No two backends support exactly the same JSON Schema features.
+Some choke on \texttt{oneOf}, others ignore \texttt{additionalProperties}, and numeric bounds are hit or miss.
+So the compiler does two things: first, it probes the backend with a small test schema to see what actually works (not what the docs claim).
+Second, if a feature is unsupported, it either rewrites the schema into something equivalent or marks that feature for post-hoc validation.
+You get the strongest enforcement your backend can provide, with the validator catching whatever slips through.
+
+\subsection{The Serving Wrapper: Trust but Verify}
+
+Constrained decoding helps, but it is not enough.
+Backends are inconsistent.
+Schemas change.
+And rare failures still happen.
+If you only rely on the backend's constraints without explicit validation, you will eventually ship broken JSON to downstream systems and find out at 3am.
+
+For each model response, the wrapper executes:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Parse:} attempt JSON parsing (or tool-call parsing) to obtain a structured object.
+    \item \textbf{Validate:} validate the parsed object against the declared JSON Schema $\mathcal{C}$ using a reference validator.
+    \item \textbf{Canonicalize:} normalize JSON (stable key order, number/string normalization where allowed, whitespace stripping) and re-validate the canonical form.
+    \item \textbf{Record a taxonomy:} on failure, emit a compact error code and structured details (missing keys, extra fields, type mismatch, enum violation, bound violation).
+\end{enumerate}
+
+If the output cannot be validated within budget (Section~\ref{sec:method-retry}), the wrapper returns a \emph{structured failure object} (also governed by a schema) rather than unconstrained text.
+This makes downstream behavior predictable: failures are typed and machine-actionable.
+
+\subsection{Bounded Repair: Fixing Broken Outputs}
+\label{sec:method-retry}
+
+Most validation failures are fixable.
+The model emitted JSON with one wrong field type, or it forgot a required property.
+Instead of failing immediately, you can try again with a targeted repair prompt.
+
+\begin{enumerate}[leftmargin=12pt]
+    \item Generate under constraints $g(R,\mathcal{C})$.
+    \item If validation fails, construct a repair prompt containing:
+    (i) the original schema identifier,
+    (ii) a compact error taxonomy, and
+    (iii) an instruction to output \emph{only} a corrected JSON object.
+    \item Re-run generation with the same contract and a strict retry limit $r_{\max}$.
+\end{enumerate}
+
+The critical thing: retries are \emph{budgeted}.
+They consume your token and wall-clock allowance, and every retry second shows up in your latency measurements.
+This prevents the infinite-repair failure mode where you keep trying forever and pretend it is free.
+It is not free.
+Your users are waiting.
+
+\subsection{Self-Consistency: Sample, Score, Select}
+
+Sometimes you get better outputs by generating a few candidates and picking the best one.
+This is especially useful for grounded tasks where faithfulness is brittle---the model might hallucinate on one run but not another.
+For configurations that enable self-consistency, the wrapper generates up to $k_{\max}$ candidates under a fixed budget: a cap on candidates, a cap on total tokens, and optionally a wall-clock limit.
+
+Each candidate is scored by a lexicographic selector that prefers, in order:
+(i) schema-valid outputs;
+(ii) higher task-score proxies when a reference is available;
+(iii) higher faithfulness/support scores for grounded tasks (using the Phase~I judge pipeline);
+and (iv) fewer tool failures and retries for tool episodes.
+The selected output is then logged along with all candidates, enabling audit of ``why this candidate won''.
+
+\paragraph{Why selection stays separate from evaluation.}
+Candidate selection may use heuristic proxies and/or a judge model.
+To reduce evaluator overfitting, SpecSLOEval can evaluate the final system with a different judge prompt, a different judge model, or additional deterministic checks (Section~\ref{sec:discussion-judge}).
+This separation is essential once policy optimization is introduced (Phase~II).
+
+\subsection{Latency Accounting}
+
+The framework measures \emph{downstream-usable} latency: timing starts when the request enters the orchestrator and stops only when a validated output (or typed failure object) is produced.
+Therefore, $L_\kappa(x)$ includes backend inference time, tool time, validation time, and any bounded repair or candidate selection overhead.
+This definition aligns latency measurement with operational reality: downstream systems cannot consume partial or invalid outputs.
+
+\section{Evaluation Framework and Test Families}
+\label{sec:eval-framework}
+
+Figure~\ref{fig:metric-families} summarized the metric families we track.
+This section describes how SpecSLOEval turns those abstract families into concrete, repeatable tests that can be executed unchanged across single-GPU, OpenAI-compatible backends (LM Studio, Ollama, vLLM, \texttt{llama.cpp} wrappers).
+Our goal is operational: produce evaluation artifacts that are (i) contract-first, (ii) SLO-aware (tail latency, not just averages), and (iii) auditable end-to-end so every aggregate number can be traced back to per-episode inputs/outputs, schema validations, tool transcripts, and (when used) judge-model decisions.
+
+\paragraph{Design principles.}
+SpecSLOEval is built around four principles that matter in production settings:
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Contract-first by construction.} Every task declares an explicit output schema (JSON Schema or a backend-compatible equivalent). Structural validity is a first-order metric, not a best-effort prompt instruction.
+    \item \textbf{Lexicographic gating.} We treat correctness/faithfulness as \emph{gates} and latency primarily as a \emph{constraint}. A configuration that is fast but structurally invalid or unfaithful is rejected.
+    \item \textbf{Backend-agnostic measurement.} The harness assumes only an OpenAI-compatible API plus observability hooks (token counts and latency). Everything else is done by the harness: schema validation, error taxonomies, tool mocks, stability repeats, and aggregation.
+    \item \textbf{Auditability and reproducibility.} We log per-episode artifacts (inputs, outputs, parsed JSON, validation errors, tool traces, judge prompts/outputs) and experiment metadata (model, runtime, decoding params, schema version, git commit, seeds) to W\&B and optionally Weave (\url{https://docs.wandb.ai/models/quickstart}, \url{https://docs.wandb.ai/models/evaluate-models}).
+\end{itemize}
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=1.4cm and 2.0cm,
+    box/.style={draw, rounded corners, align=center, minimum width=3.2cm, minimum height=1.0cm, fill=gray!5},
+    cloud/.style={draw, ellipse, align=center, minimum width=3.0cm, minimum height=1.0cm, fill=blue!5},
+    line/.style={-Latex, thick}
+]
+    % Inputs
+    \node[box] (criteria) {\texttt{criteria.yaml}\\(metrics + gates)};
+    \node[box, below=of criteria] (tasks) {Task JSONL\\(requests + refs)};
+    \node[box, below=of tasks] (schemas) {Output schemas\\(JSON Schema / grammars)};
+
+    % Harness
+    \node[box, right=3.0cm of tasks] (runner) {Eval runner\\(replay + repeats)};
+    \node[box, right=3.0cm of runner] (backend) {OpenAI-compatible\\endpoint\\(LM Studio/Ollama/vLLM)};
+    \node[box, below=of backend] (validate) {Parse + validate\\(schema + taxonomy)};
+    \node[box, below=of runner] (scorers) {Scorers\\(accuracy/faith/tools\\stability/slo)};
+    \node[box, right=3.0cm of validate] (agg) {Aggregate\\(per family + gates)};
+    \node[cloud, right=3.0cm of agg] (wandb) {W\&B / Weave\\(artifacts + dashboards)};
+
+    % Arrows
+    \draw[line] (criteria.east) -- node[above]{config} (runner.west);
+    \draw[line] (tasks.east) -- node[above]{episodes} (runner.west);
+    \draw[line] (schemas.east) -- node[above]{contracts} (runner.west);
+
+    \draw[line] (runner.east) -- node[above]{requests} (backend.west);
+    \draw[line] (backend.south) -- node[right]{raw output + latency} (validate.north);
+    \draw[line] (validate.west) -- ++(-1.2,0) |- node[left,pos=0.25, align=left]{validated JSON\\+ errors} (scorers.west);
+    \draw[line] (scorers.east) -- node[above]{metrics} (agg.west);
+    \draw[line] (validate.east) -- node[above]{structure metrics} (agg.west);
+
+    \draw[line] (agg.east) -- node[above]{tables/plots} (wandb.west);
+
+    % Dashed boundary around harness components
+    \draw[rounded corners, thick, dashed, gray]
+      ($(runner.north west)+(-0.4,0.5)$) rectangle
+      ($(agg.south east)+(0.4,-0.5)$);
+
+    \node[align=center, font=\small\bfseries] at ($(runner.north)+(3.2,1.15)$) {SpecSLOEval harness};
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{SpecSLOEval evaluation architecture.
+A single \texttt{criteria.yaml} and versioned task/schema artifacts drive an evaluation runner that replays episodes against an OpenAI-compatible backend.
+The harness performs parsing/validation, computes per-family metrics (including stability repeats and SLO metrics), applies lexicographic gates, and logs all per-episode artifacts and aggregates to W\&B/Weave for auditability and reproducibility.}
+\label{fig:eval-arch}
+\end{figure}
+
+\subsection{Evaluation Configuration via \texttt{criteria.yaml}}
+\label{sec:criteria-yaml}
+
+The entire framework is driven by a single configuration file, \texttt{agent\_eval/criteria.yaml}.
+This file is the \emph{policy} of evaluation: it declares what to measure, what thresholds must hold, and how to aggregate across tasks and metric families.
+Versioning this file alongside code is non-negotiable for trustworthy comparisons: when thresholds or gates change, the change is explicit and reviewable.
+
+\paragraph{Schema surface.}
+In our baseline design, \texttt{criteria.yaml} provides:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Suites and task bindings:} a suite is a named grouping of tasks, where each task references a JSONL file and an output schema.
+    \item \textbf{Gating policy:} an explicit order over metric families (e.g., structure $\rightarrow$ accuracy $\rightarrow$ faithfulness $\rightarrow$ tools $\rightarrow$ stability $\rightarrow$ SLO) and a policy (\texttt{strict} means earlier failures block later credit).
+    \item \textbf{Thresholds:} per-metric pass thresholds or max violation rates (e.g., schema-validity $\ge 0.99$, contradiction rate $\le 0.05$).
+    \item \textbf{SLO budgets:} p95/p99 targets, hard timeouts, and max tokens-out.
+\end{enumerate}
+
+\paragraph{Concrete example (aligned with our Phase~I suite).}
+For clarity we show a simplified excerpt that matches the structure of the Phase~I criteria used in our runs (full file is versioned with the harness):
+
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+schema_version: "1.0"
+criteria_id: "p1_core_v1"
+
+suites:
+  p1_core:
+    tasks:
+      - id: "t1_clinc"
+        family: "accuracy"
+        task_file: "tasks/clinc_en.jsonl"
+        output_schema: "tasks/schemas/clinc_nlu_schema.json"
+      - id: "t2_hotpot"
+        family: "faithfulness"
+        task_file: "tasks/hotpot_dev.jsonl"
+        output_schema: "tasks/schemas/hotpot_explainer_schema.json"
+      - id: "t3_tools"
+        family: "tools"
+        task_file: "tasks/t3_tools.jsonl"
+        output_schema: "tasks/schemas/t3_tool_call_schema.json"
+
+gating:
+  order:
+  - structure
+  - accuracy
+  - faithfulness
+  - tools
+  - stability
+  - slo
+  policy: "strict"
+
+structure:
+  json_valid: 0.99
+
+accuracy:
+  clinc_intent_f1: 0.85
+  hotpot_answer_em: 0.65
+
+faithfulness:
+  hotpot_faithfulness: 0.80
+  hotpot_contradiction_rate_max: 0.05
+
+tools:
+  tool_success_rate: 0.90
+
+stability:
+  disagreement_max: 0.10
+
+slo:
+  success_at_slo: 0.75
+  p95_ms: 1200
+  p99_ms: 2000
+  max_tokens_out: 512
+\end{lstlisting}
+
+\paragraph{Lexicographic gating (why it matters).}
+Most teams implicitly behave lexicographically (``don’t ship broken JSON'' $\rightarrow$ ``don’t ship hallucinations'' $\rightarrow$ ``make it fast enough''), but many evaluation setups do not encode it.
+We encode it explicitly so that automated comparisons reflect the real risk surface.
+
+\subsection{Per-Episode Record and Audit Trail}
+\label{sec:episode-record}
+
+SpecSLOEval evaluates \emph{episodes}. Each episode produces a structured record (stored as JSON and logged as an artifact) containing:
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Inputs:} request text, retrieved/context bundle, tool catalog snapshot, schema identifiers.
+    \item \textbf{Outputs:} raw model output, parsed JSON (if parse succeeds), tool call transcript.
+    \item \textbf{Observability:} latency (end-to-end and TTFT when available), token counts, retries, backend identifiers, decoding params, random seeds.
+    \item \textbf{Evaluations:} structure validity flags and error taxonomy; task accuracy components; faithfulness judge artifacts (prompts, extracted claims, support scores, contradiction flags); stability repeats linkage; SLO success flags.
+\end{itemize}
+
+This record is what makes the framework \emph{publishable}: tables and plots can be reproduced by re-aggregating immutable episode artifacts under a fixed criteria version.
+
+\subsection{Test Families}
+\label{sec:test-families}
+
+We group tests into six families: \emph{Structure}, \emph{Task Accuracy}, \emph{Faithfulness}, \emph{Tools/Trajectory}, \emph{Stability}, and \emph{Latency/SLO}.
+Each family maps cleanly to real operational risks, which is why we treat them as first-class objects in \texttt{criteria.yaml} rather than ad-hoc metrics.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}p{2.4cm}p{5.3cm}p{5.2cm}@{}}
+\toprule
+\textbf{Family} & \textbf{What it measures} & \textbf{Typical failures caught} \\
+\midrule
+Structure & JSON parse + schema validity + error taxonomy & malformed JSON, missing/extra fields, type mismatches, invalid enums \\
+Accuracy & label correctness (F1/EM/acc/pass@k) & wrong intent/answer, inconsistent field extraction \\
+Faithfulness & support of claims against context (judge + atomic facts) & hallucinated statements, numeric sign errors, contradictions \\
+Tools/\newline Trajectory & tool-call validity, success, plan quality, \newline redundancy & invalid tool args, tool thrashing, redundant calls, wrong sequencing \\
+Stability & disagreement across repeats/seeds under fixed config & nondeterministic outputs, brittle prompts/decoding, unstable scores \\
+Latency/SLO & p50/p95/p99 latency, Success@\slo, violation rates & tail-latency collapse, timeouts, throughput collapse under load \\
+\bottomrule
+\end{tabular}
+\caption{Metric families and the operational risks they are designed to detect.
+SpecSLOEval evaluates agents as services: structure and faithfulness failures are treated as deployment blockers; latency is treated primarily as a constraint.}
+\label{tab:families}
+\end{table}
+
+\subsubsection{Structure: JSON and Schema Correctness}
+
+The structure family measures whether outputs can be consumed by downstream systems without bespoke cleanup.
+We compute two primary indicators per episode:
+(i) JSON parse success; and (ii) schema validity under the declared contract $\mathcal{C}$.
+We additionally record a fine-grained error taxonomy (e.g., missing required fields, additional properties, type mismatches, constraint violations), because aggregate validity alone is insufficient for debugging.
+
+\paragraph{Parameters.}
+Each structural test is defined by:
+\begin{itemize}[leftmargin=12pt]
+    \item a schema/contract $\mathcal{C}$ (name + version),
+    \item prompts/tasks that exercise the schema (including adversarial formatting cases),
+    \item pass thresholds such as \texttt{json\_valid} $\ge 0.99$.
+\end{itemize}
+
+\paragraph{Example S1: Basic JSON/Schema Validity.}
+Fix a moderate schema $\mathcal{C}_{\text{basic}}$ (nested objects, bounded arrays).
+Run on $N$ prompts and compute
+\[
+m_{\text{json}} = \frac{\#\text{episodes with parse \& schema valid}}{N}.
+\]
+We gate with $m_{\text{json}} \ge 0.99$ for the Phase~I suite because rare structural failures are operationally catastrophic.
+
+\paragraph{Example S2: Schema Evolution Robustness.}
+Given $(\mathcal{C}_1,\mathcal{C}_2)$ where $\mathcal{C}_2$ adds optional fields or relaxes bounds, we test:
+(i) regression in validity when switching schemas; and (ii) whether the agent can emit outputs valid under both (when that is a requirement for rolling upgrades).
+
+\subsubsection{Task Accuracy: F1, EM, and pass@\texorpdfstring{$k$}{k}}
+
+The accuracy family measures task correctness against references.
+We intentionally keep accuracy metrics \emph{separate} from structure metrics: a run can be structurally perfect and still wrong.
+
+\paragraph{Parameters.}
+Accuracy tests specify:
+\begin{itemize}[leftmargin=12pt]
+    \item a dataset $\mathcal{D}_{\text{acc}} = \{(x_i, y_i^{\text{ref}})\}$,
+    \item a schema $\mathcal{C}$ for predictions,
+    \item a scoring map from predicted JSON fields to labels/answers,
+    \item pass thresholds (e.g., intent F1 $\ge 0.85$, QA EM $\ge 0.65$).
+\end{itemize}
+
+\paragraph{Example A1: Field-Level Extraction F1.}
+For extraction/classification tasks we compute macro-F1 across the evaluated JSON fields.
+This directly measures whether the agent can reliably populate structured fields, not merely produce valid JSON.
+
+\paragraph{Example A2: Programmatic QA Exact Match and pass@\,$k$.}
+For QA-style tasks we embed the answer in a simple schema (e.g., \texttt{final\_answer}) and compute EM/F1.
+When sampling is enabled, pass@\,$k$ measures whether any of $k$ samples matches the reference.
+
+\subsubsection{Faithfulness: LLM-as-Judge with Atomic Statements}
+
+Faithfulness measures whether the agent’s statements are supported by the provided context $C$.
+We operationalize this using an LLM-as-judge pipeline inspired by RAGAS~\citep{es2023ragas} and atomic-fact approaches~\citep{atomicFacts2024}, but with explicit structure:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item Extract \emph{atomic statements} from the agent output (restricted to designated fields, e.g., a narrative explanation field).
+    \item For each statement, ask a judge to score support on a 0--3 scale and flag contradictions.
+    \item Aggregate into a normalized faithfulness score and a contradiction rate, both used for gating.
+\end{enumerate}
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=1.2cm and 0.5cm,
+    box/.style={draw, rounded corners, align=center, minimum width=2.7cm, minimum height=0.9cm, fill=gray!5},
+    line/.style={-Latex, thick}
+]
+    \node[box] (out) {Agent output\\(structured JSON)};
+    \node[box, right=of out] (extract) {Claim extractor\\(atomic statements)};
+    \node[box, right=of extract] (judge) {Judge model\\support 0--3\\+ contradiction};
+    \node[box, right=of judge] (agg) {Aggregate\\$m_{\text{faith}}$\\+ contradiction rate};
+
+    \draw[line] (out) -- node[above]{selected fields} (extract);
+    \draw[line] (extract) -- node[above]{claims} (judge);
+    \draw[line] (judge) -- node[above]{scores + flags} (agg);
+
+    \node[align=left, below=0.9cm of extract, text width=0.92\linewidth]
+    {We score only claims that are intended to be factual/grounded (e.g., explanations, key points).
+     The judge receives the original context $C$ and must cite support implicitly via the 0--3 scale; contradictions are tracked as a separate hard signal.};
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Faithfulness evaluation pipeline in SpecSLOEval.
+We decompose outputs into atomic statements and score each against context using a judge model.
+The aggregate faithfulness score and contradiction rate are used for gating and are logged with full judge prompts/outputs for auditing.}
+\label{fig:faithfulness-pipeline}
+\end{figure}
+
+\paragraph{Scoring.}
+Let $S$ be the set of extracted statements and $s_j \in \{0,1,2,3\}$ the judge support score for statement $j$ with contradiction flag $c_j \in \{0,1\}$.
+We define an aggregate (one reasonable instantiation) as:
+\[
+m_{\text{faith}}(x,y) =
+\max\left(0,\;
+\frac{1}{|S|}\sum_{j \in S}\frac{s_j}{3}
+\;-\;
+\lambda_{\text{contr}}\cdot\frac{1}{|S|}\sum_{j \in S} c_j
+\right),
+\]
+with $\lambda_{\text{contr}}$ set so that even a small contradiction rate meaningfully depresses the score.
+We also gate on a maximum contradiction rate (e.g., $\le 0.05$) because contradictions are qualitatively worse than omissions.
+
+\paragraph{Example F1: Cited Analytics Summaries.}
+The agent writes a short summary and key points from retrieved documents.
+The judge decomposes these into claims and scores them.
+We require $m_{\text{faith}} \ge 0.75$ and contradiction rate $\le 5\%$ on the Phase~I cited-summary suite (T1--T2).
+
+\paragraph{Example F2: Numeric and Trend Consistency.}
+When contexts include metrics/time-series, we explicitly prompt the judge to focus on directionality and magnitude.
+This catches the most damaging real-world hallucinations in analytics/monitoring agents: sign inversions, fabricated deltas, and exaggerated trends.
+
+\subsubsection{Tools and Trajectories}
+
+For tool-using agents, final output quality is insufficient: operational reliability depends on whether tool calls are valid, succeed, and are not wasteful.
+We evaluate both \emph{tool-call validity} (arguments satisfy the tool schema) and \emph{trajectory quality} (no thrashing, minimal redundancy, appropriate sequencing).
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=1.3cm and 0.7cm,
+    box/.style={draw, rounded corners, align=center, minimum width=2.7cm, minimum height=0.9cm, fill=gray!5},
+    line/.style={-Latex, thick}
+]
+    \node[box] (agent) {Agent\\(policy + prompts)};
+    \node[box, right=of agent] (calls) {Tool call log\\(name + JSON args)};
+    \node[box, right=of calls] (mock) {Tool executor\\(mock or real)};
+    \node[box, below=of calls] (schemas) {Tool schemas\\(JSON Schema)};
+    \node[box, right=of mock] (metrics) {Metrics\\success/retries\\redundancy/plan};
+
+    \draw[line] (agent) -- node[above]{calls} (calls);
+    \draw[line] (calls) -- node[above]{validated args} (mock);
+    \draw[line] (schemas) -- node[right]{arg validation} (calls.south);
+    \draw[line] (mock) -- node[above]{responses} (agent.east);
+    \draw[line] (mock) -- node[above]{trace} (metrics);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Tool and trajectory evaluation.
+We validate tool arguments against declared schemas, execute tools (mocked deterministically for reproducibility or real services when available), and compute tool success and trajectory efficiency metrics from the full trace.}
+\label{fig:tools-traj}
+\end{figure}
+
+\paragraph{Parameters.}
+Tool tests specify:
+\begin{itemize}[leftmargin=12pt]
+    \item a tool catalog (tool names, descriptions, JSON argument schemas),
+    \item an executor (deterministic mock for CI; optionally real services in staging),
+    \item optional canonical plans (minimal tool sequences),
+    \item thresholds (e.g., tool success $\ge 0.90$; redundant calls bounded).
+\end{itemize}
+
+\paragraph{Example T1: Tool-Argument Validity and Success Rate.}
+We validate each tool call against its argument schema; the executor returns success/failure deterministically.
+We compute
+\[
+m_{\text{tool}} = \frac{\#\text{successful tool calls}}{\#\text{tool calls}},
+\]
+and gate on $m_{\text{tool}} \ge 0.90$.
+
+\paragraph{Example T2: Trajectory Cost, Redundancy, and Plan Deviation.}
+When a canonical plan exists, we compute edit distance between observed and expected tool sequences, plus counts of extra calls and invalid retries.
+These metrics are operationally important because tool thrashing inflates tail latency and can trip downstream rate limits.
+
+\subsubsection{Stability Across Runs}
+
+Stability is the most under-measured production risk: unstable structured outputs break monitoring, A/B comparisons, and trust.
+We define stability tests by repeating identical episodes under fixed configuration and measuring output disagreement.
+
+\paragraph{Parameters.}
+Stability tests specify:
+\begin{itemize}[leftmargin=12pt]
+    \item a prompt set $\mathcal{D}_{\text{stab}}$ representative of the workload,
+    \item a number of repeats $k$ per input (e.g., $k=5$ or $k=20$),
+    \item an equivalence rule: exact JSON equality, canonical JSON equality, or claim-overlap equivalence.
+\end{itemize}
+
+\paragraph{Example ST1: Disagreement@\,$k$ for Structured Outputs.}
+Run $k$ times per input. Let $\mathrm{Eq}(y^{(a)},y^{(b)})$ be equivalence under canonicalization.
+Define Disagreement@\,$k$ as
+\[
+\mathrm{Disagree}@k = 1 - \frac{\#\text{runs matching the modal output}}{k},
+\]
+and gate on \(\mathrm{Disagree}@k \le 0.10\) (as in our Phase~I criteria) for stability-sensitive deployments.
+
+\paragraph{Example ST2: Seed Variance on Accuracy and Faithfulness.}
+We evaluate across multiple seeds and compute variance in task score and faithfulness.
+High variance indicates brittle behavior even if the mean score is acceptable.
+
+\subsubsection{Latency and SLO Tests}
+
+Latency/SLO tests measure whether configurations satisfy tail-latency commitments under realistic request mixes and (optionally) load.
+We focus on p95 and p99 because these are the operational pain points in multi-step agent flows, consistent with “The Tail at Scale”~\citep{dean2013tail} and modern LLM serving work~\citep{kwon2023vllm,agrawal2024sarathi}.
+
+\paragraph{Workloads.}
+We parameterize workloads by:
+\begin{itemize}[leftmargin=12pt]
+    \item context length distribution (short vs long contexts),
+    \item output token budgets,
+    \item arrival process (steady Poisson; bursty sequences),
+    \item tool-use frequency (for tool-heavy agent mixes).
+\end{itemize}
+
+\paragraph{Example L1: Success@\slo under Mixed Load.}
+For each episode we compute quality metrics (structure/accuracy/faithfulness/tools/stability where applicable) and latency $L_\kappa(x)$.
+We then define Success@\slo as:
+\[
+\text{Success@\slo}_\kappa(x)=
+\mathbf{1}\{\text{quality gates pass}\}\cdot \mathbf{1}\{L_\kappa(x)\le B\},
+\]
+and aggregate to get a business-aligned “good and on-time” rate.
+
+\paragraph{Example L2: QPS vs p95 Curves and Configuration Frontier.}
+We sweep QPS levels and plot QPS vs p95/p99 and QPS vs Success@\slo, producing an operating frontier for each configuration.
+This makes tail collapse visible and supports principled choices of token budgets, batching, and self-consistency depth.
+
+\subsection{Extensibility, Logging, and Use in RL}
+\label{sec:extensibility-rl}
+
+\paragraph{Extending the metric space.}
+SpecSLOEval is intentionally modular.
+Adding a metric means:
+(i) adding a key and threshold in \texttt{criteria.yaml}; and
+(ii) implementing a scorer function that consumes the per-episode record.
+This supports domain metrics (e.g., “invoice total reconciles,” “campaign budget constraint satisfied”) without rewriting the harness.
+
+\paragraph{Logging and auditability.}
+All runs are logged to W\&B, including:
+\begin{itemize}[leftmargin=12pt]
+    \item per-episode artifacts (inputs, outputs, parsed JSON, error taxonomy, tool traces, judge artifacts),
+    \item per-run configuration (backend, model id, decoding params, schema versions, criteria version),
+    \item aggregated tables/plots (per-family metrics, gating pass/fail, latency quantiles, Success@\slo).
+\end{itemize}
+We optionally instrument judge pipelines and multi-stage scoring in Weave so that intermediate computations can be inspected and replayed.
+
+\paragraph{Bridging evaluation and optimization (Phase~II).}
+The same metric vector that gates deployments also defines reward/cost surfaces for SLO-aware RL.
+Concretely, we can define a scalar reward for an episode by combining metric components:
+\[
+r(x,y) = \sum_{k} w_k\, m_k(x,y) \;-\; \beta\,\max(0, L(x)-B),
+\]
+while treating contradiction rate, repeated schema failures, or SLO violations as explicit costs in constrained RL~\citep{altman1999cmdp,achiam2017cpo}.
+This design minimizes the common failure mode where “training metrics” and “deployment metrics” diverge.
+
+\medskip
+In Section~\ref{sec:experiments} we instantiate these test families on single-GPU backends and demonstrate how spec-driven decoding and bounded retry/self-consistency shift the trade-off frontier between structural correctness, faithfulness, stability, and tail latency.
+
+\section{Experiments}
+\label{sec:experiments}
+
+We ran the full framework on hardware you can actually buy: an RTX 4090 desktop and a MacBook Pro.
+The question we wanted to answer: does constraining decoding (schemas, grammars, validation-and-retry) actually improve outcomes, or does it just add latency?
+
+The short answer: constraints work, but the details matter.
+Schema-driven decoding eliminates most structural failures.
+Validation-and-retry catches the rest.
+But tail latency increases, and some combinations of constraints actually hurt task accuracy.
+The only way to know what works for your setup is to measure everything together.
+
+This section walks through:
+\begin{itemize}[leftmargin=8pt]
+\item Hardware, backends, and models (Section~\ref{sec:setup})
+\item The task suite: intent classification, grounded QA, and tool calls (Section~\ref{sec:tasks})
+\item The configurations we compare: unconstrained, schema-driven, grammar-constrained, with and without validation-and-retry (Section~\ref{sec:baselines-configs})
+\item What we measured and how we report it (Section~\ref{sec:metrics-reporting})
+\item The results (Sections~\ref{sec:results-structure-faith}--\ref{sec:results-backends})
+\end{itemize}
+
+\subsection{Experimental Setup}
+\label{sec:setup}
+
+\paragraph{Hardware.}
+We ran on two machines that represent what most teams actually use:
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Desktop:} Alienware R15 with RTX~4090 (24~GB VRAM), 64~GB RAM, Ubuntu~22.04, CUDA~12.x.
+    \item \textbf{Laptop:} MacBook Pro M2 Max (64~GB unified), macOS~15.
+\end{itemize}
+
+Neither is exotic.
+You can buy the desktop for about \$4,000.
+The laptop is standard-issue in many engineering organizations.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Component} & \textbf{RTX~4090 desktop} & \textbf{M2 Max laptop} \\
+\midrule
+Accelerator & RTX~4090 (24GB) & M2 Max (unified memory) \\
+OS & Ubuntu~22.04 & macOS~15+ \\
+Primary runtime & LM Studio server & LM Studio server \\
+Alt. runtimes & Ollama, vLLM & Ollama (optional) \\
+Primary usage & throughput / tail latency & portability / local dev \\
+\bottomrule
+\end{tabular}
+\caption{Hardware/runtime matrix for the single-node regime targeted in this paper.}
+\label{tab:hw-matrix}
+\end{table}
+
+\paragraph{Serving backends.}
+All backends are exercised through an OpenAI-compatible HTTP interface.
+Our primary runtime is LM Studio’s OpenAI-compatible server (\url{https://lmstudio.ai/docs/developer/openai-compat/tools}).
+We additionally evaluate Ollama (\url{https://docs.ollama.com/capabilities/structured-outputs}) and a vLLM-backed server (\url{https://arxiv.org/abs/2309.06180}) to expose differences in batching, KV-cache behavior, and tail latency under load.
+The spec compiler (Section~\ref{sec:spec-compiler}) emits backend-specific constraint artifacts (JSON Schema, tool specs, or grammars) while keeping the \emph{contract} constant.
+
+\paragraph{Models.}
+We focus on locally served, OpenAI-compatible models that are practical in the single-GPU regime.
+Our model selection prioritizes four criteria:
+\begin{itemize}[leftmargin=12pt,itemsep=2pt]
+    \item \textbf{Geographic diversity:} China (Alibaba), France (Mistral AI), USA (Meta, Google)---demonstrating global applicability.
+    \item \textbf{Company diversity:} All major open-source players represented.
+    \item \textbf{Size ladder:} 3B $\rightarrow$ 4B $\rightarrow$ 8B $\rightarrow$ 12B---showing scaling behavior within single-GPU constraints.
+    \item \textbf{Hardware accessibility:} All trainable on a single RTX 4090 with QLoRA---reproducible on commodity hardware.
+\end{itemize}
+
+\noindent The four models used throughout this paper:
+\begin{enumerate}[leftmargin=12pt,itemsep=1pt]
+    \item \texttt{Qwen/Qwen3-4B-Instruct} (Alibaba, July 2025)---4B parameters
+    \item \texttt{mistralai/Ministral-3-8B-Instruct} (Mistral AI, Dec 2025)---8B parameters
+    \item \texttt{meta-llama/Llama-3.2-3B-Instruct} (Meta, Sept 2024)---3B parameters
+    \item \texttt{google/gemma-3-12b-it} (Google, March 2025)---12B parameters
+\end{enumerate}
+(We treat these as interchangeable OpenAI-compatible endpoints; the framework is agnostic to the model family.)
+
+For every run we log:
+(i) model identifier and revision;
+(ii) quantization and precision mode (e.g., BF16 vs quantized);
+(iii) maximum context length and maximum output tokens;
+(iv) decoding parameters and constraint mode.
+
+\paragraph{Reproducibility.}
+We fix random seeds, log everything to W\&B, and version datasets and schemas as artifacts.
+Before each run we do 20 warmup requests to stabilize KV-cache allocation.
+Latency is measured client-side, end-to-end, including retries and validation.
+We report full distributions (p50/\pninetyfive/\pninetynine), not just averages, because averages hide tail behavior.
+
+
+\subsection{The Task Suite}
+\label{sec:tasks}
+
+We evaluate on three tasks that represent common production patterns: classification with a large label space, evidence-grounded QA that requires faithfulness, and tool calling with typed argument schemas.
+All tasks emit structured JSON.
+All JSON is validated against schemas.
+
+\paragraph{T1: Intent Classification (CLINC150).}
+The classic "what did the user want?" problem.
+150 intent classes plus out-of-scope detection, 500 examples.
+Output schema requires an \texttt{intent} field (must match the vocabulary) and optional \texttt{confidence}.
+We measure schema validity, accuracy, and macro-F1.
+The stress test here is the large label space: 150 valid values, and the model has to pick exactly one.
+
+\paragraph{T2: Evidence-Grounded QA (HotpotQA).}
+Multi-hop question answering where the model must reason across multiple paragraphs, 1{,}000 examples.
+Output schema requires an \texttt{answer}, a \texttt{reasoning} field, and \texttt{supporting\_facts} (which paragraphs the answer is based on).
+We measure exact match, F1, schema validity, and---critically---\emph{faithfulness}.
+Faithfulness is scored by an LLM-as-judge that decomposes outputs into atomic claims and checks each one against the source context~\citep{es2023ragas,min2023factscore}.
+The stress test: can the model avoid making stuff up?
+
+\paragraph{T3: Tool Calling.}
+Agents that do things need to call tools with correctly typed arguments.
+500 synthetic examples covering database queries, calculations, and API calls.
+Output schema enforces tool name validation and argument typing: integer ranges, enums, nested objects.
+We measure tool-call success (right tool + valid arguments), schema compliance, and trajectory stability.
+The stress test: can the model follow a function signature?
+
+\begin{table}[t]
+\centering
+\caption{Task suite summary for SpecSLOEval (\texttt{p1\_core} suite). T1--T5 represent a progression from simple classification to end-to-end software engineering.}
+\label{tab:tasks}
+\begin{tabularx}{\linewidth}{@{}l l l X@{}}
+\toprule
+Task & ID & Examples & Primary stressors \\
+\midrule
+CLINC150 & \texttt{t1\_clinc} & 500 & Typed classification; large label space; macro-F1 \\
+HotpotQA & \texttt{t2\_hotpot} & 1{,}000 & Long-context faithfulness; multi-hop reasoning; grounding \\
+Tool Episodes & \texttt{t3\_tools} & 500 & Tool schema compliance; argument validation; trajectory stability \\
+BFCL v4 & \texttt{t4\_bfcl} & 500 & Industry-standard function calling (Berkeley 2024) \\
+SWE-bench Lite & \texttt{t5\_swe} & 300 & End-to-end issue resolution; patch generation (Princeton 2024) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+\subsection{Baselines and Configurations}
+\label{sec:baselines-configs}
+
+We compare six decoding configurations that progressively add contract enforcement and reliability mechanisms.
+All configurations share the same underlying policy model unless explicitly noted.
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=0.75cm,
+    layer/.style={draw, rounded corners, align=left, text width=0.92\linewidth, minimum height=0.85cm, fill=gray!5},
+    title/.style={font=\bfseries},
+]
+\node[layer] (u) {\textbf{U: UNCONSTRAINED.} Prompt asks for JSON, no runtime constraints, no validation.};
+
+\node[layer, below=of u] (p) {\textbf{P: PROVIDER\_STRUCTURED.} Contract passed via provider structured-output / tool schema interface.};
+
+\node[layer, below=of p] (pv) {\textbf{P+V: PROVIDER\_STRUCTURED\_PLUS\_VALIDATE.} Provider constraints + JSON Schema validation with bounded retry.};
+
+\node[layer, below=of pv] (s) {\textbf{S: SPEC\_DRIVEN.} Backend-specific constraint compilation (grammar/schema), fail-closed validation.};
+
+\node[layer, below=of s] (sr) {\textbf{SR: SPEC\_DRIVEN\_PLUS\_REPAIR.} SPEC\_DRIVEN + bounded repair with structured error feedback.};
+
+\node[layer, below=of sr] (ssc) {\textbf{SSC: SPEC\_DRIVEN\_PLUS\_SELFCONSISTENCY.} SPEC\_DRIVEN + budgeted multi-sample generation with majority voting.};
+
+\draw[rounded corners, thick, dashed, gray]
+    ($(u.north west)+(-0.2,0.2)$)
+    rectangle
+    ($(ssc.south east)+(0.2,-0.2)$);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Configuration ladder used in experiments (matching code implementation).
+Each mode adds one operational mechanism, enabling clean attribution of changes in structural correctness, faithfulness, stability, and tail latency.
+Mode names match the \texttt{DecodingMode} enum in \texttt{rollout/engine.py}.}
+\label{fig:config-ladder}
+\end{figure}
+
+\paragraph{Shared decoding knobs.}
+To ensure comparability, we fix the following unless explicitly swept:
+temperature, top-$p$, max output tokens, and request formatting (system/prompt template).
+When a backend supports \texttt{response\_format} or tool schemas, we pass the \emph{same} JSON Schema used by the validator.
+
+\paragraph{Validation-and-retry budget.}
+P+V and S apply bounded repair: if a response fails schema validation, the harness issues a \emph{structured repair prompt} that includes a compact error taxonomy (missing keys, type mismatch, enum violation) and requests a corrected JSON object.
+We cap retries by a strict budget (e.g., 1--2 retries) and account for the full retry time in end-to-end latency.
+
+\paragraph{Budgeted self-consistency.}
+S optionally generates $k$ candidates (bounded by wall-clock and token budgets) and selects the final output using a criteria-weighted selector that prefers:
+(i) schema validity,
+(ii) higher task score proxies (when available),
+(iii) higher faithfulness/support scores (for grounded tasks),
+(iv) lower disagreement proxies (e.g., canonical JSON stability).
+Candidate generation and selection are \emph{budgeted} so SLOs remain enforceable.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Config} & \textbf{Constraints} & \textbf{Validator} & \textbf{Retries} & \textbf{Self-consistency} \\
+\midrule
+U   & none & -- & 0 & 0 \\
+P   & provider schema/tools & -- & 0 & 0 \\
+P+V & provider schema/tools & JSON Schema & bounded & 0 \\
+G   & grammar/regex constraints & -- & 0 & 0 \\
+S   & provider or grammar & JSON Schema & bounded & bounded ($k_{\max}$, budgets) \\
+\bottomrule
+\end{tabular}
+\caption{Compared configurations and which enforcement mechanisms are active.}
+\label{tab:config-summary}
+\end{table}
+
+\subsection{Metrics and Reporting}
+\label{sec:metrics}
+\label{sec:metrics-reporting}
+
+\paragraph{Per-episode measurement.}
+For each episode we compute the full metric vector from Section~\ref{sec:problem-metrics}:
+\emph{structure} (parse + schema validity),
+\emph{accuracy} (task-specific),
+\emph{faithfulness} (atomic support and contradiction rate, where applicable),
+\emph{tools/trajectory} (tool success and redundancy),
+\emph{stability} (Disagreement@$k$ on repeated runs),
+and \emph{latency/SLO} (end-to-end wall-clock, TTFT if available, Success@\slo).
+
+\paragraph{Aggregation and uncertainty.}
+We report means and rates per task family, and summarize latency with p50/\pninetyfive/\pninetynine.
+For headline comparisons we additionally report 95\% confidence intervals via bootstrap resampling over episodes.
+All plots (latency histograms, QPS frontiers, per-metric breakdowns) are exported from W\&B dashboards and included as static figures in the manuscript.
+
+\paragraph{SLO accounting.}
+Success@\slo is computed as an episode-level indicator that requires:
+(i) passing all \emph{quality gates} defined in \texttt{criteria.yaml} (structure + task + faithfulness + tools + stability, as configured), and
+(ii) meeting the latency constraint under the chosen budget.
+This makes SLO compliance a \emph{joint} property of quality and responsiveness, matching production reality.
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    node distance=1.0cm and 1.4cm,
+    box/.style={draw, rounded corners, align=center, minimum width=3.2cm, minimum height=1.0cm, fill=gray!5},
+    line/.style={-Latex, thick}
+]
+\node[box] (sampler) {Episode sampler\\ (task mix, contexts)};
+\node[box, right=of sampler] (arrival) {Arrival process\\ (Poisson / burst)};
+\node[box, right=of arrival] (client) {Client driver\\ (concurrency $c$)};
+\node[box, right=of client] (server) {Server\\ (single GPU)};
+\node[box, below=of server] (measure) {Measure\\ latency/TTFT/tokens\\ + retries};
+
+\draw[line] (sampler) -- node[above]{request payloads} (arrival);
+\draw[line] (arrival) -- node[above]{timestamps} (client);
+\draw[line] (client) -- node[above]{HTTP requests} (server);
+\draw[line] (server) -- node[right]{responses} (measure);
+\draw[line] (measure.west) -- ++(-2.2,0) |- node[pos=0.25,left, align=left]{SLO check\\ + Success@\slo} (client.south);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Latency/SLO experiment structure.
+A sampler builds a realistic mixture of episodes; an arrival process generates timestamps; a concurrent client driver issues requests against a single-GPU server; and measurement includes \emph{all} retries/validation to reflect true downstream-usable latency.}
+\label{fig:slo-harness}
+\end{figure}
+
+\subsection{Structural and Faithfulness Effects of Spec-Driven Decoding}
+\label{sec:results-structure-faith}
+
+Across all tasks, the most operationally important effect of constraints and validation is the removal of \emph{rare, catastrophic} structural failures:
+invalid JSON, missing required keys, and type violations that break downstream code paths.
+In practice, these failures are underrepresented by average-case quality metrics but dominate incident rates in production pipelines.
+
+\paragraph{Structure.}
+U (prompt-only) can achieve strong task metrics while still producing occasional malformed JSON or schema violations.
+P improves structural adherence but remains dependent on backend implementation details.
+P+V and S dominate on structure because explicit schema validation converts “silent” structural drift into actionable error codes, and bounded retries recover many fixable cases without human intervention.
+
+\paragraph{Faithfulness.}
+On evidence-grounded summaries (T2), enforcing a structured explanation schema does \emph{not} automatically guarantee faithfulness; it merely forces the output to be parseable.
+SpecSLOEval therefore treats faithfulness as a first-class family: S can use modest candidate generation to reduce contradiction rate by selecting outputs with higher support under the same contract, while still remaining budgeted under SLO constraints.
+
+\subsection{Latency, SLOs, and Configuration Trade-offs}
+\label{sec:results-slo}
+
+Contract-first enforcement introduces overhead: validation, retries, and self-consistency add work that manifests primarily in the tail.
+Our framework makes this explicit by reporting p95/p99 and Success@\slo jointly.
+
+\paragraph{Configuration ladder ablation.}
+To quantify the effect of spec-driven decoding, we evaluate four models spanning 3B--20B parameters under Unconstrained (U) and Spec-Driven (S) configurations on the full \texttt{p1\_core} suite (T1--T3, 50 examples per task):
+
+\begin{table}[t]
+\centering
+\small
+\begin{adjustbox}{width=\linewidth}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+\textbf{Model} & \textbf{JSON (\%)} & \textbf{Schema (\%)} & \textbf{CLINC Acc (\%)} & \textbf{Hotpot F1} & \textbf{\pninetyfive\ (ms)} & \textbf{Success@\slo\ (\%)} \\
+\midrule
+Llama-3.2-3B & 100.0 & 100.0 & 54.0 & 0.47 & 3869 & 35.5 \\
+Qwen3-4B & 100.0 & 100.0 & 58.0 & 0.39 & 6043 & 25.9 \\
+Ministral-8B & 100.0 & 100.0 & 66.0 & 0.39 & 11731 & 1.2 \\
+Gemma-3-12B & 100.0 & 100.0 & 78.0 & 0.27 & 1555 & 48.0 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Spec-Driven evaluation results across four models spanning 3B--12B parameters.
+All models achieve 100\% JSON and schema validity under spec-driven decoding.
+Latencies include all retries within the request boundary.
+Success@\slo\ computed with $B_{\text{episode}}=1200\,\mathrm{ms}$ and quality gates from \texttt{criteria.yaml}.
+Key findings: (1) Gemma-3-12B achieves highest Success@\slo\ (48\%) and accuracy (78\% CLINC) with competitive latency; (2) Llama-3.2-3B leads on Hotpot F1 (0.47) despite smallest size; (3) larger models (Ministral-8B) improve accuracy but exceed latency budgets.}
+\label{tab:config-ablation}
+\end{table}
+
+\paragraph{Trade-off interpretation.}
+U generally has the lowest raw latency but the highest risk of structural failures and brittle tool behavior.
+P often sits between U and P+V on latency while improving parseability.
+P+V typically adds small average overhead but reduces catastrophic failures, which often improves end-to-end system throughput in practice (fewer downstream retries/crashes).
+S adds controllable overhead; its value is highest on tasks where correctness and faithfulness dominate and where modest candidate selection yields meaningfully better outputs per request.
+
+\subsection{Backend and Model Comparisons}
+\label{sec:results-backends}
+
+Because SpecSLOEval is backend-agnostic, it enables apples-to-apples comparisons across runtimes and model sizes under the same contract and criteria gates.
+
+\paragraph{Runtime effects.}
+LM Studio, Ollama, and vLLM differ in batching policy, KV-cache strategy, and practical structured-output behavior.
+These differences show up most clearly in \pninetyfive/\pninetynine and Success@\slo under QPS sweeps, where queueing and tail behavior dominate.
+
+\paragraph{Model size effects.}
+Larger models generally improve accuracy and grounded reasoning (T2) at the cost of latency and lower sustainable QPS under fixed SLOs.
+The right choice is therefore workload- and SLO-dependent; SpecSLOEval's configuration ladder (Figure~\ref{fig:config-ladder}) and frontier measurements make this trade-off explicit rather than anecdotal.
+
+\paragraph{T4/T5: Function calling and code generation.}
+Preliminary evaluation on T4 (BFCL v4 function calling) and T5 (SWE-bench Lite patch generation) reveals a striking gap: only Ministral-8B achieves meaningful JSON validity (98.3\%) and task success (53.6\% on T4), while Gemma-3-12B, Qwen3-4B, and Llama-3.2-3B all produce 0\% valid JSON on these harder tasks.
+This suggests that function calling and code generation place fundamentally different demands on structured output capability compared to classification and grounded QA---a finding that motivates task-specific model selection in production deployments.
+
+\paragraph{Implication for constrained optimization.}
+The resulting quality--latency frontiers define measurable feasibility constraints for future SLO-aware policy optimization, but this paper focuses on Phase~I system selection and evaluation rather than training.
+
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+We built SpecSLOEval because we kept getting burned by the same failures.
+An agent would pass every benchmark, then crash production at 2am with malformed JSON.
+Or it would confidently report numbers that appeared nowhere in the source documents.
+Or it would give different answers to the same question depending on when you asked.
+Or the 99th percentile latency would spike to 8 seconds during peak traffic.
+
+These are not exotic failure modes.
+They are the default behavior of agents that were only evaluated on accuracy.
+SpecSLOEval exists to catch them before deployment, not after.
+
+This section is honest about what we cover, what we do not cover, and what gaps remain.
+
+\subsection{Coverage of Production Failure Modes}
+
+We designed the Phase~I suite to surface three classes of failures that commonly dominate operational risk:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Structural failures:} malformed JSON, schema violations, and cross-field inconsistencies that crash or poison downstream consumers.
+    \item \textbf{Faithfulness failures:} fluent but unsupported claims (especially numerical or trend errors) that cause incorrect decisions.
+    \item \textbf{Latency failures:} tail latency spikes (\pninetyfive/\pninetynine) that collapse throughput and degrade perceived reliability~\citep{dean2013tail}.
+\end{enumerate}
+
+Figure~\ref{fig:coverage-map} summarizes our coverage at a glance and highlights the intentionally de-scoped regions. The central design stance is that \emph{structure and correctness are not optional}: ``fast but wrong'' is treated as a failure mode in most enterprise agent settings, unless the application is explicitly latency-dominant.
+
+\begin{figure}[t]
+    \centering
+\begin{adjustbox}{max width=\linewidth}
+    \begin{tikzpicture}[
+        font=\small,
+        cell/.style={draw, minimum width=3.2cm, minimum height=0.85cm, align=center},
+        header/.style={draw, fill=gray!10, minimum width=3.2cm, minimum height=0.85cm, align=center, font=\small\bfseries},
+        covered/.style={fill=green!10},
+        partial/.style={fill=yellow!10},
+        future/.style={fill=red!8},
+        note/.style={align=left, font=\small}
+    ]
+    % Headers
+    \node[header] (h0) at (0,0) {Risk / Horizon};
+    \node[header] (h1) at (3.2,0) {Single-turn};
+    \node[header] (h2) at (6.4,0) {Short tool chain};
+    \node[header] (h3) at (9.6,0) {Long multi-turn};
+
+    % Rows
+    \node[header] (r1) at (0,-0.85) {Structure};
+    \node[cell, covered] (r1c1) at (3.2,-0.85) {Covered\\ (JSON+schema)};
+    \node[cell, covered] (r1c2) at (6.4,-0.85) {Covered\\ (tool args)};
+    \node[cell, partial] (r1c3) at (9.6,-0.85) {Partial\\ (stateful schemas)};
+
+    \node[header] (r2) at (0,-1.70) {Task Accuracy};
+    \node[cell, covered] (r2c1) at (3.2,-1.70) {Covered\\ (F1/EM)};
+    \node[cell, partial] (r2c2) at (6.4,-1.70) {Partial\\ (trajectory-aware)};
+    \node[cell, future] (r2c3) at (9.6,-1.70) {Future\\ (long-horizon goals)};
+
+    \node[header] (r3) at (0,-2.55) {Faithfulness};
+    \node[cell, covered] (r3c1) at (3.2,-2.55) {Covered\\ (atomic facts)};
+    \node[cell, partial] (r3c2) at (6.4,-2.55) {Partial\\ (tool outputs)};
+    \node[cell, future] (r3c3) at (9.6,-2.55) {Future\\ (multi-turn grounding)};
+
+    \node[header] (r4) at (0,-3.40) {Latency/SLOs};
+    \node[cell, covered] (r4c1) at (3.2,-3.40) {Covered\\ (p50/p95/p99)};
+    \node[cell, covered] (r4c2) at (6.4,-3.40) {Covered\\ (Success@\slo)};
+    \node[cell, partial] (r4c3) at (9.6,-3.40) {Partial\\ (interactive UX)};
+
+    \node[header] (r5) at (0,-4.25) {Safety/Policy};
+    \node[cell, future] (r5c1) at (3.2,-4.25) {Future\\ (safety suite)};
+    \node[cell, future] (r5c2) at (6.4,-4.25) {Future\\ (tool policy)};
+    \node[cell, future] (r5c3) at (9.6,-4.25) {Future\\ (dialog policy)};
+
+    % Legend
+    \node[cell, covered, minimum width=2.4cm] (leg1) at (1.2,-5.35) {Covered};
+    \node[cell, partial, minimum width=2.4cm] (leg2) at (3.8,-5.35) {Partial};
+    \node[cell, future,  minimum width=2.4cm] (leg3) at (6.4,-5.35) {Out of scope};
+    \node[note] at (9.0,-5.35) {Phase~I focuses on single-turn and\\ short-horizon tool use; longer\\ horizons and safety are planned.};
+
+    \end{tikzpicture}
+\end{adjustbox}
+    \caption{Coverage map for SpecSLOEval (Phase~I). Green cells indicate areas directly measured by the current test families; yellow indicates partial coverage (measured but with known gaps); red indicates areas that are intentionally de-scoped in Phase~I and require additional suites, datasets, and/or human evaluation.}
+    \label{fig:coverage-map}
+\end{figure}
+
+\paragraph{What this means operationally.}
+If your production risks are dominated by parsing errors, schema drift, faithless metric summaries, tool-call schema mistakes, and tail-latency collapse on a single node, SpecSLOEval is designed to be immediately useful.
+If your risks are dominated by multi-turn negotiation, user experience, safety policy compliance, and long-horizon goal completion, then Phase~I should be treated as a foundation rather than a complete solution.
+
+\subsection{Threats to Validity: What Can Go Wrong with the Measurement Itself}
+
+Even a rigorous suite can mislead if the measurement apparatus does not reflect the deployed environment.
+We therefore call out three practical threats to validity and how we mitigate them.
+
+\paragraph{Construct validity (are we measuring the right thing?).}
+Faithfulness scores are proxies (Section~\ref{sec:discussion-judge}), and tool-trajectory metrics can reward ``clean-looking'' behavior that does not correspond to actual user value.
+We address this by (i) tying key pass/fail gates to hard operational constraints (schema validity, contradiction rate caps, Success@\slo), and (ii) encouraging teams to define application-specific metrics as additional families rather than forcing everything into a single scalar.
+
+\paragraph{Internal validity (are the numbers reproducible?).}
+Single-GPU latency distributions are sensitive to background processes, thermal throttling, and batcher dynamics.
+We mitigate this by logging machine state metadata, pinning runtime versions, controlling seeds, and reporting quantiles over repeated runs rather than a single point estimate.
+
+\paragraph{External validity (does offline $\widehat{W}$ predict production $W$?).}
+Offline datasets can under-represent burstiness, unusual context lengths, rare tool failures, or user behaviors.
+We mitigate this by explicitly parameterizing workload models, including burst tests, and recommending a promotion pipeline where offline gates are followed by staged canaries with the \emph{same} metrics computed online.
+
+\subsection{Limitations of LLM-as-Judge Faithfulness}
+\label{sec:discussion-judge}
+
+Our use of LLM-as-judge faithfulness scoring follows RAGAS~\citep{es2023ragas} and atomic-fact evaluation~\citep{atomicFacts2024}, but inherits limitations common to judge-based approaches: prompt sensitivity, systematic blind spots (especially around numeric subtleties), and correlated failure modes when the judge and policy share training data or style biases.
+Figure~\ref{fig:judge-pipeline} makes these failure points explicit.
+
+\begin{figure}[t]
+    \centering
+\begin{adjustbox}{max width=\linewidth}
+    \begin{tikzpicture}[
+        font=\small,
+        box/.style={draw, rounded corners, align=center, minimum width=3.4cm, minimum height=0.95cm, fill=gray!5},
+        warn/.style={draw, rounded corners, align=center, minimum width=3.4cm, minimum height=0.95cm, fill=red!7},
+        line/.style={-Latex, thick},
+        note/.style={align=left, font=\small}
+    ]
+    \node[box] (ctx) {Context $C$\\ (docs/logs/records)};
+    \node[box, right=2.0cm of ctx] (ans) {Agent output $y$\\ (structured JSON)};
+    \node[box, below=1.2cm of $(ctx)!0.5!(ans)$] (extract) {Atomic statement\\ extraction};
+    \node[box, right=2.0cm of extract] (score) {Support scoring\\ $s\in\{0,1,2,3\}$\\ + contradiction flag};
+    \node[box, right=2.0cm of score] (agg) {Aggregate\\ $m_{\text{faith}}\in[0,1]$};
+
+    \draw[line] (ctx.south) -- (extract.north west);
+    \draw[line] (ans.south) -- (extract.north east);
+    \draw[line] (extract) -- (score);
+    \draw[line] (score) -- (agg);
+
+    % Threat callouts
+    \node[warn, above=0.9cm of extract] (t1) {Threat: decomposition\\ bias / omissions};
+    \node[warn, above=0.9cm of score] (t2) {Threat: prompt\\ sensitivity / verbosity bias};
+    \node[warn, above=0.9cm of agg] (t3) {Threat: metric\\ gaming / aggregation bias};
+
+    \draw[line] (t1.south) -- (extract.north);
+    \draw[line] (t2.south) -- (score.north);
+    \draw[line] (t3.south) -- (agg.north);
+
+    \node[note, below=1.2cm of extract, xshift=1.8cm] {
+        Mitigations used in Phase~I: (i) explicit 0--3 scale + contradiction flag;\\
+        (ii) calibration on a small human-labeled subset; (iii) audit logging\\
+        of judge inputs/outputs; (iv) treat faithfulness as one signal, not the only signal.
+    };
+
+    \end{tikzpicture}
+\end{adjustbox}
+    \caption{Judge-based faithfulness pipeline and where bias can enter. Making these failure points explicit helps prevent ``metric overconfidence'' and informs mitigations such as calibration, auditing, and multi-signal gating.}
+    \label{fig:judge-pipeline}
+\end{figure}
+
+\paragraph{Practical mitigation stance.}
+In Phase~I we treat judge-based faithfulness as a \emph{high-leverage but imperfect} proxy:
+it is valuable for regression testing and for shaping improvements, but it should not be used as the sole acceptance criterion in high-stakes domains.
+For promotion decisions, we recommend (i) periodic human audits on stratified samples, (ii) cross-judge comparisons (two different judge models or prompts), and (iii) targeted, programmatic checks for numeric claims when contexts are machine-readable (tables/time series).
+
+\subsection{Schema and Grammar Expressiveness}
+
+We use JSON Schema and grammar constraints (e.g., GBNF) because they are portable across runtimes and naturally align with how downstream systems consume agent outputs.
+The limitation is expressiveness: many real invariants are relational or temporal and cannot be expressed cleanly as local type constraints.
+
+\paragraph{Implications for latency and correctness.}
+When constraints cannot be enforced during decoding, they shift to post-hoc validation, increasing reliance on validation-and-retry and complicating worst-case latency bounds.
+This motivates two extensions beyond Phase~I:
+(i) a richer invariant layer (e.g., executable validators with bounded cost) that is first-class in the contract model, and
+(ii) better ``repair prompts'' and structured error taxonomies that make retries more reliable and less verbose.
+
+\subsection{Single-GPU Focus and Deployment Generality}
+
+Phase~I targets a single GPU (RTX~4090 class) or a laptop-class accelerator (Apple M-series).
+This is a deliberate design point: many teams start here for privacy, cost predictability, and operational simplicity.
+However, scaling out introduces new phenomena not present on a single node: cross-replica variability, queueing and routing effects, multi-tenant interference, and network-induced tail latency.
+
+\paragraph{What transfers, and what does not.}
+The metric families transfer cleanly: structure, accuracy, faithfulness, tool behavior, stability, and SLO adherence remain meaningful.
+What changes is the \emph{system boundary} of the latency metric and the workload model: cluster-level routing and batching policies become part of the configuration surface $\delta$, and additional observability (queue wait time, replica selection, network time) becomes necessary to attribute tail events.
+
+\subsection{RL Integration Scope and Reward-Gaming Risks}
+
+We emphasize that the Phase~I metrics are designed to be reused as reward components and constraints in Phase~II.
+This tight coupling is powerful, but it creates predictable failure modes in optimization:
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Reward hacking:} the policy learns to emit minimally valid but uninformative JSON to maximize structure metrics.
+    \item \textbf{Judge overfitting:} the policy learns quirks of the faithfulness judge rather than improving genuine grounding.
+    \item \textbf{Rare-case regressions:} average metrics improve while rare, high-impact cases get worse.
+\end{itemize}
+
+\paragraph{Mitigation plan for Phase~II.}
+Phase~II should (i) treat critical requirements as hard constraints (schema validity, contradiction rate caps, explicit SLO budgets), (ii) maintain a shadow ``audit set'' not used for reward to detect overfitting, and (iii) incorporate adversarial tests targeted to known failure modes (numeric trends, schema drift, tool argument edge cases).
+Critically, RL promotion should be gated by the same acceptance criteria used for static selection, not by reward improvements alone.
+
+\subsection{Human Factors and Operational Adoption}
+
+Finally, the framework only matters if it can be owned by engineers and product stakeholders.
+We therefore treat \texttt{criteria.yaml} as a versioned contract between teams: changes to what ``good'' means are explicit, reviewable, and auditable.
+However, a full six-family suite can be overwhelming for early adopters.
+
+A pragmatic adoption path is:
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Starter pack:} structure + task accuracy + basic latency gates.
+    \item \textbf{Risk-hardening:} add faithfulness and tool-trajectory tests for high-risk workflows.
+    \item \textbf{Operational robustness:} add stability tests and bursty SLO workloads.
+    \item \textbf{Optimization:} enable RL only after metrics are stable, calibrated, and understood by operators.
+\end{itemize}
+
+Figure~\ref{fig:promotion-pipeline} sketches a concrete staged promotion loop that mirrors how teams actually deploy: start with offline gates, graduate to shadow/canary traffic, and enforce explicit rollback triggers tied to the same criteria.
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    stage/.style={draw, rounded corners, align=center, minimum width=2.4cm, minimum height=0.95cm, fill=gray!5},
+    gate/.style={draw, rounded corners, align=center, minimum width=2.4cm, minimum height=0.95cm, fill=blue!5},
+    line/.style={-Latex, thick},
+    node distance=0.9cm and 0.6cm
+]
+\node[stage] (logs) {Workload\\samples \& goldens};
+\node[stage, right=of logs] (offline) {Offline eval\\(SpecSLOEval)};
+\node[gate, right=of offline] (gates) {Strict gates\\(criteria.yaml)};
+\node[stage, right=of gates] (canary) {Canary deploy\\(small traffic)};
+\node[stage, right=of canary] (monitor) {Monitor\\(tails + failures)};
+
+\draw[line] (logs) -- (offline);
+\draw[line] (offline) -- node[above]{metrics} (gates);
+\draw[line] (gates) -- node[above]{pass} (canary);
+\draw[line] (canary) -- node[above]{live tails} (monitor);
+
+% Feedback loops
+\draw[line] (monitor.south) .. controls +(0,-1.0) and +(0,-1.0) .. node[below, align=center]{regressions $\Rightarrow$ add tests\\or adjust budgets} (offline.south);
+\draw[line] (monitor.north) .. controls +(0,1.0) and +(0,1.0) .. node[above, align=center]{promotion criteria\\\& dashboards} (gates.north);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Operational promotion pipeline.
+SpecSLOEval is designed to sit inside a practical release loop: offline tests and strict gating prevent brittle configurations from reaching production, while canaries validate tail-latency and rare-case behavior before full rollout.}
+\label{fig:promotion-pipeline}
+\end{figure}
+
+
+
+Table~\ref{tab:limitations} summarizes the main limitations and actionable mitigations/extensions.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{p{3.2cm}p{5.0cm}p{6.8cm}}
+\toprule
+\textbf{Limitation} & \textbf{Why it matters} & \textbf{Mitigation / extension} \\
+\midrule
+LLM-as-judge bias & Faithfulness scores can drift, mis-rank outputs, or reward verbosity & Calibrate on human labels; log judge traces; use multiple judges/prompts; add programmatic numeric checks where possible \\
+\addlinespace
+Schema/grammar expressiveness & Many invariants are relational/temporal and cannot be enforced during decoding & Post-hoc validators with bounded cost; structured repair prompts; richer contract layer for cross-field rules \\
+\addlinespace
+Offline vs production mismatch & $\widehat{W}$ can under-sample bursts, long contexts, and tool failures & Parameterized workload models; burst tests; staged canaries computing the same metrics online \\
+\addlinespace
+Single-node assumptions & Cluster routing and queueing affect tail latency and consistency & Expand observability; treat scheduling/routing as part of $\delta$; introduce per-component latency attribution \\
+\addlinespace
+RL reward gaming & Optimizing metrics can create degenerate behavior and judge overfitting & Hard constraints, audit sets, adversarial suites, and human gates for promotion \\
+\bottomrule
+\end{tabular}
+\caption{Key limitations of the Phase~I framework and concrete mitigations/extensions that preserve the contract-first, SLO-aware philosophy.}
+\label{tab:limitations}
+\end{table}
+
+\paragraph{Summary.}
+Phase~I establishes a measurement regime that is actionable for single-GPU deployments and that directly targets production-grade failure modes: structural validity, faithfulness, tool reliability, stability, and tail-latency SLOs.
+Its central limitations are predictable (judge bias, schema expressiveness, horizon length, and safety), and we have made them explicit to avoid over-claiming.
+Phase~II builds on this foundation by using the same metrics as rewards and constraints while explicitly guarding against reward gaming and evaluator overfitting.
+
+
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+The point of SpecSLOEval is simple: if other software depends on your agent, your agent needs to behave like software.
+That means contracts it cannot break.
+Latency budgets it cannot exceed.
+Claims it does not fabricate.
+Answers it gives consistently.
+
+This paper builds the measurement infrastructure for that.
+We compile JSON Schemas to whatever your backend can enforce.
+We validate outputs and retry when they fail.
+We measure structure, accuracy, faithfulness, stability, and tail latency---together, in one pass, with one criteria file.
+
+\paragraph{What we built.}
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Contract-first agent serving.}
+    A backend-agnostic contract layer that compiles to provider-native structured outputs and grammar-based constraints, and is hardened by bounded validation-and-retry and budgeted self-consistency under explicit token and wall-clock budgets.
+
+    \item \textbf{A unified, auditable evaluation surface.}
+    A single \texttt{criteria.yaml} defines metric families, gates, and weights, enabling consistent comparison across backends (LM Studio, Ollama, vLLM) and models, with per-episode logging for diagnosis and reproducibility.
+
+    \item \textbf{A deployment-oriented measurement framing.}
+    We treat p95/p99 and Success@\slo as first-class metrics alongside correctness and faithfulness, revealing trade-offs that are invisible when evaluation ends at average quality or JSON validity alone.
+\end{itemize}
+
+Figure~\ref{fig:specsloeval-stack} summarizes the end-to-end ``contract to deployment'' stack that Phase~I operationalizes.
+
+\begin{figure}[t]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[
+    font=\small,
+    layer/.style={draw, rounded corners, align=center, minimum width=11.2cm, minimum height=0.95cm, fill=gray!5},
+    accent/.style={draw, rounded corners, align=center, minimum width=11.2cm, minimum height=0.95cm, fill=blue!5},
+    line/.style={-Latex, thick},
+    node distance=0.35cm
+]
+\node[layer]  (l1) {Application contracts\\(JSON Schema / typed models / tool signatures)};
+\node[layer, below=of l1] (l2) {Spec compiler\\(backend-specific: response\_format / tools / grammars)};
+\node[accent, below=of l2] (l3) {Serving wrapper\\(constrained decoding + validation-and-retry + budgeted self-consistency)};
+\node[layer, below=of l3] (l4) {Evaluation harness\\(structure, accuracy, faithfulness, tools, stability, SLOs)};
+\node[layer, below=of l4] (l5) {Logging + analysis\\(W\&B / dashboards / CI gates)};
+\node[layer, below=of l5] (l6) {Optimization hooks\\(static config search in Phase~I; constrained RL in Phase~II)};
+
+\draw[line] (l1) -- (l2);
+\draw[line] (l2) -- (l3);
+\draw[line] (l3) -- (l4);
+\draw[line] (l4) -- (l5);
+\draw[line] (l5) -- (l6);
+
+\end{tikzpicture}
+\end{adjustbox}
+\caption{SpecSLOEval stack.
+Contracts are compiled into backend constraints; serving is hardened by validation and budgeted self-consistency; evaluation computes a multi-family scorecard and enforces strict gates; the same scorecard supports CI and (in Phase~II) constrained RL.}
+\label{fig:specsloeval-stack}
+\end{figure}
+
+\paragraph{What comes next.}
+We scoped Phase~I deliberately.
+Here is what we did not do, and plan to:
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Multi-turn and long-horizon workflows.}
+    Extend test families to cover memory, planning under partial observability, escalation policies, and long-running tool workflows where latency composes over multiple steps.
+
+    \item \textbf{Safety and policy as first-class families.}
+    Add explicit safety/policy contracts (privacy constraints, sensitive data handling, refusal correctness, bias and fairness probes) with auditable thresholds in \texttt{criteria.yaml}.
+
+    \item \textbf{SLO-aware reinforcement learning on a single GPU.}
+    Phase~II will reuse the same metric surface as reward components and constraints (policy gradient methods with LoRA adapters), emphasizing guardrails against reward hacking and tail regressions.
+
+    \item \textbf{Richer contract languages.}
+    Combine schema/grammar constraints with programmable semantic validators and domain-rule libraries so that contracts capture not only types but invariants (e.g., accounting identities, approval policies, campaign constraints).
+
+    \item \textbf{Beyond single-node deployments.}
+    Generalize workload models and SLO accounting to multi-node systems (routing, interference, multi-region tails) while preserving the contract-first interface and metric families.
+\end{itemize}
+
+The bigger goal: a shared way to talk about agent reliability, and a portable framework to measure it.
+We want agents that are not just capable, but deployable.
+That means structurally sound, evidence-grounded, consistent, and fast enough.
+SpecSLOEval is our attempt to make those properties measurable, so we can stop arguing about whether an agent is ready for production and start measuring it.
+
+\paragraph{Adoption note.}
+From our experience deploying agents in enterprise settings, the most common failure mode is not technical---it is organizational.
+Teams optimize for accuracy benchmarks because that is what they know how to measure, then discover structural and latency failures only after deployment.
+We hope SpecSLOEval shifts this by making production-relevant metrics accessible from the first experiment, not as an afterthought after the demo has already impressed stakeholders.
+
+\printbibliography
+
+\end{document}

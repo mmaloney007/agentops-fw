@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
 Full P1/P2 experiment runner.
-Runs baseline evals, training at 250/500 steps, and post-training evals for all 4 models.
+Runs baseline evals, training at 250/500 steps, and post-training evals.
+
+UPDATED: Lucky 13 models (8 vendors, 4 countries)
 
 Usage:
     python scripts/run_p1_p2_full.py --phase all
     python scripts/run_p1_p2_full.py --phase baseline  # Just baseline evals
     python scripts/run_p1_p2_full.py --phase train     # Just training
     python scripts/run_p1_p2_full.py --phase post      # Just post-training evals
+    python scripts/run_p1_p2_full.py --phase baseline --model llama-3.2-1b  # Single model
 
 Author: Mike Maloney <mike.maloney@unh.edu>
 """
@@ -20,36 +23,153 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Model configurations
-# Note: Ministral-3-8B is VLM (Mistral3ForConditionalGeneration) - needs special handling
+# Model configurations - Lucky 13 (8 vendors, 4 countries)
+# See plan.md for full rationale
+# LM Studio IDs updated 2025-01-18 based on actual downloaded models
 MODELS = [
+    # 1B-3B Range: "definitely too small" floor
     {
-        "name": "qwen3-4b",
-        "path": "./models/qwen3-4b-instruct",
-        "config": "p2_qwen3_4b",
-        "hf_id": "Qwen/Qwen3-4B-Instruct-2507",
+        "name": "llama-3.2-1b",
+        "hf_id": "meta-llama/Llama-3.2-1B-Instruct",
+        "lmstudio_id": "lmstudio-community/llama-3.2-1b-instruct",
+        "config": "p2_llama_1b",
+        "size": "1B",
+        "vendor": "Meta",
         "skip_eval": False,
-    },
-    {
-        "name": "ministral-8b",
-        "path": "./models/ministral-8b-instruct",
-        "config": "p2_ministral_8b",
-        "hf_id": "mistralai/Ministral-3-8B-Instruct-2512",
-        "skip_eval": True,  # VLM needs special processor handling
+        "skip_train": False,
     },
     {
         "name": "llama-3.2-3b",
-        "path": "./models/llama-3.2-3b-instruct",
-        "config": "p2_llama_3b",
         "hf_id": "meta-llama/Llama-3.2-3B-Instruct",
+        "lmstudio_id": "RichardErkhov/meta-llama-_-llama-3.2-3b-instruct",
+        "config": "p2_llama_3b",
+        "size": "3B",
+        "vendor": "Meta",
         "skip_eval": False,
+        "skip_train": False,
+    },
+    {
+        "name": "qwen2.5-3b",
+        "hf_id": "Qwen/Qwen2.5-3B-Instruct",
+        "lmstudio_id": "Qwen/qwen2.5-3b-instruct",
+        "config": "p2_qwen25_3b",
+        "size": "3B",
+        "vendor": "Alibaba",
+        "skip_eval": False,
+        "skip_train": False,
+    },
+    # 4B-6B Range: intermediate threshold region
+    {
+        "name": "phi-3-mini",
+        "hf_id": "microsoft/Phi-3-mini-4k-instruct",
+        "lmstudio_id": "microsoft/phi-3-mini-4k-instruct",
+        "config": "p2_phi3_mini",
+        "size": "3.8B",
+        "vendor": "Microsoft",
+        "skip_eval": False,
+        "skip_train": False,
+    },
+    {
+        "name": "qwen3-4b",
+        "hf_id": "Qwen/Qwen3-4B",
+        "lmstudio_id": "Qwen/qwen3-4b",
+        "config": "p2_qwen3_4b",
+        "size": "4B",
+        "vendor": "Alibaba",
+        "skip_eval": False,
+        "skip_train": False,
+    },
+    {
+        "name": "yi-1.5-6b",
+        "hf_id": "01-ai/Yi-1.5-6B-Chat",
+        "lmstudio_id": "RichardErkhov/01-ai-_-yi-1.5-6b-chat",
+        "config": "p2_yi_6b",
+        "size": "6B",
+        "vendor": "01.AI",
+        "skip_eval": False,
+        "skip_train": False,
+        "critical": True,  # Threshold investigation
+    },
+    # 7B-8B Range: critical threshold investigation
+    {
+        "name": "mistral-7b-v0.3",
+        "hf_id": "mistralai/Mistral-7B-Instruct-v0.3",
+        "lmstudio_id": "RichardErkhov/mistralai-_-mistral-7b-instruct-v0.3",
+        "config": "p2_mistral_7b",
+        "size": "7B",
+        "vendor": "Mistral",
+        "skip_eval": False,
+        "skip_train": False,
+        "critical": True,
+    },
+    {
+        "name": "falcon-mamba-7b",
+        "hf_id": "tiiuae/falcon-mamba-7b-instruct",
+        "lmstudio_id": "tiiuae/falcon-mamba-7b-instruct@q4_k_m",
+        "config": "p2_falcon_mamba",
+        "size": "7B",
+        "vendor": "TII",
+        "skip_eval": False,
+        "skip_train": False,
+        "critical": True,
+        "arch": "SSM/Mamba",  # Non-transformer!
+        "lora_targets": ["in_proj", "x_proj", "dt_proj", "out_proj"],
+    },
+    {
+        "name": "gpt-oss-20b",
+        "hf_id": "openai/gpt-oss-20b",
+        "lmstudio_id": "openai/gpt-oss-20b",
+        "config": "p2_gpt_oss",
+        "size": "20B",
+        "active_params": "3.6B",  # MoE
+        "vendor": "OpenAI",
+        "skip_eval": False,
+        "skip_train": False,
+        "critical": True,
+        "arch": "MoE",
+        "requires_unsloth": True,
+    },
+    {
+        "name": "ministral-8b",
+        "hf_id": "mistralai/Ministral-8B-Instruct-2410",
+        "lmstudio_id": "DevQuasar/mistralai.ministral-8b-instruct-2410",
+        "config": "p2_ministral_8b",
+        "size": "8B",
+        "vendor": "Mistral",
+        "skip_eval": False,
+        "skip_train": False,
+        "critical": True,
+    },
+    {
+        "name": "llama-3.1-8b",
+        "hf_id": "meta-llama/Llama-3.1-8B-Instruct",
+        "lmstudio_id": "featherless-ai-quants/meta-llama-llama-3.1-8b-instruct",
+        "config": "p2_llama_8b",
+        "size": "8B",
+        "vendor": "Meta",
+        "skip_eval": False,
+        "skip_train": False,
+    },
+    # 9B-12B Range: confirm "above threshold"
+    {
+        "name": "gemma-2-9b",
+        "hf_id": "google/gemma-2-9b-it",
+        "lmstudio_id": "google/gemma-2-9b",
+        "config": "p2_gemma_9b",
+        "size": "9B",
+        "vendor": "Google",
+        "skip_eval": False,
+        "skip_train": False,
     },
     {
         "name": "gemma-3-12b",
-        "path": "./models/gemma-3-12b-it",
-        "config": "p2_gemma_12b",
         "hf_id": "google/gemma-3-12b-it",
+        "lmstudio_id": "google/gemma-3-12b",
+        "config": "p2_gemma_12b",
+        "size": "12B",
+        "vendor": "Google",
         "skip_eval": False,
+        "skip_train": False,
     },
 ]
 
