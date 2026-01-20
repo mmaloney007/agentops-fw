@@ -1,12 +1,12 @@
 # =============================================================================
-# MEDIA SMALL - Coiled Cloud Config (54K rows)
+# MEDIA SMALL - Coiled Cloud Config (media_lp table)
 # =============================================================================
-# Input:  Unity Catalog table (staging-media-source.default.media_54)
+# Input:  Unity Catalog table (staging-media-source.default.media_lp)
 # Output: Unity Catalog (staging-c360.media.media_dask_test_54k)
 # Engine: Coiled (4 workers, m5.2xlarge)
 #
-# Tests:  ZSML KPI tiering on Total_Spent with lift metadata. Small dataset
-#         for quick validation of media streaming use case.
+# Tests:  ZSML KPI tiering on Total_Spent with lift metadata. Uses the media_lp
+#         table for quick validation of media streaming use case.
 # =============================================================================
 
 logging:
@@ -28,7 +28,7 @@ runtime:
 
 input:
   source: uc_table
-  uc_table: staging-media-source.default.media_54
+  uc_table: staging-media-source.default.media_lp
   columns: null
 ids:
   columns: ["Customer_ID"]
@@ -80,17 +80,11 @@ preprocessing:
 
 # drop_columns:
 #   - Applied LAST, after preprocessing/renames (snake-case is allowed).
+#   - Updated for media_lp table schema (removed non-existent PII columns)
 drop_columns:
   - Country
   - State
   - Zip
-  - Phone
-  - Email
-  - Full_Name
-  - Google_Advertising_ID
-  - Identifier_For_Advertisers
-  - Street
-  - City
   - Cancellation_Date
   - Subscription_Start_Date
   - Subscription_End_Date
@@ -99,7 +93,7 @@ drop_columns:
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 25
+  max_concurrency: 100
   tags:
     id_cols: ["customer_id"]
     kpi_cols:
@@ -132,8 +126,8 @@ metadata:
 # Rule-based analysis is always on. LLM enhancement is optional.
 # -----------------------------------------------------------------------------
 data_doctor:
-  enabled: true                    # Run Data Doctor analysis (rule-based)
-  save_yaml: true                  # Save suggestions.yaml alongside output
+  enabled: true # Run Data Doctor analysis (rule-based)
+  save_yaml: true # Save suggestions.yaml alongside output
   # ---------------------------------------------------------------------------
   # LLM Enhancement (optional, disabled by default)
   # ---------------------------------------------------------------------------
