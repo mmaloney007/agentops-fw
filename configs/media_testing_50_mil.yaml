@@ -15,12 +15,12 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_test
+    software_env: neuralift_c360_prep_pr-5
     n_workers: 5
     worker_vm_types:
-      - i7i.8xlarge  # scale out; good if you can parallelize well
+      - m7i.8xlarge  # changed from i7i.8xlarge due to AWS capacity issues
     scheduler_vm_types:
-      - i7i.8xlarge
+      - m7i.4xlarge
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -33,8 +33,6 @@ input:
   uc_table: staging-media-source.default.media_demo_50m
   columns: null
   id_cols: ["Customer_ID"]
-  snapshot:
-    enabled: false
 
 # feature_functions:
 #   - Partition-wise pandas functions, applied first. Signature: fn(pdf: pd.DataFrame) -> pd.DataFrame.

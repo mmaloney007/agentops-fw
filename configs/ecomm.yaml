@@ -18,7 +18,7 @@ runtime:
     software_env: neuralift_c360_prep_pr-5
     n_workers: 6
     worker_vm_types:
-      - i3.2xlarge #- i3.4xlarge
+      - r5.2xlarge  # Memory-optimized (64GB RAM) for 326 cols × 8.3M rows
     scheduler_vm_types:
       - c5d.xlarge
     idle_timeout: 2h
@@ -32,7 +32,7 @@ input:
   columns: null
 ids:
   columns: ["customer_id"]
-  auto_detect: true
+  auto_detect: false
   # ---------------------------------------------------------------------------
   # LLM-Enhanced ID Detection (optional, disabled by default)
   # ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@ input:
   columns: null
 ids:
   columns: ["customer_id"]
-  auto_detect: true
+  auto_detect: false
   # ---------------------------------------------------------------------------
   # LLM-Enhanced ID Detection (optional, disabled by default)
   # ---------------------------------------------------------------------------

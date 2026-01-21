@@ -14,16 +14,9 @@ logging:
   show_progress: true
 
 runtime:
-  engine: coiled
-  coiled:
-    software_env: neuralift_c360_prep_test
-    n_workers: 2
-    worker_vm_types: [m4.xlarge]
-    scheduler_vm_types: [c5d.xlarge]
-    idle_timeout: 2h
-    no_client_timeout: 2h
-    create_timeout: 15m
-    op_timeout: 45m
+  engine: local
+  # Note: Changed from coiled to local because s3_base points to local filesystem
+  # Coiled workers cannot write to local paths
 
 input:
   source: uc_table
@@ -31,7 +24,7 @@ input:
   columns: null
 ids:
   columns: ["id"]
-  auto_detect: true
+  auto_detect: false
   # ---------------------------------------------------------------------------
   # LLM-Enhanced ID Detection (optional, disabled by default)
   # ---------------------------------------------------------------------------

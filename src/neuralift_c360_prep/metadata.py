@@ -1283,6 +1283,11 @@ def build_data_dictionary_json(
         if event_sum_unit:
             col_entry["lift_event_sum_unit"] = event_sum_unit
 
+        # Include unique_count to avoid expensive fallback in config_builder
+        unique_count = tags.get("unique_count")
+        if unique_count is not None:
+            col_entry["unique_count"] = unique_count
+
         columns_json.append(col_entry)
 
     meta_json: Dict[str, Any] = {

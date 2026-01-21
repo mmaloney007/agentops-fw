@@ -33,16 +33,16 @@ input:
   columns: null
 ids:
   columns: ["id"]
-  auto_detect: true
+  auto_detect: false
   # ---------------------------------------------------------------------------
-  # LLM-Enhanced ID Detection (enabled for testing)
+  # LLM-Enhanced ID Detection (disabled for Coiled runs)
   # ---------------------------------------------------------------------------
-  detection:
-    llm_enabled: true            # LLM semantic analysis enabled
-    llm_provider:
-      provider: auto             # Options: openai, anthropic, auto
-    max_llm_columns: 20          # Limit columns sent to LLM (cost control)
-    llm_cache_enabled: true      # Cache LLM responses to save cost
+  # detection:
+  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
+  #   llm_provider:
+  #     provider: auto             # Options: openai, anthropic, auto
+  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+  #   llm_cache_enabled: true      # Cache LLM responses to save cost
 
 preprocessing:
   rename_to_snake: true

@@ -112,6 +112,6 @@ output:
   uc_catalog: staging-c360
   uc_schema: kaggle-marketing
   uc_table: marketing_kaggle_local
-  s3_base: s3://dummy-bucket/marketing-kaggle-local/
+  s3_base: local-output/marketing-kaggle-local
   partitions: ["id"]
   target_mb_per_part: 512
