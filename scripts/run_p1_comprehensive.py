@@ -34,16 +34,40 @@ TASKS = {
 # Models (LM Studio IDs verified working)
 MODELS = {
     "llama-3.2-1b": {"id": "llama-3.2-1b-instruct", "size": "1B", "vendor": "Meta"},
-    "llama-3.2-3b": {"id": "meta-llama_-_llama-3.2-3b-instruct", "size": "3B", "vendor": "Meta"},
+    "llama-3.2-3b": {
+        "id": "meta-llama_-_llama-3.2-3b-instruct",
+        "size": "3B",
+        "vendor": "Meta",
+    },
     "qwen2.5-3b": {"id": "qwen2.5-3b-instruct", "size": "3B", "vendor": "Alibaba"},
-    "phi-3-mini": {"id": "phi-3-mini-4k-instruct", "size": "3.8B", "vendor": "Microsoft"},
+    "phi-3-mini": {
+        "id": "phi-3-mini-4k-instruct",
+        "size": "3.8B",
+        "vendor": "Microsoft",
+    },
     "qwen3-4b": {"id": "qwen3-4b", "size": "4B", "vendor": "Alibaba"},
     "yi-1.5-6b": {"id": "01-ai_-_yi-1.5-6b-chat", "size": "6B", "vendor": "01.AI"},
-    "mistral-7b-v0.3": {"id": "mistralai_-_mistral-7b-instruct-v0.3", "size": "7B", "vendor": "Mistral"},
-    "falcon-mamba-7b": {"id": "falcon-mamba-7b-instruct", "size": "7B", "vendor": "TII"},
+    "mistral-7b-v0.3": {
+        "id": "mistralai_-_mistral-7b-instruct-v0.3",
+        "size": "7B",
+        "vendor": "Mistral",
+    },
+    "falcon-mamba-7b": {
+        "id": "falcon-mamba-7b-instruct",
+        "size": "7B",
+        "vendor": "TII",
+    },
     "gpt-oss-20b": {"id": "openai/gpt-oss-20b", "size": "20B", "vendor": "OpenAI"},
-    "ministral-8b": {"id": "mistralai.ministral-8b-instruct-2410", "size": "8B", "vendor": "Mistral"},
-    "llama-3.1-8b": {"id": "meta-llama-llama-3.1-8b-instruct", "size": "8B", "vendor": "Meta"},
+    "ministral-8b": {
+        "id": "mistralai.ministral-8b-instruct-2410",
+        "size": "8B",
+        "vendor": "Mistral",
+    },
+    "llama-3.1-8b": {
+        "id": "meta-llama-llama-3.1-8b-instruct",
+        "size": "8B",
+        "vendor": "Meta",
+    },
     "gemma-2-9b": {"id": "google/gemma-2-9b", "size": "9B", "vendor": "Google"},
     "gemma-3-12b": {"id": "google/gemma-3-12b", "size": "12B", "vendor": "Google"},
 }
@@ -100,7 +124,7 @@ def compute_metrics(predictions_file: Path) -> dict:
     sorted_lat = sorted(latencies)
     p95_idx = int(len(sorted_lat) * 0.95)
     p99_idx = int(len(sorted_lat) * 0.99)
-    within_slo = sum(1 for l in latencies if l <= SLO_DEADLINE_MS)
+    within_slo = sum(1 for lat in latencies if lat <= SLO_DEADLINE_MS)
 
     result = {
         "count": total,
@@ -139,15 +163,22 @@ def run_eval(model_name: str, model_id: str, task_name: str, task_file: str) -> 
     # Use venv python explicitly
     venv_python = Path(__file__).parent.parent / ".venv" / "bin" / "python"
     cmd = [
-        str(venv_python), "scripts/eval_t_suite.py",
-        "--models", f"lmstudio:{model_id}",
-        "--tasks", task_file,
-        "--out-dir", str(OUT_DIR),
-        "--run-name", run_name,
+        str(venv_python),
+        "scripts/eval_t_suite.py",
+        "--models",
+        f"lmstudio:{model_id}",
+        "--tasks",
+        task_file,
+        "--out-dir",
+        str(OUT_DIR),
+        "--run-name",
+        run_name,
     ]
 
     try:
-        result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=3600)
+        result = subprocess.run(
+            cmd, env=env, capture_output=True, text=True, timeout=3600
+        )
         if result.returncode != 0:
             print(f"    ERROR: {result.stderr[:200]}")
             return {"error": result.stderr[:500]}
@@ -193,41 +224,50 @@ def update_progress_md(results: dict):
                 all_lats.append(task_data.get("avg_latency_ms", 0))
                 all_slos.append(task_data.get("success_at_slo_pct", 0))
 
-        avg_lat = f"{sum(all_lats)/len(all_lats):.0f}" if all_lats else "-"
+        avg_lat = f"{sum(all_lats) / len(all_lats):.0f}" if all_lats else "-"
         p95 = "-"
         if tasks_done:
-            p95s = [t.get("p95_latency_ms", 0) for t in tasks_done.values() if isinstance(t, dict)]
+            p95s = [
+                t.get("p95_latency_ms", 0)
+                for t in tasks_done.values()
+                if isinstance(t, dict)
+            ]
             if p95s:
                 p95 = f"{max(p95s):.0f}"
-        slo = f"{sum(all_slos)/len(all_slos):.1f}%" if all_slos else "-"
+        slo = f"{sum(all_slos) / len(all_slos):.1f}%" if all_slos else "-"
 
-        lines.append(f"| {model_name} | {model_info['size']} | {model_info['vendor']} | {t1} | {t2} | {t3} | {t4} | {t5} | {avg_lat} | {p95} | {slo} |")
+        lines.append(
+            f"| {model_name} | {model_info['size']} | {model_info['vendor']} | {t1} | {t2} | {t3} | {t4} | {t5} | {avg_lat} | {p95} | {slo} |"
+        )
 
     # Count completion
     total_tasks = len(MODELS) * len(TASKS)
     completed = sum(
-        len(results.get("models", {}).get(m, {}).get("tasks", {}))
-        for m in MODELS
+        len(results.get("models", {}).get(m, {}).get("tasks", {})) for m in MODELS
     )
-    lines.extend([
-        "",
-        f"**Progress**: {completed}/{total_tasks} task combinations ({completed/total_tasks*100:.1f}%)",
-        "",
-        "---",
-        "",
-        "## Run Log",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            f"**Progress**: {completed}/{total_tasks} task combinations ({completed / total_tasks * 100:.1f}%)",
+            "",
+            "---",
+            "",
+            "## Run Log",
+            "",
+        ]
+    )
 
     # Add recent runs
     for model_name in MODELS:
         model_data = results.get("models", {}).get(model_name, {})
         for task_name, task_data in model_data.get("tasks", {}).items():
             if isinstance(task_data, dict) and "count" in task_data:
-                lines.append(f"- {model_name}/{task_name}: {task_data.get('count', 0)} records, {task_data.get('success_at_slo_pct', 0):.1f}% SLO")
+                lines.append(
+                    f"- {model_name}/{task_name}: {task_data.get('count', 0)} records, {task_data.get('success_at_slo_pct', 0):.1f}% SLO"
+                )
 
     progress_file.write_text("\n".join(lines))
-    print(f"\n[SAVED] PROGRESS.md updated")
+    print("\n[SAVED] PROGRESS.md updated")
 
 
 def main():
@@ -241,7 +281,9 @@ def main():
     print("=" * 60)
 
     for model_name, model_info in MODELS.items():
-        print(f"\n>>> Model: {model_name} ({model_info['size']}, {model_info['vendor']})")
+        print(
+            f"\n>>> Model: {model_name} ({model_info['size']}, {model_info['vendor']})"
+        )
 
         if model_name not in results["models"]:
             results["models"][model_name] = {"tasks": {}, **model_info}
@@ -251,7 +293,9 @@ def main():
             if task_name in results["models"][model_name].get("tasks", {}):
                 existing = results["models"][model_name]["tasks"][task_name]
                 if isinstance(existing, dict) and "count" in existing:
-                    print(f"  [SKIP] {task_name} - already complete ({existing.get('count')} records)")
+                    print(
+                        f"  [SKIP] {task_name} - already complete ({existing.get('count')} records)"
+                    )
                     continue
 
             metrics = run_eval(model_name, model_info["id"], task_name, task_file)
@@ -262,7 +306,9 @@ def main():
             update_progress_md(results)
 
             if "error" not in metrics:
-                print(f"    Done: {metrics.get('count', 0)} records, {metrics.get('success_at_slo_pct', 0):.1f}% SLO")
+                print(
+                    f"    Done: {metrics.get('count', 0)} records, {metrics.get('success_at_slo_pct', 0):.1f}% SLO"
+                )
 
     print("\n" + "=" * 60)
     print("COMPLETE!")

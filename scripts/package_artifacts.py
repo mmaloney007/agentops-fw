@@ -3,6 +3,7 @@
 Package a run directory into a checksum manifest (and optional tar.gz archive).
 Optionally logs to W&B if WANDB_PROJECT is set.
 """
+
 import argparse
 import hashlib
 import tarfile
@@ -51,9 +52,22 @@ def maybe_archive(run_dir: Path, archive_path: Path, exclude_ext: List[str]) -> 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run-dir", required=True)
-    ap.add_argument("--out", default=None, help="Manifest path (default: <run>/artifacts_manifest.json)")
-    ap.add_argument("--archive", action="store_true", help="Create a tar.gz archive alongside manifest.")
-    ap.add_argument("--exclude-ext", nargs="*", default=[".bin"], help="File extensions to skip (default: .bin)")
+    ap.add_argument(
+        "--out",
+        default=None,
+        help="Manifest path (default: <run>/artifacts_manifest.json)",
+    )
+    ap.add_argument(
+        "--archive",
+        action="store_true",
+        help="Create a tar.gz archive alongside manifest.",
+    )
+    ap.add_argument(
+        "--exclude-ext",
+        nargs="*",
+        default=[".bin"],
+        help="File extensions to skip (default: .bin)",
+    )
     args = ap.parse_args()
     run_dir = Path(args.run_dir)
     if not run_dir.exists():
@@ -71,11 +85,24 @@ def main():
         print(f"[done] wrote archive to {archive_path}")
 
     if WL._active():
-        cfg = {"run_dir": str(run_dir), "archive": str(archive_path) if archive_path else None}
+        cfg = {
+            "run_dir": str(run_dir),
+            "archive": str(archive_path) if archive_path else None,
+        }
         with WL.maybe_run(name=f"artifacts-{run_dir.name}", config=cfg) as run:
-            WL.log_artifact(run, str(manifest_path), name=f"{run_dir.name}-manifest", type_="artifact-manifest")
+            WL.log_artifact(
+                run,
+                str(manifest_path),
+                name=f"{run_dir.name}-manifest",
+                type_="artifact-manifest",
+            )
             if archive_path:
-                WL.log_artifact(run, str(archive_path), name=f"{run_dir.name}-archive", type_="artifact-archive")
+                WL.log_artifact(
+                    run,
+                    str(archive_path),
+                    name=f"{run_dir.name}-archive",
+                    type_="artifact-archive",
+                )
 
 
 if __name__ == "__main__":

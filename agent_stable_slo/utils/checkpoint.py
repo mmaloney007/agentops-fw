@@ -80,7 +80,9 @@ class CheckpointManager:
         if not state_path.exists():
             raise FileNotFoundError(f"checkpoint missing state.pt at {ckpt_path}")
         if not adapter_dir.exists() or not tokenizer_dir.exists():
-            raise FileNotFoundError(f"checkpoint missing adapter/tokenizer at {ckpt_path}")
+            raise FileNotFoundError(
+                f"checkpoint missing adapter/tokenizer at {ckpt_path}"
+            )
         state = torch.load(state_path, map_location="cpu", weights_only=False)
 
         # Load adapter/tokenizer
@@ -89,12 +91,18 @@ class CheckpointManager:
             adapter_bin = adapter_dir / "adapter_model.bin"
         if hasattr(model, "load_adapter"):
             try:
-                model.load_adapter(adapter_dir, adapter_name="default", is_trainable=True)
+                model.load_adapter(
+                    adapter_dir, adapter_name="default", is_trainable=True
+                )
                 model.set_adapter("default")
             except Exception:
-                model.load_state_dict(torch.load(adapter_bin, map_location="cpu"), strict=False)
+                model.load_state_dict(
+                    torch.load(adapter_bin, map_location="cpu"), strict=False
+                )
         else:
-            model.load_state_dict(torch.load(adapter_bin, map_location="cpu"), strict=False)
+            model.load_state_dict(
+                torch.load(adapter_bin, map_location="cpu"), strict=False
+            )
 
         new_tok = tokenizer.__class__.from_pretrained(tokenizer_dir)
         tokenizer.__dict__.update(new_tok.__dict__)

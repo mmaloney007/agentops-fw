@@ -27,7 +27,11 @@ def fingerprint_tasks(tasks_path: str) -> DatasetFingerprint:
                 continue
             rec = json.loads(raw)
             schema_path = rec.get("schema_path")
-            if schema_path and os.path.exists(schema_path) and schema_path not in schema_hashes:
+            if (
+                schema_path
+                and os.path.exists(schema_path)
+                and schema_path not in schema_hashes
+            ):
                 schema_hashes[schema_path] = _file_sha256(schema_path)
             rows.append(rec)
     return DatasetFingerprint(
@@ -38,7 +42,9 @@ def fingerprint_tasks(tasks_path: str) -> DatasetFingerprint:
     )
 
 
-def validate_fingerprint(fp: DatasetFingerprint, expected_sha256: Optional[str], allow_drift: bool = False) -> bool:
+def validate_fingerprint(
+    fp: DatasetFingerprint, expected_sha256: Optional[str], allow_drift: bool = False
+) -> bool:
     if expected_sha256 and fp.sha256 != expected_sha256:
         msg = f"dataset hash mismatch: expected {expected_sha256}, got {fp.sha256}"
         if allow_drift:

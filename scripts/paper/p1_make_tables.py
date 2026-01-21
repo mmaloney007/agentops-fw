@@ -2,6 +2,7 @@
 """
 Generate Paper 1 tables from W&B episodes artifacts or local episodes.jsonl.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -54,9 +55,17 @@ def _download_wandb_artifact(artifact: str, target_dir: Path) -> Path:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--episodes", default="", help="Path to local episodes.jsonl (optional).")
-    ap.add_argument("--episodes-dir", default="", help="Directory containing one or more episodes.jsonl files.")
-    ap.add_argument("--artifact", default="", help="W&B artifact name (entity/project/name:alias).")
+    ap.add_argument(
+        "--episodes", default="", help="Path to local episodes.jsonl (optional)."
+    )
+    ap.add_argument(
+        "--episodes-dir",
+        default="",
+        help="Directory containing one or more episodes.jsonl files.",
+    )
+    ap.add_argument(
+        "--artifact", default="", help="W&B artifact name (entity/project/name:alias)."
+    )
     ap.add_argument("--out-dir", default="papers/p1/tables")
     args = ap.parse_args()
 
@@ -70,7 +79,9 @@ def main() -> None:
     elif args.episodes:
         episodes = _load_episodes(Path(args.episodes))
     elif args.artifact:
-        download_dir = _download_wandb_artifact(args.artifact, Path("out/wandb_artifacts"))
+        download_dir = _download_wandb_artifact(
+            args.artifact, Path("out/wandb_artifacts")
+        )
         candidates = list(download_dir.rglob("episodes.jsonl"))
         if not candidates:
             raise SystemExit("episodes.jsonl not found in artifact")
@@ -126,7 +137,9 @@ def main() -> None:
             )
         else:
             macro = None
-        macro_rows.append({"model": model, "decode_mode": mode, "clinc_intent_macro_f1": macro})
+        macro_rows.append(
+            {"model": model, "decode_mode": mode, "clinc_intent_macro_f1": macro}
+        )
     macro_df = pd.DataFrame(macro_rows)
     table2 = table2.merge(macro_df, on=["model", "decode_mode"], how="left")
     table2.to_csv(out_dir / "table2_accuracy_faithfulness.csv", index=False)
@@ -156,8 +169,12 @@ def main() -> None:
             {
                 "model": model,
                 "decode_mode": mode,
-                "disagreement_at_k": sum(disagreements) / len(disagreements) if disagreements else None,
-                "total_agreement_rate_at_k": sum(agreements) / len(agreements) if agreements else None,
+                "disagreement_at_k": sum(disagreements) / len(disagreements)
+                if disagreements
+                else None,
+                "total_agreement_rate_at_k": sum(agreements) / len(agreements)
+                if agreements
+                else None,
             }
         )
     pd.DataFrame(stability_rows).to_csv(out_dir / "table3_stability.csv", index=False)

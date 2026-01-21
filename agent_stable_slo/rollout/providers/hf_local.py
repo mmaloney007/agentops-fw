@@ -96,12 +96,12 @@ def generate_raw(
     if hasattr(tokenizer, "apply_chat_template"):
         messages = [{"role": "user", "content": full_prompt}]
         input_ids = tokenizer.apply_chat_template(
-            messages,
-            return_tensors="pt",
-            add_generation_prompt=True
+            messages, return_tensors="pt", add_generation_prompt=True
         ).to(model.device)
     else:
-        input_ids = tokenizer(full_prompt, return_tensors="pt").input_ids.to(model.device)
+        input_ids = tokenizer(full_prompt, return_tensors="pt").input_ids.to(
+            model.device
+        )
 
     tokens_in = input_ids.shape[1]
 
@@ -136,6 +136,7 @@ def generate_raw(
     except json.JSONDecodeError:
         # Try to extract JSON from text
         import re
+
         # Look for JSON in code blocks
         if "```" in raw_text:
             parts = raw_text.split("```")
@@ -146,17 +147,17 @@ def generate_raw(
                 try:
                     parsed = json.loads(p)
                     break
-                except:
+                except Exception:
                     continue
 
         # Look for JSON objects
         if not parsed:
-            matches = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', raw_text)
+            matches = re.findall(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", raw_text)
             for m in matches:
                 try:
                     parsed = json.loads(m)
                     break
-                except:
+                except Exception:
                     continue
 
     # Ensure required fields exist

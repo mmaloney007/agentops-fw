@@ -27,6 +27,7 @@ def seed_with_rank(seed: int) -> int:
 def dist_available():
     try:
         import torch.distributed as dist  # type: ignore
+
         return dist.is_available()
     except Exception:
         return False
@@ -35,6 +36,7 @@ def dist_available():
 def dist_initialized():
     try:
         import torch.distributed as dist  # type: ignore
+
         return dist.is_initialized()
     except Exception:
         return False
@@ -44,6 +46,7 @@ def init_distributed(backend: str = "nccl", timeout_seconds: int = 1800) -> bool
     if not dist_available():
         return False
     import torch.distributed as dist  # type: ignore
+
     if dist.is_initialized():
         return True
     rank, world = rank_world()
@@ -61,6 +64,7 @@ def barrier():
         return
     try:
         import torch.distributed as dist  # type: ignore
+
         dist.barrier()
     except Exception:
         pass
@@ -71,6 +75,7 @@ def destroy_distributed():
         return
     try:
         import torch.distributed as dist  # type: ignore
+
         dist.destroy_process_group()
     except Exception:
         pass

@@ -206,7 +206,12 @@ class CriteriaSpec(BaseModel):
     notes: str = ""
 
     def criteria_hash(self) -> str:
-        payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        payload = json.dumps(
+            self.model_dump(mode="json"),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

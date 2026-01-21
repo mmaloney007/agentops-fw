@@ -36,21 +36,26 @@ def main():
 
     set_seed(args.seed, deterministic=False)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    tasks = [json.loads(x) for x in open(args.tasks, "r", encoding="utf-8") if x.strip()]
+    tasks = [
+        json.loads(x) for x in open(args.tasks, "r", encoding="utf-8") if x.strip()
+    ]
     schema = json.load(open(args.schema, "r", encoding="utf-8"))
 
     run_name = "stability-" + os.path.basename(args.out)
-    with WL.maybe_run(
-        name=run_name,
-        config={
-            "tasks": args.tasks,
-            "schema": args.schema,
-            "runs": args.runs,
-            "seed": args.seed,
-            "equivalence": args.equivalence,
-        },
-        require_online=False,
-    ) as run, open(args.out, "w", encoding="utf-8") as fo:
+    with (
+        WL.maybe_run(
+            name=run_name,
+            config={
+                "tasks": args.tasks,
+                "schema": args.schema,
+                "runs": args.runs,
+                "seed": args.seed,
+                "equivalence": args.equivalence,
+            },
+            require_online=False,
+        ) as run,
+        open(args.out, "w", encoding="utf-8") as fo,
+    ):
         for t in tasks:
             prompt = t["prompt"]
             keys: List[str] = []

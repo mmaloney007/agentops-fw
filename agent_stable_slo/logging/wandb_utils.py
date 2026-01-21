@@ -14,12 +14,16 @@ def ensure_online(require_online: bool = True) -> None:
         return  # Skip online enforcement in offline mode
     if require_online:
         if mode and mode != "online":
-            raise RuntimeError(f"WANDB_MODE must be 'online' for this run. Got {mode!r}")
+            raise RuntimeError(
+                f"WANDB_MODE must be 'online' for this run. Got {mode!r}"
+            )
         os.environ["WANDB_MODE"] = "online"
 
 
 @contextlib.contextmanager
-def maybe_run(name: str, config: Optional[Dict[str, Any]] = None, require_online: bool = False):
+def maybe_run(
+    name: str, config: Optional[Dict[str, Any]] = None, require_online: bool = False
+):
     if not _active():
         yield None
         return
@@ -76,7 +80,13 @@ def log(run, metrics: dict, step: Optional[int] = None):
         pass
 
 
-def log_artifact(run, path: str, name: str, type_: str = "dataset", aliases: Optional[Iterable[str]] = None):
+def log_artifact(
+    run,
+    path: str,
+    name: str,
+    type_: str = "dataset",
+    aliases: Optional[Iterable[str]] = None,
+):
     if run is None:
         return
     # Skip artifact upload when WANDB_SKIP_ARTIFACTS is set for faster runs

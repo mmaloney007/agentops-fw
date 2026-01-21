@@ -8,6 +8,7 @@ Build deterministic T1/T2/T3 task suites used in the paper:
 Outputs are JSONL files under tasks/ by default and can be regenerated without
 network access. Each record includes a task_type key for scoring.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -123,7 +124,7 @@ T2_CASES = [
         "key_points": [
             "Checkout p95 now 1.1s after cache tuning",
             "Search errors caused 2% retries yesterday",
-            "Cloud spend up 12% WoW from burst capacity"
+            "Cloud spend up 12% WoW from burst capacity",
         ],
         "primary_risk": "Search instability and higher cost",
         "recommended_action": "Stabilize search and trim burst capacity before the next peak",
@@ -135,7 +136,7 @@ T2_CASES = [
         "key_points": [
             "Release 482 shipped a bad flag default",
             "SSO auth failures peaked at 8% for 35 minutes",
-            "Rollback restored service without data loss"
+            "Rollback restored service without data loss",
         ],
         "primary_risk": "Flag safety gaps in rollout process",
         "recommended_action": "Add preflight checks for flag defaults before rollout",
@@ -147,7 +148,7 @@ T2_CASES = [
         "key_points": [
             "GPU spend up 18% from unbounded eval jobs",
             "Batch windows slipped",
-            "Reserved instances underutilized"
+            "Reserved instances underutilized",
         ],
         "primary_risk": "Rising cost and missed batch deadlines",
         "recommended_action": "Cap eval jobs and shift to reserved capacity",
@@ -159,7 +160,7 @@ T2_CASES = [
         "key_points": [
             "Ticket volume up 22% after pricing change",
             "Failed payments and duplicate invoices dominate",
-            "CSAT dropped from 4.7 to 4.4"
+            "CSAT dropped from 4.7 to 4.4",
         ],
         "primary_risk": "Customer frustration around billing",
         "recommended_action": "Fix billing defects and publish a help article before next billing cycle",
@@ -171,7 +172,7 @@ T2_CASES = [
         "key_points": [
             "No trace sampling in staging",
             "Logs retained only 24h",
-            "Recent regression lacked replay data"
+            "Recent regression lacked replay data",
         ],
         "primary_risk": "Slow incident resolution in staging",
         "recommended_action": "Enable trace sampling and extend log retention in staging",
@@ -183,7 +184,7 @@ T2_CASES = [
         "key_points": [
             "Schema change increased pipeline duplicates",
             "BI dashboards showed double revenue for two hours",
-            "Backfill fixed totals but alerts lagged"
+            "Backfill fixed totals but alerts lagged",
         ],
         "primary_risk": "Trust erosion in BI numbers",
         "recommended_action": "Tighten schema checks and add real-time duplicate alerts",
@@ -201,13 +202,21 @@ T3_CASES = [
         "id": "t3_fetch_checkout_latency",
         "ask": "Retrieve the p95 checkout latency over the last hour to validate the SLO.",
         "tool": "fetch_metric",
-        "arguments": {"metric": "checkout_latency_ms", "window": "last_hour", "aggregate": "p95"},
+        "arguments": {
+            "metric": "checkout_latency_ms",
+            "window": "last_hour",
+            "aggregate": "p95",
+        },
     },
     {
         "id": "t3_open_incident_webhooks",
         "ask": "Open an incident for failing payment webhooks with high severity and mention 500 errors on callbacks.",
         "tool": "open_incident",
-        "arguments": {"severity": "high", "component": "payment-webhook", "summary": "500 errors on callbacks"},
+        "arguments": {
+            "severity": "high",
+            "component": "payment-webhook",
+            "summary": "500 errors on callbacks",
+        },
     },
     {
         "id": "t3_summarize_report_root_cause",
@@ -219,19 +228,30 @@ T3_CASES = [
         "id": "t3_fetch_auth_errors",
         "ask": "Check auth failure p99 for the last 15 minutes to see if the spike persists.",
         "tool": "fetch_metric",
-        "arguments": {"metric": "auth_failures_perc", "window": "last_15m", "aggregate": "p99"},
+        "arguments": {
+            "metric": "auth_failures_perc",
+            "window": "last_15m",
+            "aggregate": "p99",
+        },
     },
     {
         "id": "t3_lookup_customer_location",
         "ask": "Pull customer 9001's region and active_subscriptions before proposing a migration.",
         "tool": "lookup_customer",
-        "arguments": {"customer_id": "9001", "fields": ["region", "active_subscriptions"]},
+        "arguments": {
+            "customer_id": "9001",
+            "fields": ["region", "active_subscriptions"],
+        },
     },
     {
         "id": "t3_open_incident_cache",
         "ask": "File a critical incident for cache cluster resets affecting config-service.",
         "tool": "open_incident",
-        "arguments": {"severity": "critical", "component": "config-service", "summary": "cache cluster resets"},
+        "arguments": {
+            "severity": "critical",
+            "component": "config-service",
+            "summary": "cache cluster resets",
+        },
     },
     {
         "id": "t3_summarize_report_actions",
@@ -243,7 +263,11 @@ T3_CASES = [
         "id": "t3_fetch_signup_rate",
         "ask": "Retrieve p90 signup rate over the last day for the growth dashboard.",
         "tool": "fetch_metric",
-        "arguments": {"metric": "signup_rate_pct", "window": "last_day", "aggregate": "p90"},
+        "arguments": {
+            "metric": "signup_rate_pct",
+            "window": "last_day",
+            "aggregate": "p90",
+        },
     },
     {
         "id": "t3_lookup_customer_plan",
@@ -255,19 +279,30 @@ T3_CASES = [
         "id": "t3_open_incident_db",
         "ask": "File a high severity incident for db-write failures on orders-service.",
         "tool": "open_incident",
-        "arguments": {"severity": "high", "component": "orders-db", "summary": "write failures on primary"},
+        "arguments": {
+            "severity": "high",
+            "component": "orders-db",
+            "summary": "write failures on primary",
+        },
     },
     {
         "id": "t3_fetch_queue_depth",
         "ask": "Fetch queue depth p95 over the last 15 minutes for email-delivery.",
         "tool": "fetch_metric",
-        "arguments": {"metric": "email_queue_depth", "window": "last_15m", "aggregate": "p95"},
+        "arguments": {
+            "metric": "email_queue_depth",
+            "window": "last_15m",
+            "aggregate": "p95",
+        },
     },
     {
         "id": "t3_lookup_customer_org",
         "ask": "Get organization and active seats for customer 1337.",
         "tool": "lookup_customer",
-        "arguments": {"customer_id": "1337", "fields": ["organization", "active_seats"]},
+        "arguments": {
+            "customer_id": "1337",
+            "fields": ["organization", "active_seats"],
+        },
     },
     {
         "id": "t3_summarize_report_incident",
@@ -279,13 +314,21 @@ T3_CASES = [
         "id": "t3_open_incident_latency",
         "ask": "Open a critical incident for API latency p99 breaching SLO for auth-service.",
         "tool": "open_incident",
-        "arguments": {"severity": "critical", "component": "auth-service", "summary": "API latency p99 breach"},
+        "arguments": {
+            "severity": "critical",
+            "component": "auth-service",
+            "summary": "API latency p99 breach",
+        },
     },
     {
         "id": "t3_fetch_billing_errors",
         "ask": "Pull p95 billing error rate over the last hour.",
         "tool": "fetch_metric",
-        "arguments": {"metric": "billing_error_rate", "window": "last_hour", "aggregate": "p95"},
+        "arguments": {
+            "metric": "billing_error_rate",
+            "window": "last_hour",
+            "aggregate": "p95",
+        },
     },
 ]
 

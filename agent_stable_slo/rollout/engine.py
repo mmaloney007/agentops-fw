@@ -98,19 +98,27 @@ def _provider_generate_raw(
     if backend == "lmstudio":
         from .providers.lmstudio_openai import generate_raw
 
-        return generate_raw(prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens)
+        return generate_raw(
+            prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+        )
     if backend == "ollama":
         from .providers.ollama_structured import generate_raw
 
-        return generate_raw(prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens)
+        return generate_raw(
+            prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+        )
     if backend == "vllm":
         from .providers.vllm_openai import generate_raw
 
-        return generate_raw(prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens)
+        return generate_raw(
+            prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+        )
     if backend == "hf_local":
         from .providers.hf_local import generate_raw
 
-        return generate_raw(prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens)
+        return generate_raw(
+            prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+        )
     # Fallback: empty output
     return "", {}, 5.0, 5.0, -1, -1
 
@@ -181,7 +189,11 @@ def generate_with_mode(
         )
         call_end = time.perf_counter()
         val_start = time.perf_counter()
-        obj, parse_err = _parse_json(raw) if provider_mode == "text" else (parsed, None if parsed else None)
+        obj, parse_err = (
+            _parse_json(raw)
+            if provider_mode == "text"
+            else (parsed, None if parsed else None)
+        )
         schema_err = None
         if obj is not None:
             schema_err = _validate_schema(obj, schema)
@@ -192,7 +204,17 @@ def generate_with_mode(
             "validation_start": val_start,
             "validation_end": val_end,
         }
-        attempt = _build_attempt(raw, obj, parse_err, schema_err, lat_ms, ttft_ms, tokens_in, tokens_out, timings)
+        attempt = _build_attempt(
+            raw,
+            obj,
+            parse_err,
+            schema_err,
+            lat_ms,
+            ttft_ms,
+            tokens_in,
+            tokens_out,
+            timings,
+        )
         return attempt
 
     def record_attempt(attempt: Attempt) -> None:
@@ -243,7 +265,11 @@ def generate_with_mode(
         for i in range(max_retries + 1):
             att = call_provider(cur_prompt, "structured")
             record_attempt(att)
-            if att.parsed_json is not None and att.schema_error is None and att.parse_error is None:
+            if (
+                att.parsed_json is not None
+                and att.schema_error is None
+                and att.parse_error is None
+            ):
                 return att
             if i < max_retries:
                 retry_count += 1
@@ -288,7 +314,11 @@ def generate_with_mode(
 
     if mode == DecodingMode.SPEC_DRIVEN_PLUS_REPAIR:
         final = run_with_retries()
-        if final.parsed_json is None or final.schema_error is not None or final.parse_error is not None:
+        if (
+            final.parsed_json is None
+            or final.schema_error is not None
+            or final.parse_error is not None
+        ):
             err = final.parse_error or final.schema_error or "unknown_error"
             for _ in range(repair_max_attempts):
                 repair_count += 1
@@ -299,7 +329,11 @@ def generate_with_mode(
                 )
                 repaired = call_provider(repair_prompt, "structured")
                 record_attempt(repaired)
-                if repaired.parsed_json is not None and repaired.schema_error is None and repaired.parse_error is None:
+                if (
+                    repaired.parsed_json is not None
+                    and repaired.schema_error is None
+                    and repaired.parse_error is None
+                ):
                     final = repaired
                     break
         request_end = time.perf_counter()
@@ -327,7 +361,13 @@ def generate_with_mode(
         candidates.append(candidate)
     candidate_count = len(candidates)
 
-    valid = [c for c in candidates if c.parsed_json is not None and c.schema_error is None and c.parse_error is None]
+    valid = [
+        c
+        for c in candidates
+        if c.parsed_json is not None
+        and c.schema_error is None
+        and c.parse_error is None
+    ]
     if not valid:
         final = candidates[-1] if candidates else run_with_retries()
         request_end = time.perf_counter()

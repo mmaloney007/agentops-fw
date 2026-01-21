@@ -4,7 +4,14 @@ import os
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 
 CONFIG_VERSION = "0.2.0"
@@ -47,30 +54,76 @@ class GRPOTrainConfig(BaseModel):
     lam_latency: float = Field(default=0.0)
     mu_cost: float = Field(default=0.0)
     gamma_stability: float = Field(default=0.0)
-    enable_faithfulness_judge: bool = Field(default=False, description="Enable faithfulness judge scoring during training.")
-    judge_base_url: str = Field(default="http://localhost:1234/v1", description="Judge model endpoint base URL.")
+    enable_faithfulness_judge: bool = Field(
+        default=False, description="Enable faithfulness judge scoring during training."
+    )
+    judge_base_url: str = Field(
+        default="http://localhost:1234/v1", description="Judge model endpoint base URL."
+    )
     judge_model: str = Field(default="gpt-4", description="Judge model name.")
-    judge_temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="Judge sampling temperature.")
-    kappa_faithfulness: float = Field(default=0.0, description="Faithfulness reward weight.")
+    judge_temperature: float = Field(
+        default=0.0, ge=0.0, le=2.0, description="Judge sampling temperature."
+    )
+    kappa_faithfulness: float = Field(
+        default=0.0, description="Faithfulness reward weight."
+    )
     seed: int = Field(default=17)
-    repro: bool = Field(default=False, description="Enforce deterministic ops where available.")
+    repro: bool = Field(
+        default=False, description="Enforce deterministic ops where available."
+    )
     cache_dataset: bool = Field(default=False)
     cache_dir: str = Field(default="out/cache")
     checkpoint_every: int = Field(default=0, ge=0)
     resume_from: Optional[str] = Field(default=None)
-    no_silent_defaults: bool = Field(default=False, description="Require explicit overrides for critical hyperparams.")
-    expected_dataset_hash: Optional[str] = Field(default=None, description="If set, validate dataset hash on load.")
-    allow_dataset_drift: bool = Field(default=False, description="Allow dataset hash mismatches without aborting.")
-    config_preset: Optional[str] = Field(default=None, description="Optional preset name used to build this config.")
-    val_tasks: Optional[str] = Field(default=None, description="Optional validation tasks file.")
-    val_interval: int = Field(default=0, ge=0, description="Run validation every N steps (0 = disable).")
-    val_samples: int = Field(default=1, ge=1, description="Samples per validation task; best reward kept.")
-    stability_samples: int = Field(default=1, ge=1, le=10, description="Number of samples per prompt for stability measurement during training.")
-    max_prompt_chars: int = Field(default=0, ge=0, description="If >0, truncate or reject prompts longer than this many characters.")
-    truncate_prompts: bool = Field(default=False, description="If true, truncate prompts exceeding max_prompt_chars; otherwise raise.")
-    blocklist: Optional[str] = Field(default=None, description="Comma-separated substrings to reject from prompts/outputs.")
-    reject_blocklisted: bool = Field(default=False, description="If true, zero reward and mark invalid when blocklisted substrings appear.")
-    ddp_backend: Optional[str] = Field(default=None, description="Optional torch.distributed backend (e.g., nccl, gloo).")
+    no_silent_defaults: bool = Field(
+        default=False,
+        description="Require explicit overrides for critical hyperparams.",
+    )
+    expected_dataset_hash: Optional[str] = Field(
+        default=None, description="If set, validate dataset hash on load."
+    )
+    allow_dataset_drift: bool = Field(
+        default=False, description="Allow dataset hash mismatches without aborting."
+    )
+    config_preset: Optional[str] = Field(
+        default=None, description="Optional preset name used to build this config."
+    )
+    val_tasks: Optional[str] = Field(
+        default=None, description="Optional validation tasks file."
+    )
+    val_interval: int = Field(
+        default=0, ge=0, description="Run validation every N steps (0 = disable)."
+    )
+    val_samples: int = Field(
+        default=1, ge=1, description="Samples per validation task; best reward kept."
+    )
+    stability_samples: int = Field(
+        default=1,
+        ge=1,
+        le=10,
+        description="Number of samples per prompt for stability measurement during training.",
+    )
+    max_prompt_chars: int = Field(
+        default=0,
+        ge=0,
+        description="If >0, truncate or reject prompts longer than this many characters.",
+    )
+    truncate_prompts: bool = Field(
+        default=False,
+        description="If true, truncate prompts exceeding max_prompt_chars; otherwise raise.",
+    )
+    blocklist: Optional[str] = Field(
+        default=None,
+        description="Comma-separated substrings to reject from prompts/outputs.",
+    )
+    reject_blocklisted: bool = Field(
+        default=False,
+        description="If true, zero reward and mark invalid when blocklisted substrings appear.",
+    )
+    ddp_backend: Optional[str] = Field(
+        default=None,
+        description="Optional torch.distributed backend (e.g., nccl, gloo).",
+    )
     config_version: str = Field(default=CONFIG_VERSION, frozen=True)
 
     @field_validator("tasks")
@@ -90,7 +143,9 @@ class GRPOTrainConfig(BaseModel):
     def _checkpoint_reasonable(cls, v: int) -> int:
         if v == 1:
             # Avoid excessive IO by discouraging per-step checkpoints
-            raise ValueError("checkpoint_every=1 is not allowed; use >=5 to limit IO churn.")
+            raise ValueError(
+                "checkpoint_every=1 is not allowed; use >=5 to limit IO churn."
+            )
         return v
 
     @field_validator("cache_dir")
@@ -103,7 +158,9 @@ class GRPOTrainConfig(BaseModel):
         if self.no_silent_defaults:
             for field, default_val in CRITICAL_DEFAULTS.items():
                 if getattr(self, field) == default_val:
-                    raise ValueError(f"critical param '{field}' left at default; set explicitly or disable --no-silent-defaults")
+                    raise ValueError(
+                        f"critical param '{field}' left at default; set explicitly or disable --no-silent-defaults"
+                    )
         return self
 
     @field_validator("val_tasks")
