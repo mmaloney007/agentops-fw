@@ -200,7 +200,37 @@ def run_eval_task(model_name: str, model_id: str, task_name: str, task_file: str
     sorted_lat = sorted(latencies)
     p95_idx = min(int(len(sorted_lat) * 0.95), len(sorted_lat) - 1)
     p99_idx = min(int(len(sorted_lat) * 0.99), len(sorted_lat) - 1)
-    within_slo = sum(1 for l in latencies if l <= SLO_DEADLINE_MS)
+
+    # OLD: Latency-only SLO (for comparison)
+    within_slo_latency_only = sum(1 for l in latencies if l <= SLO_DEADLINE_MS)
+
+    # NEW: Joint Success@SLO = json_valid AND task_correct AND latency <= SLO
+    joint_success_count = 0
+    for r in results:
+        metrics = r.get("metrics", {})
+        lat = r.get("latency_ms", 1e6)
+        ttype = r.get("task_type", "")
+
+        # Check all three conditions
+        json_valid = metrics.get("json_valid", 0) == 1.0
+        within_latency = lat <= SLO_DEADLINE_MS
+
+        # Task-specific correctness thresholds
+        if ttype == "t1":
+            task_correct = metrics.get("t1_field_acc", 0) >= 0.75  # 3/4 fields
+        elif ttype == "t2":
+            task_correct = metrics.get("t2_summary_f1", 0) >= 0.3  # meaningful overlap
+        elif ttype == "t3":
+            task_correct = metrics.get("t3_success", 0) == 1.0  # tool + args
+        elif ttype == "t4":
+            task_correct = metrics.get("t4_func_match", 0) == 1.0  # function name
+        elif ttype == "t5":
+            task_correct = metrics.get("t5_has_patch", 0) == 1.0  # has patch
+        else:
+            task_correct = True  # unknown task type, skip accuracy check
+
+        if json_valid and task_correct and within_latency:
+            joint_success_count += 1
 
     # Aggregate all metrics
     metric_sums: Dict[str, List[float]] = {}
@@ -215,7 +245,8 @@ def run_eval_task(model_name: str, model_id: str, task_name: str, task_file: str
         "avg_latency_ms": round(sum(latencies) / len(latencies), 1),
         "p95_latency_ms": round(sorted_lat[p95_idx], 1),
         "p99_latency_ms": round(sorted_lat[p99_idx], 1),
-        "success_at_slo_pct": round(within_slo / len(results) * 100, 1),
+        "latency_slo_pct": round(within_slo_latency_only / len(results) * 100, 1),  # old metric
+        "success_at_slo_pct": round(joint_success_count / len(results) * 100, 1),  # NEW: joint metric
     }
 
     for k, vals in metric_sums.items():
