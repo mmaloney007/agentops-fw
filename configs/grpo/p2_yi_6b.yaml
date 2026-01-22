@@ -1,6 +1,6 @@
 config_version: "0.2.0"
-config_preset: "p2-ministral-8b"
-base_model: "mistralai/Ministral-8B-Instruct-2410"
+config_preset: "p2-yi-1.5-6b"
+base_model: "01-ai/Yi-1.5-6B-Chat"
 tasks: "tasks/robust_eval_gold.jsonl"
 out: ""
 steps: 500
@@ -24,7 +24,7 @@ force_json_fallback: false
 lam_latency: 0.1
 mu_cost: 0.05
 gamma_stability: 0.1
-seed: 1234
+seed: 42
 repro: true
 cache_dataset: true
 cache_dir: "out/cache"
