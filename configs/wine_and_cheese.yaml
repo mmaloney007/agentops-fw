@@ -56,8 +56,8 @@ preprocessing:
 functions:
   # KPI functions (kpi: true marks output as KPI)
   - type: zsml
-    source_col: Revenue
-    out_col: revenue_tier
+    source_col: average_order_value
+    out_col: aov_tier
     quantiles: [0.33, 0.66]
     kpi: true
     lift:
@@ -133,15 +133,15 @@ metadata:
 # Rule-based analysis is always on. LLM enhancement is optional.
 # -----------------------------------------------------------------------------
 data_doctor:
-  enabled: true                    # Run Data Doctor analysis (rule-based)
-  save_yaml: true                  # Save suggestions.yaml alongside output
+  enabled: true # Run Data Doctor analysis (rule-based)
+  save_yaml: true # Save suggestions.yaml alongside output
   # ---------------------------------------------------------------------------
   # LLM Enhancement (enabled for testing)
   # ---------------------------------------------------------------------------
-  llm_enabled: true                # LLM analysis enabled
+  llm_enabled: true # LLM analysis enabled
   llm_provider:
-    provider: auto                 # Options: openai, anthropic, auto
-  llm_cache_enabled: true          # Cache LLM responses to save cost
+    provider: auto # Options: openai, anthropic, auto
+  llm_cache_enabled: true # Cache LLM responses to save cost
   generate_executive_summary: true # Generate natural language summary
 
 output:

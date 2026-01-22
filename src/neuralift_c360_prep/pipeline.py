@@ -31,7 +31,7 @@ import yaml
 
 from .cluster import get_client
 from .config import BundleConfig
-from .databricks_oauth import get_databricks_access_token
+# Token fetch moved to write._connect_dbsql() for lazy refresh on long-running jobs
 from .data_doctor import (
     analyze_data as data_doctor_analyze,
     print_report as data_doctor_print,
@@ -92,15 +92,14 @@ def _build_dbsql_conn_params(*, require: bool) -> dict | None:
             )
         return None
 
-    access_token = get_databricks_access_token(
-        host=host,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    # Pass credentials, not pre-fetched token. _connect_dbsql() will fetch
+    # fresh token on each connection (cache handles deduplication).
+    # This fixes long-running jobs where tokens expire mid-run.
     return {
         "server_hostname": _strip_scheme(host),
         "http_path": f"/sql/1.0/warehouses/{wh}",
-        "access_token": access_token,
+        "client_id": client_id,
+        "client_secret": client_secret,
     }
 
 

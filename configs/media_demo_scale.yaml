@@ -17,7 +17,7 @@ runtime:
   coiled:
     software_env: neuralift_c360_prep_pr-5
     n_workers: 8
-    worker_vm_types: [i3.2xlarge]
+    worker_vm_types: [r5.2xlarge]  # Memory-optimized (64GB RAM) - changed from i3 due to vCPU quota
     scheduler_vm_types: [c5d.xlarge]
     idle_timeout: 2h
     no_client_timeout: 2h
@@ -98,7 +98,7 @@ metadata:
         event_sum_column: months_subscribed
         event_sum_unit: months
     max_card: 20
-    use_approx_unique: false
+    use_approx_unique: true
   schema_alignment: true
   context: >
     VistaStream is a premium streaming platform dedicated to delivering an exceptional

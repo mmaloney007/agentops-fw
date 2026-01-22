@@ -18,7 +18,7 @@ runtime:
     software_env: neuralift_c360_prep_pr-5
     n_workers: 6
     worker_vm_types:
-      - i3.2xlarge #- i3.2xlarge
+      - r5.2xlarge  # Memory-optimized (64GB RAM) - changed from i3 due to vCPU quota
     scheduler_vm_types:
       - c5d.xlarge
     idle_timeout: 2h
