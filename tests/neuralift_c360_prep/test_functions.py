@@ -188,7 +188,8 @@ def test_apply_functions_frequency_encode():
     out = apply_functions(ddf, cfg).compute()
     assert out["tier_freq"].iloc[0] == pytest.approx(0.5)
     assert out["tier_freq"].iloc[2] == pytest.approx(0.25)
-    assert pd.isna(out["tier_freq"].iloc[3])
+    # Unmapped values (None → "None" string) get filled with 0 (no NULLs in output)
+    assert out["tier_freq"].iloc[3] == 0
 
 
 def test_apply_functions_days_since():
