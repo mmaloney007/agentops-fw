@@ -160,7 +160,7 @@ def _int_to_uuid(arr: np.ndarray) -> np.ndarray:
     uuids = {i: str(i) if i < 0 else str(uuid.uuid4()) for i in np.unique(arr)}
     keys = np.array(sorted(uuids))
     idx = np.searchsorted(keys, arr)
-    return np.array([uuids[k] for k in keys[idx]], dtype=object)
+    return np.array([uuids[k] for k in keys[idx]])
 
 
 def _generate_points(segment_id: np.ndarray, rng_seed: int) -> np.ndarray:
