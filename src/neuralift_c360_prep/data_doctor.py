@@ -623,6 +623,151 @@ def _analyze_ratio_opportunities(
     return suggestions
 
 
+# ---------------------------------------------------------------------------
+# Scoring and ranking
+# ---------------------------------------------------------------------------
+# Scoring weights for impact calculation
+CATEGORY_WEIGHTS = {
+    "kpi": 100,  # KPI candidates are most impactful
+    "fill": 85,  # Data quality issues are critical
+    "feature": 60,  # Feature engineering is valuable
+    "ratio": 40,  # Ratios are nice-to-have
+    "transform": 60,  # Same as feature
+    "derived": 50,  # Derived features
+    "quality": 75,  # General quality issues
+}
+
+PRIORITY_MULTIPLIERS = {
+    SEVERITY_HIGH: 1.0,
+    SEVERITY_MEDIUM: 0.7,
+    SEVERITY_LOW: 0.4,
+    # Legacy support
+    "!": 1.0,
+    "~": 0.7,
+    "?": 0.4,
+    "HIGH": 1.0,
+    "MEDIUM": 0.7,
+    "LOW": 0.4,
+}
+
+
+def _score_suggestion(suggestion: Suggestion) -> int:
+    """Calculate impact score (0-100) for a suggestion.
+
+    Scoring factors:
+    - Category base score (KPI=100, fill=85, feature=60, ratio=40)
+    - Priority multiplier (HIGH=1.0, MEDIUM=0.7, LOW=0.4)
+    - Message-based adjustments for context-specific boosts
+
+    Args:
+        suggestion: The Suggestion to score.
+
+    Returns:
+        Integer score from 0-100.
+    """
+    # Get base score from category
+    base_score = CATEGORY_WEIGHTS.get(suggestion.category, 50)
+
+    # Apply priority multiplier
+    priority_mult = PRIORITY_MULTIPLIERS.get(suggestion.priority, 0.5)
+    score = base_score * priority_mult
+
+    # Context-specific boosts from message content
+    msg_lower = suggestion.message.lower()
+
+    # Boost for high null counts
+    if "null" in msg_lower:
+        null_match = re.search(r"(\d+)\s*null", msg_lower)
+        if null_match:
+            null_count = int(null_match.group(1))
+            # Boost proportionally: 100+ nulls = +10, 1000+ = +15, 10000+ = +20
+            if null_count >= 10000:
+                score += 20
+            elif null_count >= 1000:
+                score += 15
+            elif null_count >= 100:
+                score += 10
+
+    # Boost for key business metrics
+    if any(
+        kw in msg_lower
+        for kw in ["key business metric", "kpi", "revenue", "conversion"]
+    ):
+        score += 10
+
+    # Boost for high cardinality (complex issue)
+    if "high cardinality" in msg_lower:
+        score += 5
+
+    # Cap at 100
+    return min(100, max(0, int(score)))
+
+
+def _rank_and_limit_suggestions(
+    report: "DataDoctorReport",
+    *,
+    max_suggestions: Optional[int] = None,
+    ranking_enabled: bool = True,
+) -> "DataDoctorReport":
+    """Rank suggestions by score and optionally limit to top N.
+
+    Args:
+        report: DataDoctorReport with suggestions.
+        max_suggestions: Optional limit on total suggestions (None = no limit).
+        ranking_enabled: Whether to sort by score.
+
+    Returns:
+        Modified DataDoctorReport with scored and potentially limited suggestions.
+    """
+    if not ranking_enabled and max_suggestions is None:
+        return report
+
+    # Collect all suggestions with their scores and original list reference
+    all_suggestions: List[tuple] = []  # (score, list_name, index, suggestion)
+
+    for list_name in [
+        "kpi_candidates",
+        "fill_suggestions",
+        "feature_suggestions",
+        "ratio_opportunities",
+    ]:
+        suggestions = getattr(report, list_name, [])
+        for i, s in enumerate(suggestions):
+            score = _score_suggestion(s)
+            all_suggestions.append((score, list_name, i, s))
+
+    # Sort by score descending
+    if ranking_enabled:
+        all_suggestions.sort(key=lambda x: x[0], reverse=True)
+
+    # Apply limit if specified
+    if max_suggestions is not None and len(all_suggestions) > max_suggestions:
+        # Track original total before limiting
+        report._original_total = len(all_suggestions)
+        all_suggestions = all_suggestions[:max_suggestions]
+
+    # Rebuild lists from sorted/limited results, preserving scores
+    new_lists: Dict[str, List[Suggestion]] = {
+        "kpi_candidates": [],
+        "fill_suggestions": [],
+        "feature_suggestions": [],
+        "ratio_opportunities": [],
+    }
+
+    for score, list_name, _, suggestion in all_suggestions:
+        # Store score in suggestion for YAML output (add as attribute if not present)
+        suggestion._score = score
+        new_lists[list_name].append(suggestion)
+
+    # Update report
+    report.kpi_candidates = new_lists["kpi_candidates"]
+    report.fill_suggestions = new_lists["fill_suggestions"]
+    report.feature_suggestions = new_lists["feature_suggestions"]
+    report.ratio_opportunities = new_lists["ratio_opportunities"]
+
+    return report
+
+
 def _analyze_numeric_outliers(
     ddf: dd.DataFrame,
     data_dict: Dict[str, Any],
@@ -719,6 +864,9 @@ def analyze_data(
     max_llm_columns = 30
     generate_exec_summary = True
     organization_context = None
+    # Ranking and limiting config
+    max_suggestions: Optional[int] = None
+    ranking_enabled: bool = True
 
     if cfg is not None:
         dd_cfg = getattr(cfg, "data_doctor", None)
@@ -739,6 +887,9 @@ def analyze_data(
             llm_cache_dir = getattr(dd_cfg, "llm_cache_dir", llm_cache_dir)
             max_llm_columns = getattr(dd_cfg, "max_llm_columns", max_llm_columns)
             generate_exec_summary = getattr(dd_cfg, "generate_executive_summary", True)
+            # Ranking and limiting
+            max_suggestions = getattr(dd_cfg, "max_suggestions", None)
+            ranking_enabled = getattr(dd_cfg, "ranking_enabled", True)
 
         # Get organization context from metadata config
         meta_cfg = getattr(cfg, "metadata", None)
@@ -870,8 +1021,26 @@ def analyze_data(
     report._llm_executive_summary = llm_executive_summary
     report._llm_suggestions = llm_suggestions
 
+    # Rank and optionally limit suggestions
+    if ranking_enabled or max_suggestions is not None:
+        report = _rank_and_limit_suggestions(
+            report,
+            max_suggestions=max_suggestions,
+            ranking_enabled=ranking_enabled,
+        )
+        if show_progress and max_suggestions is not None:
+            original_total = getattr(report, "_original_total", None)
+            if original_total is not None:
+                logger.info(
+                    "[data-doctor] Ranked and limited suggestions: %d/%d shown (top by impact score)",
+                    max_suggestions,
+                    original_total,
+                )
+
     # Generate combined YAML
-    report.yaml_text = _generate_suggestions_yaml(report, llm_executive_summary)
+    report.yaml_text = _generate_suggestions_yaml(
+        report, llm_executive_summary, ranking_enabled=ranking_enabled
+    )
 
     if show_progress:
         total = (
@@ -888,12 +1057,15 @@ def analyze_data(
 def _generate_suggestions_yaml(
     report: DataDoctorReport,
     executive_summary: Optional[Any] = None,
+    *,
+    ranking_enabled: bool = True,
 ) -> str:
     """Generate YAML representation of all suggestions with legend header.
 
     Args:
         report: DataDoctorReport with suggestions.
         executive_summary: Optional LLM-generated executive summary.
+        ranking_enabled: Whether to include impact scores in output.
 
     Returns:
         YAML formatted string.
@@ -913,10 +1085,24 @@ def _generate_suggestions_yaml(
         "#   - column: The column name to apply the transformation to",
         "#   - message: Explanation of why this is suggested",
         "#   - yaml_snippet: Ready-to-use YAML config for the functions: section",
-        "#",
-        "# ============================================================================",
-        "",
     ]
+
+    if ranking_enabled:
+        lines.extend(
+            [
+                "#   - score: Impact score (0-100) for prioritization",
+                "#",
+                "# Suggestions are ranked by impact score (highest first)",
+            ]
+        )
+
+    lines.extend(
+        [
+            "#",
+            "# ============================================================================",
+            "",
+        ]
+    )
 
     # Add executive summary if available
     if executive_summary is not None:
@@ -952,29 +1138,33 @@ def _generate_suggestions_yaml(
 
     suggestions_dict: Dict[str, List[Dict[str, Any]]] = {}
 
+    def _make_entry(s: Suggestion) -> Dict[str, Any]:
+        """Create a dict entry for a suggestion, optionally with score."""
+        entry = {
+            "priority": SEVERITY_LABELS.get(s.priority, "INFO"),
+            "column": s.column,
+            "message": s.message,
+            "yaml_snippet": s.yaml_snippet,
+        }
+        if ranking_enabled:
+            # Get score from _score attribute (set by ranking) or compute
+            score = getattr(s, "_score", None)
+            if score is None:
+                score = _score_suggestion(s)
+            entry["score"] = score
+        return entry
+
     # KPI candidates first (most important)
     if report.kpi_candidates:
         suggestions_dict["kpi_candidates"] = []
         for s in report.kpi_candidates:
-            suggestions_dict["kpi_candidates"].append(
-                {
-                    "priority": SEVERITY_LABELS.get(s.priority, "INFO"),
-                    "column": s.column,
-                    "message": s.message,
-                    "yaml_snippet": s.yaml_snippet,
-                }
-            )
+            suggestions_dict["kpi_candidates"].append(_make_entry(s))
 
     # Fill suggestions (data quality)
     if report.fill_suggestions:
         suggestions_dict["fill_suggestions"] = []
         for s in report.fill_suggestions:
-            entry: Dict[str, Any] = {
-                "priority": SEVERITY_LABELS.get(s.priority, "INFO"),
-                "column": s.column,
-                "message": s.message,
-                "yaml_snippet": s.yaml_snippet,
-            }
+            entry = _make_entry(s)
             if s.alternatives:
                 entry["alternatives"] = [
                     {"strategy": a.strategy, "description": a.description}
@@ -986,27 +1176,13 @@ def _generate_suggestions_yaml(
     if report.feature_suggestions:
         suggestions_dict["feature_suggestions"] = []
         for s in report.feature_suggestions:
-            suggestions_dict["feature_suggestions"].append(
-                {
-                    "priority": SEVERITY_LABELS.get(s.priority, "INFO"),
-                    "column": s.column,
-                    "message": s.message,
-                    "yaml_snippet": s.yaml_snippet,
-                }
-            )
+            suggestions_dict["feature_suggestions"].append(_make_entry(s))
 
     # Ratio opportunities
     if report.ratio_opportunities:
         suggestions_dict["ratio_opportunities"] = []
         for s in report.ratio_opportunities:
-            suggestions_dict["ratio_opportunities"].append(
-                {
-                    "priority": SEVERITY_LABELS.get(s.priority, "INFO"),
-                    "column": s.column,
-                    "message": s.message,
-                    "yaml_snippet": s.yaml_snippet,
-                }
-            )
+            suggestions_dict["ratio_opportunities"].append(_make_entry(s))
 
     # Add summary
     total = (
@@ -1015,13 +1191,22 @@ def _generate_suggestions_yaml(
         + len(report.feature_suggestions)
         + len(report.ratio_opportunities)
     )
-    suggestions_dict["_summary"] = {
+    summary: Dict[str, Any] = {
         "total_suggestions": total,
         "kpi_candidates": len(report.kpi_candidates),
         "fill_suggestions": len(report.fill_suggestions),
         "feature_suggestions": len(report.feature_suggestions),
         "ratio_opportunities": len(report.ratio_opportunities),
     }
+
+    # Add info about limiting if applicable
+    original_total = getattr(report, "_original_total", None)
+    if original_total is not None and original_total > total:
+        summary["original_total"] = original_total
+        summary["limited_to_top"] = total
+        summary["ranking_note"] = "Showing top suggestions by impact score"
+
+    suggestions_dict["_summary"] = summary
 
     # Generate YAML with nice formatting
     yaml_content = yaml.safe_dump(

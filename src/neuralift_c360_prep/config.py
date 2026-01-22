@@ -182,6 +182,7 @@ class FillConfig(BaseModel):
 
     categorical: Union[str, None] = "Unknown"  # "Unknown" | "mode" | custom string
     continuous: Union[str, float, int, None] = "median"  # "median" | "mean" | number
+    datetime: Union[str, None] = "1901-01-01"  # Sentinel date for NULL datetimes
     overrides: dict[str, Union[str, float, int, None]] = Field(default_factory=dict)
 
 
@@ -338,6 +339,9 @@ class FunctionConfig(BaseModel):
     lift: LiftConfig = Field(default_factory=LiftConfig)  # Lift metadata
     return_mode: Literal["all", "new_only", "list"] = "all"
     return_columns: List[str] = Field(default_factory=list)
+    null_fill: Optional[Union[str, float, int]] = (
+        None  # Fill NULLs in output (default: no fill)
+    )
 
     # =========================================================================
     # Identity type - tag existing column
@@ -387,7 +391,9 @@ class FunctionConfig(BaseModel):
     log_offset: float = 0.0
     log_clip_min: Optional[float] = 0.0
     log_clip_max: Optional[float] = None
-    log_on_nonpositive: Literal["nan", "zero"] = "nan"
+    log_on_nonpositive: Literal["nan", "zero"] = (
+        "zero"  # Default to zero to avoid NULLs
+    )
 
     # =========================================================================
     # String normalize fields
@@ -653,6 +659,9 @@ class DataDoctorConfig(BaseModel):
     high_null_threshold: int = 100  # Null count threshold for high priority
     high_cardinality_threshold: int = 50  # Unique count for high-card categoricals
     top_k_bucket: int = 10  # Default top_k for categorical bucketing suggestions
+    # Ranking and limiting suggestions
+    max_suggestions: int | None = None  # Limit to top N suggestions (None = all)
+    ranking_enabled: bool = True  # Enable impact scoring (0-100 scale)
     # LLM enhancement settings
     llm_enabled: bool = False  # Opt-in for LLM analysis
     llm_provider: LLMProviderConfig = Field(default_factory=LLMProviderConfig)

@@ -196,9 +196,23 @@ def apply_functions(ddf: dd.DataFrame, cfg) -> dd.DataFrame:
         )
 
     # Single loop over all functions
-    for func in functions:
+    logger.info("[functions] applying %d function(s)...", len(functions))
+    for i, func in enumerate(functions, 1):
         before_cols = list(ddf.columns)
         func_type = getattr(func, "type", "callable")
+        # Determine input column(s) for logging
+        input_cols = []
+        if getattr(func, "source_col", None):
+            input_cols.append(func.source_col)
+        if getattr(func, "column", None):
+            input_cols.append(func.column)
+        if getattr(func, "numerator_col", None):
+            input_cols.append(func.numerator_col)
+        if getattr(func, "denominator_col", None):
+            input_cols.append(func.denominator_col)
+        if getattr(func, "inputs", None):
+            input_cols.extend(func.inputs)
+        input_str = ", ".join(input_cols) if input_cols else "(none)"
 
         if func_type == "zsml":
             ddf = _apply_zsml(ddf, func)
@@ -228,6 +242,16 @@ def apply_functions(ddf: dd.DataFrame, cfg) -> dd.DataFrame:
             raise ValueError(f"Unsupported function type: {func_type}")
 
         ddf, new_cols = _rename_new_cols_snake(ddf, before_cols)
+        # Log function application with input/output
+        output_str = ", ".join(new_cols) if new_cols else "(no new columns)"
+        logger.info(
+            "[functions] %d/%d %s: input=[%s] → output=[%s]",
+            i,
+            len(functions),
+            func_type,
+            input_str,
+            output_str,
+        )
         ddf = _apply_return_mode(
             ddf,
             return_mode=getattr(func, "return_mode", "all"),
@@ -237,6 +261,7 @@ def apply_functions(ddf: dd.DataFrame, cfg) -> dd.DataFrame:
             verbose=verbose,
         )
 
+    logger.info("[functions] done. total columns: %d", len(ddf.columns))
     return ddf
 
 
@@ -429,9 +454,9 @@ def _apply_binning(
     edges = _resolve_binning_edges(ddf, source_col, feat)
     labels = _resolve_binning_labels(edges, feat.labels)
 
-    def _format_interval(interval) -> str | pd.NA:
+    def _format_interval(interval) -> str:
         if pd.isna(interval):
-            return pd.NA
+            return "Unknown"  # Never return NULL
         if isinstance(interval, pd.Interval):
             left = interval.left
             right = interval.right
@@ -492,6 +517,9 @@ def _apply_winsorize(
         out = pdf.copy()
         values = pd.to_numeric(out[source_col], errors="coerce")
         out[out_col] = values.clip(lower=lower, upper=upper)
+        # Apply null_fill if specified, otherwise default to 0 (never return NULLs)
+        fill_val = feat.null_fill if feat.null_fill is not None else 0
+        out[out_col] = out[out_col].fillna(fill_val)
         return out
 
     meta = ddf._meta.copy()
@@ -526,6 +554,9 @@ def _apply_log_transform(
             if feat.log_on_nonpositive == "zero":
                 logged = np.where(mask, logged, 0.0)
         out[out_col] = logged
+        # Apply null_fill if specified, otherwise default to 0 (never return NULLs)
+        fill_val = feat.null_fill if feat.null_fill is not None else 0
+        out[out_col] = out[out_col].fillna(fill_val)
         return out
 
     meta = ddf._meta.copy()
@@ -549,48 +580,77 @@ def _apply_date_parts(
                 parts.append("daypart")
     parts = _order_date_parts(parts)
 
+    # Sentinel date for NULL values (1972-01-01 is a Saturday but we override booleans)
+    sentinel_date = pd.Timestamp("1972-01-01")
+
     def _date_partition(pdf: pd.DataFrame) -> pd.DataFrame:
         out = pdf.copy()
+
+        # Track which rows had NULL dates before filling
+        raw_series = out[source_col]
+        null_mask = raw_series.isna()
+
+        # Fill NULLs with sentinel date before parsing
+        if null_mask.any():
+            filled_series = raw_series.fillna(sentinel_date)
+        else:
+            filled_series = raw_series
+
         dt = _parse_datetime_series(
-            out[source_col],
+            filled_series,
             unit=unit,
             timezone=feat.timezone,
         )
+
+        # Extract integer parts - use int64 (not nullable Int64)
         if "year" in parts:
-            out[f"{prefix}_year"] = dt.dt.year.astype("Int64")
+            out[f"{prefix}_year"] = dt.dt.year.astype("int64")
         if "quarter" in parts:
-            out[f"{prefix}_quarter"] = dt.dt.quarter.astype("Int64")
+            out[f"{prefix}_quarter"] = dt.dt.quarter.astype("int64")
         if "month" in parts:
-            out[f"{prefix}_month"] = dt.dt.month.astype("Int64")
+            out[f"{prefix}_month"] = dt.dt.month.astype("int64")
         if "day" in parts:
-            out[f"{prefix}_day"] = dt.dt.day.astype("Int64")
+            out[f"{prefix}_day"] = dt.dt.day.astype("int64")
         if "hour" in parts:
-            out[f"{prefix}_hour"] = dt.dt.hour.astype("Int64")
+            out[f"{prefix}_hour"] = dt.dt.hour.astype("int64")
         if "day_of_week" in parts:
-            out[f"{prefix}_day_of_week"] = dt.dt.weekday.astype("Int64")
+            out[f"{prefix}_day_of_week"] = dt.dt.weekday.astype("int64")
         if "day_of_year" in parts:
-            out[f"{prefix}_day_of_year"] = dt.dt.dayofyear.astype("Int64")
+            out[f"{prefix}_day_of_year"] = dt.dt.dayofyear.astype("int64")
         if "week_of_year" in parts:
-            out[f"{prefix}_week_of_year"] = dt.dt.isocalendar().week.astype("Int64")
+            out[f"{prefix}_week_of_year"] = dt.dt.isocalendar().week.astype("int64")
         if "daypart" in parts:
-            out[f"{prefix}_daypart"] = _build_daypart(
-                dt.dt.hour,
-                feat.daypart_bins,
-            )
-        if "is_weekend" in parts:
-            out[f"{prefix}_is_weekend"] = (dt.dt.weekday >= 5).astype("boolean")
-        if "is_month_start" in parts:
-            out[f"{prefix}_is_month_start"] = dt.dt.is_month_start.astype("boolean")
-        if "is_month_end" in parts:
-            out[f"{prefix}_is_month_end"] = dt.dt.is_month_end.astype("boolean")
-        if "is_quarter_start" in parts:
-            out[f"{prefix}_is_quarter_start"] = dt.dt.is_quarter_start.astype("boolean")
-        if "is_quarter_end" in parts:
-            out[f"{prefix}_is_quarter_end"] = dt.dt.is_quarter_end.astype("boolean")
-        if "is_year_start" in parts:
-            out[f"{prefix}_is_year_start"] = dt.dt.is_year_start.astype("boolean")
-        if "is_year_end" in parts:
-            out[f"{prefix}_is_year_end"] = dt.dt.is_year_end.astype("boolean")
+            daypart_col = _build_daypart(dt.dt.hour, feat.daypart_bins)
+            # Set daypart to "unknown" for originally NULL dates
+            if null_mask.any():
+                daypart_col = daypart_col.where(~null_mask, "unknown")
+            out[f"{prefix}_daypart"] = daypart_col
+
+        # Extract boolean parts - use int8 (0/1), force False for NULL dates
+        bool_parts = [p for p in parts if p.startswith("is_")]
+        for part in bool_parts:
+            col_name = f"{prefix}_{part}"
+            if part == "is_weekend":
+                vals = dt.dt.weekday >= 5
+            elif part == "is_month_start":
+                vals = dt.dt.is_month_start
+            elif part == "is_month_end":
+                vals = dt.dt.is_month_end
+            elif part == "is_quarter_start":
+                vals = dt.dt.is_quarter_start
+            elif part == "is_quarter_end":
+                vals = dt.dt.is_quarter_end
+            elif part == "is_year_start":
+                vals = dt.dt.is_year_start
+            elif part == "is_year_end":
+                vals = dt.dt.is_year_end
+            else:
+                continue
+            # Force False for rows that had NULL dates, then cast to int8
+            if null_mask.any():
+                vals = vals.where(~null_mask, False)
+            out[col_name] = vals.astype("int8")
+
         if feat.drop_source:
             out = out.drop(columns=[source_col])
         return out
@@ -599,11 +659,11 @@ def _apply_date_parts(
     for part in parts:
         col = f"{prefix}_{part}"
         if part.startswith("is_"):
-            meta[col] = pd.Series(dtype="boolean")
+            meta[col] = pd.Series(dtype="int8")
         elif part == "daypart":
-            meta[col] = pd.Series(dtype="object")  # object for distributed compat
+            meta[col] = pd.Series(dtype="object")
         else:
-            meta[col] = pd.Series(dtype="Int64")
+            meta[col] = pd.Series(dtype="int64")
     if feat.drop_source and source_col in meta.columns:
         meta = meta.drop(columns=[source_col])
     return ddf.map_partitions(_date_partition, meta=meta)
@@ -634,8 +694,8 @@ def _apply_categorical_bucket(
     def _bucket_partition(pdf: pd.DataFrame) -> pd.DataFrame:
         out = pdf.copy()
         vals = out[source_col].astype(str)
+        # Use other_label for any value not in keep set (including any nulls that slipped through)
         bucketed = vals.where(vals.isin(keep), other_label)
-        bucketed = bucketed.where(~vals.isna(), pd.NA)
         out[out_col] = bucketed
         return out
 
@@ -703,6 +763,9 @@ def _apply_frequency_encode(
         out = pdf.copy()
         vals = out[source_col].astype(str)
         out[out_col] = vals.map(freq_map)
+        # Apply null_fill if specified, otherwise default to 0 (never return NULLs)
+        fill_val = feat.null_fill if feat.null_fill is not None else 0
+        out[out_col] = out[out_col].fillna(fill_val)
         return out
 
     meta = ddf._meta.copy()
@@ -730,6 +793,9 @@ def _apply_days_since(
         ref = _resolve_reference_timestamp(dt, feat.reference_date, feat.timezone)
         delta = ref - dt
         out[out_col] = delta.dt.total_seconds() / 86400.0
+        # Apply null_fill if specified, otherwise default to 0 (never return NULLs)
+        fill_val = feat.null_fill if feat.null_fill is not None else 0
+        out[out_col] = out[out_col].fillna(fill_val)
         return out
 
     meta = ddf._meta.copy()
@@ -774,6 +840,9 @@ def _apply_ratio(
             else:
                 ratio = ratio.where(den != 0)
         out[out_col] = ratio
+        # Apply null_fill if specified, otherwise default to 0 (never return NULLs)
+        fill_val = feat.null_fill if feat.null_fill is not None else 0
+        out[out_col] = out[out_col].fillna(fill_val)
         return out
 
     meta = ddf._meta.copy()
@@ -983,7 +1052,9 @@ def _build_daypart(
             cond = (hours >= start) | (hours < end)
         conditions.append(cond)
         labels.append(label)
-    return pd.Series(np.select(conditions, labels, default=pd.NA), index=hours.index)
+    return pd.Series(
+        np.select(conditions, labels, default="unknown"), index=hours.index
+    )
 
 
 def _resolve_binning_labels(

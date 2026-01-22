@@ -266,6 +266,12 @@ class LLMSuggestion(BaseModel):
         default="rule",
         description="Source of this suggestion",
     )
+    score: int = Field(
+        default=50,
+        ge=0,
+        le=100,
+        description="Impact score (0-100) for ranking suggestions",
+    )
 
     class Config:
         use_enum_values = True
@@ -283,6 +289,7 @@ class LLMSuggestion(BaseModel):
             "yaml_snippet": self.yaml_snippet,
             "confidence": self.confidence,
             "source": self.source,
+            "score": self.score,
         }
 
 

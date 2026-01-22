@@ -151,8 +151,13 @@ def _boolfix_partition(pdf: pd.DataFrame, candidate_cols: list[str]) -> pd.DataF
         tokens = pdf[col].dropna().astype(str).str.strip().str.lower().unique()
         if 0 < len(tokens) <= _BOOL_MAX_UNIQUES and set(tokens) <= (_TRUTHY | _FALSY):
             mapped = pdf[col].map(_bool_token)
-            if not mapped.isna().any():  # only if all map cleanly
-                pdf[col] = mapped.astype("boolean")
+            # Fill any NULLs with mode (most common value), defaulting to False
+            if mapped.isna().any():
+                mode_val = mapped.mode()
+                fill_val = mode_val.iloc[0] if len(mode_val) > 0 else False
+                mapped = mapped.fillna(fill_val)
+            # Cast to int8 (0/1) - avoids pandas nullable boolean type
+            pdf[col] = mapped.astype("int8")
     return pdf
 
 
@@ -219,6 +224,7 @@ def missing_report_and_fill_dask(
     fill_strings_with: str = "const",  # "const" | "mode"
     fill_strings_const: str = "Unknown",
     fill_numbers_with: str = "median",  # "median" | "mean" | "zero" | number
+    fill_datetime_with: str | None = "1901-01-01",  # Sentinel date for NULL datetimes
     add_flags: bool = False,
     verbose: bool = True,
     big_row_threshold: int = 5_000_000,
@@ -273,6 +279,8 @@ def missing_report_and_fill_dask(
         f"[missing] split by type: numeric={len(num_cols)}, "
         f"datetime={len(dt_cols)}, string/other={len(str_cols)}"
     )
+    if dt_cols:
+        _log_step(f"[missing] datetime columns: {dt_cols}")
 
     # Handle per-column overrides
     overrides = fill_overrides or {}
@@ -369,7 +377,13 @@ def missing_report_and_fill_dask(
                 suggest_fill = fill_val
 
             elif pd.api.types.is_datetime64_any_dtype(dtype):
-                fill_val = pd.NaT
+                # Fill datetime NULLs with sentinel date (default: 1901-01-01)
+                if fill_datetime_with:
+                    fill_val = pd.Timestamp(fill_datetime_with)
+                    fill_map[col] = fill_val
+                    suggest_fill = str(fill_val.date())
+                else:
+                    fill_val = pd.NaT  # No fill if datetime fill disabled
 
             else:
                 if fill_strings_with == "const":
@@ -423,6 +437,13 @@ def missing_report_and_fill_dask(
                 "[missing] fill summary:\n%s",
                 fill_df.to_string(index=False),
             )
+        # Log datetime columns filled with sentinel
+        if fill_datetime_with:
+            dt_filled = [c for c in dt_cols if c in fill_map]
+            if dt_filled:
+                _log_step(
+                    f"[missing] datetime filled with {fill_datetime_with}: {dt_filled}"
+                )
         _log_step(
             f"[missing] applying fills for {len(fill_map)} column(s) via .fillna(...)"
         )
@@ -460,6 +481,7 @@ def preprocess_dask_scaled(
     fill_numbers_with: str
     | int
     | float = "median",  # "median" | "mean" | "zero" | number
+    fill_datetime_with: str | None = "1901-01-01",  # Sentinel date for NULL datetimes
     fill_overrides: dict[str, Any] | None = None,  # NEW: per-column overrides
     add_missing_flags: bool = False,
     drop_empty: bool = True,
@@ -571,6 +593,7 @@ def preprocess_dask_scaled(
         fill_strings_with=fill_strings_with,
         fill_strings_const=fill_strings_const,
         fill_numbers_with=fill_numbers_with,
+        fill_datetime_with=fill_datetime_with,
         fill_overrides=fill_overrides,
         add_flags=add_missing_flags,
         verbose=debug,
@@ -1037,11 +1060,13 @@ def preprocess(ddf, cfg):
     fill_enabled = True
     fill_categorical = "Unknown"
     fill_continuous: str | int | float = "median"
+    fill_datetime: str | None = "1901-01-01"
     fill_overrides: dict = {}
 
     if fill_explicit and fill_cfg is not None:
         fill_categorical = getattr(fill_cfg, "categorical", "Unknown") or "Unknown"
         fill_continuous = getattr(fill_cfg, "continuous", "median") or "median"
+        fill_datetime = getattr(fill_cfg, "datetime", "1901-01-01")
         fill_overrides = dict(getattr(fill_cfg, "overrides", {}) or {})
     else:
         legacy_fill = getattr(pre_cfg, "missing_fill", "auto")
@@ -1056,6 +1081,7 @@ def preprocess(ddf, cfg):
         if fill_categorical != "mode"
         else "Unknown",
         fill_numbers_with=fill_continuous,
+        fill_datetime_with=fill_datetime,
         fill_overrides=fill_overrides,
         drop_constants=getattr(pre_cfg, "drop_constant", True),
         drop_every_value_is_unique=False,

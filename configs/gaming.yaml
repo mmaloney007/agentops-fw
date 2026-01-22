@@ -107,7 +107,7 @@ metadata:
 # Rule-based analysis is always on. LLM enhancement is optional.
 # -----------------------------------------------------------------------------
 data_doctor:
-  enabled: true                    # Run Data Doctor analysis (rule-based)
+  enabled: false                   # Disabled for production runs (avoid Int64Dtype issues)
   save_yaml: true                  # Save suggestions.yaml alongside output
   # ---------------------------------------------------------------------------
   # LLM Enhancement (optional, disabled by default)
