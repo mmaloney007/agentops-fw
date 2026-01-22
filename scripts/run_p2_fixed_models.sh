@@ -50,8 +50,9 @@ for model in "${!MODELS[@]}"; do
 
             # Extract stats from log if exists
             if [ -f "$run_out/train_log.jsonl" ]; then
-                lines=$(wc -l < "$run_out/train_log.jsonl")
-                last50_valid=$(tail -50 "$run_out/train_log.jsonl" | grep -c '"json_valid": 1' || echo 0)
+                lines=$(wc -l < "$run_out/train_log.jsonl" | tr -d ' ')
+                last50_valid=$(tail -50 "$run_out/train_log.jsonl" | grep -c '"json_valid": 1' 2>/dev/null || echo "0")
+                last50_valid=${last50_valid:-0}
                 last50_pct=$((last50_valid * 2))
                 echo "  Steps: $lines, Last-50: ${last50_pct}%" | tee -a "$LOG_FILE"
             fi
