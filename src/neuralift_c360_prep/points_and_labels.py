@@ -387,8 +387,8 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-subdir",
-        default="segmented_data",
-        help="Output subdirectory under --volume (default: segmented_data).",
+        default="",
+        help="Output subdirectory under --volume (default: volume root).",
     )
     parser.add_argument(
         "--segment-col",
@@ -435,7 +435,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--coiled-name", default="neuralift_c360_prep_pr-5")
     parser.add_argument("--coiled-software-env", default="neuralift_c360_prep_pr-5")
-    parser.add_argument("--n-workers", type=int, default=8)
+    parser.add_argument("--n-workers", type=int, default=4)
     parser.add_argument("--worker-cpu", type=int, default=8)
     parser.add_argument("--worker-memory", default="32GiB")
     parser.add_argument("--worker-vm-types", default=None)
