@@ -16,8 +16,10 @@ lora_rank: 16
 lora_alpha: 32
 lora_dropout: 0.05
 lora_targets: ""
-load_in_4bit: false
+load_in_4bit: true
 torch_dtype: "bfloat16"
+use_cache: false
+attn_implementation: "eager"
 eval_interval: 50
 deterministic: false
 force_json_fallback: false

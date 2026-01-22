@@ -15,7 +15,7 @@ max_grad_norm: 1.0
 lora_rank: 16
 lora_alpha: 32
 lora_dropout: 0.05
-lora_targets: "in_proj,x_proj,dt_proj,out_proj"
+lora_targets: "in_proj,x_proj,dt_proj"
 load_in_4bit: true
 torch_dtype: "bfloat16"
 eval_interval: 50

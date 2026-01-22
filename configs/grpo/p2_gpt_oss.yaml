@@ -10,13 +10,15 @@ temperature: 0.7
 top_p: 0.95
 lr: 1.0e-5
 weight_decay: 0.01
-gradient_accumulation: 4
+gradient_accumulation: 8
+gradient_checkpointing: true
 max_grad_norm: 1.0
 lora_rank: 16
 lora_alpha: 32
 lora_dropout: 0.05
 lora_targets: "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
-load_in_4bit: true
+load_in_4bit: false
+use_native_quantization: true
 torch_dtype: "bfloat16"
 eval_interval: 50
 deterministic: false

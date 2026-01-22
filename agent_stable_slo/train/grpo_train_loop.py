@@ -152,8 +152,10 @@ def _build_model_and_tok(cfg, hw_rec: Dict[str, Any]):
     if hw_rec.get("backend") != "cuda":
         load_in_4bit = False
 
+    # Skip BitsAndBytes for models with native quantization (e.g., Mxfp4)
+    use_native_quant = getattr(cfg, "use_native_quantization", False)
     quant_cfg = None
-    if load_in_4bit:
+    if load_in_4bit and not use_native_quant:
         quant_cfg = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch_dtype,
@@ -166,15 +168,35 @@ def _build_model_and_tok(cfg, hw_rec: Dict[str, Any]):
         tok.pad_token = tok.eos_token
     tok.padding_side = "left"
 
-    model = AutoModelForCausalLM.from_pretrained(
-        cfg.base_model,
-        torch_dtype=torch_dtype if quant_cfg is None else None,
-        device_map="auto",
-        quantization_config=quant_cfg,
-        trust_remote_code=True,
-    )
+    # Build model kwargs
+    model_kwargs = {
+        "torch_dtype": torch_dtype if quant_cfg is None else None,
+        "device_map": "auto",
+        "quantization_config": quant_cfg,
+        "trust_remote_code": True,
+    }
+
+    # Handle use_cache for DynamicCache issues
+    use_cache = getattr(cfg, "use_cache", True)
+    if not use_cache:
+        model_kwargs["use_cache"] = False
+
+    # Handle attention implementation
+    attn_impl = getattr(cfg, "attn_implementation", None)
+    if attn_impl:
+        model_kwargs["attn_implementation"] = attn_impl
+
+    model = AutoModelForCausalLM.from_pretrained(cfg.base_model, **model_kwargs)
+
     if quant_cfg is not None:
         model = prepare_model_for_kbit_training(model)
+
+    # Enable gradient checkpointing if requested
+    gradient_checkpointing = getattr(cfg, "gradient_checkpointing", False)
+    if gradient_checkpointing:
+        model.gradient_checkpointing_enable()
+        if hasattr(model, "enable_input_require_grads"):
+            model.enable_input_require_grads()
 
     targets = cfg.lora_targets.split(",") if cfg.lora_targets else _default_targets(cfg.base_model)
     lora_cfg = LoraConfig(
