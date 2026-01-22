@@ -433,11 +433,11 @@ def _parse_args() -> argparse.Namespace:
         default="info",
         help="Logging level (default: info).",
     )
-    parser.add_argument("--coiled-name", default="neuralift_c360_prep")
-    parser.add_argument("--coiled-software-env", default="neuralift_c360_prep")
-    parser.add_argument("--n-workers", type=int, default=2)
-    parser.add_argument("--worker-cpu", type=int, default=2)
-    parser.add_argument("--worker-memory", default="16GiB")
+    parser.add_argument("--coiled-name", default="neuralift_c360_prep_pr-5")
+    parser.add_argument("--coiled-software-env", default="neuralift_c360_prep_pr-5")
+    parser.add_argument("--n-workers", type=int, default=8)
+    parser.add_argument("--worker-cpu", type=int, default=8)
+    parser.add_argument("--worker-memory", default="32GiB")
     parser.add_argument("--worker-vm-types", default=None)
     parser.add_argument("--scheduler-vm-types", default=None)
     parser.add_argument("--idle-timeout", default="2h")
