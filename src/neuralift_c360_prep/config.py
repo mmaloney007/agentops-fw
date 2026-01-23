@@ -62,7 +62,9 @@ SourceType = Literal[
 
 
 class CoiledConfig(BaseModel):
-    workspace: str = "neuralift-dev"  # Coiled workspace (use "neuralift-prod" for production)
+    workspace: str = (
+        "neuralift-dev"  # Coiled workspace (use "neuralift-prod" for production)
+    )
     name: str = "neuralift_c360_prep"
     software_env: str = "neuralift_c360_prep"
     n_workers: int = 2
