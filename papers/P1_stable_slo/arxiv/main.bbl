@@ -1,4 +1,4 @@
-\begin{thebibliography}{15}
+\begin{thebibliography}{16}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -9,6 +9,14 @@
 Amey Agrawal et~al.
 \newblock Sarathi-serve: High-throughput and memory-efficient llm serving with
   partitioned attention, 2024.
+
+\bibitem[{Akamai Technologies}(2017)]{akamai2017performance}
+{Akamai Technologies}.
+\newblock The state of online retail performance: Spring 2017.
+\newblock
+  \url{https://www.akamai.com/us/en/about/news/press/2017-press/akamai-releases-spring-2017-state-of-online-retail-performance-report.jsp},
+  2017.
+\newblock Report showing that 2-second delays increase bounce rates by 103\%.
 
 \bibitem[Chen et~al.(2024)]{chen2024humans}
 Yujia Chen et~al.
