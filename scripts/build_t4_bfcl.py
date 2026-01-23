@@ -20,6 +20,7 @@ def get_bfcl_data_dir() -> Path | None:
     """Find BFCL data directory from installed package."""
     try:
         import bfcl_eval
+
         pkg_path = Path(bfcl_eval.__file__).parent
         data_dir = pkg_path / "data"
         if data_dir.exists():
@@ -82,7 +83,9 @@ def extract_user_question(question_field) -> str:
     return ""
 
 
-def convert_bfcl_to_task(item: dict, ground_truth: list | None, category: str) -> dict | None:
+def convert_bfcl_to_task(
+    item: dict, ground_truth: list | None, category: str
+) -> dict | None:
     """Convert a BFCL item to our task format."""
     try:
         item_id = item.get("id", "")
@@ -152,9 +155,13 @@ def main():
     parser = argparse.ArgumentParser(description="Build T4 BFCL task suite")
     parser.add_argument("--out", default="tasks/t4_bfcl.jsonl", help="Output file")
     parser.add_argument("--count", type=int, default=500, help="Max tasks to include")
-    parser.add_argument("--categories", nargs="+", default=["simple_python", "multiple"],
-                        choices=list(CATEGORY_FILES.keys()),
-                        help="BFCL categories to include")
+    parser.add_argument(
+        "--categories",
+        nargs="+",
+        default=["simple_python", "multiple"],
+        choices=list(CATEGORY_FILES.keys()),
+        help="BFCL categories to include",
+    )
     args = parser.parse_args()
 
     print("Building T4 (BFCL v4) task suite...")

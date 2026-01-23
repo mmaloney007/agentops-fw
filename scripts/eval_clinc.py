@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Evaluate CLINC predictions vs gold JSONL; compute macro F1 over intent and accuracy for is_oos."""
+
 import argparse
 import json
 from pathlib import Path
@@ -30,7 +31,9 @@ def load_jsonl(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pred", required=True, help="predictions JSONL with output_json per id")
+    ap.add_argument(
+        "--pred", required=True, help="predictions JSONL with output_json per id"
+    )
     ap.add_argument("--gold", required=True, help="gold JSONL (tasks/clinc_en.jsonl)")
     args = ap.parse_args()
 
@@ -51,7 +54,9 @@ def main():
         y_true_oos.append(bool(gold.get("is_oos", False)))
         y_pred_oos.append(bool(pred.get("is_oos", False)))
     f1_intent = macro_f1(y_true_intent, y_pred_intent)
-    acc_oos = sum(1 for t, p in zip(y_true_oos, y_pred_oos) if t == p) / float(len(y_true_oos) or 1)
+    acc_oos = sum(1 for t, p in zip(y_true_oos, y_pred_oos) if t == p) / float(
+        len(y_true_oos) or 1
+    )
     print(f"macro_f1_intent: {f1_intent:.4f} over {len(y_true_intent)} examples")
     print(f"acc_is_oos: {acc_oos:.4f} over {len(y_true_oos)} examples")
     if missing:

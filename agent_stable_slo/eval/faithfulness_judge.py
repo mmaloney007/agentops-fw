@@ -17,7 +17,11 @@ JUDGE_SCHEMA: Dict[str, Any] = {
                 "type": "object",
                 "properties": {
                     "statement": {"type": "string"},
-                    "support_score_0_to_3": {"type": "integer", "minimum": 0, "maximum": 3},
+                    "support_score_0_to_3": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3,
+                    },
                     "contradiction": {"type": "boolean"},
                 },
                 "required": ["statement", "support_score_0_to_3", "contradiction"],
@@ -51,7 +55,9 @@ class FaithfulnessResult:
     parse_error: Optional[str]
 
 
-def _build_messages(question: str, context: str, candidate_json: Dict[str, Any]) -> List[Dict[str, str]]:
+def _build_messages(
+    question: str, context: str, candidate_json: Dict[str, Any]
+) -> List[Dict[str, str]]:
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {
@@ -76,7 +82,10 @@ def score_faithfulness(
     max_tokens_out: int = 512,
 ) -> FaithfulnessResult:
     client = OpenAI(base_url=base_url, api_key=api_key)
-    rf = {"type": "json_schema", "json_schema": {"name": "judge_output", "schema": JUDGE_SCHEMA, "strict": True}}
+    rf = {
+        "type": "json_schema",
+        "json_schema": {"name": "judge_output", "schema": JUDGE_SCHEMA, "strict": True},
+    }
 
     t0 = time.perf_counter()
     resp = client.chat.completions.create(

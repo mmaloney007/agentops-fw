@@ -2,6 +2,7 @@
 """
 Expand T3 tool tasks deterministically to a target count.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,15 +51,24 @@ def generate_templates(rng: random.Random, count: int) -> List[dict]:
         "search-service",
         "data-pipeline",
     ]
-    focuses = ["root cause", "follow-up actions", "remediation steps", "customer impact"]
+    focuses = [
+        "root cause",
+        "follow-up actions",
+        "remediation steps",
+        "customer impact",
+    ]
 
     rows: List[dict] = []
     for i in range(count):
-        tool_type = rng.choice(["lookup_customer", "fetch_metric", "open_incident", "summarize_report"])
+        tool_type = rng.choice(
+            ["lookup_customer", "fetch_metric", "open_incident", "summarize_report"]
+        )
         if tool_type == "lookup_customer":
             cust_id = str(rng.randint(1000, 99999))
             fields = rng.choice(fields_pool)
-            ask = f"Get {', '.join(fields)} for customer {cust_id} to decide next steps."
+            ask = (
+                f"Get {', '.join(fields)} for customer {cust_id} to decide next steps."
+            )
             arguments = {"customer_id": cust_id, "fields": fields}
         elif tool_type == "fetch_metric":
             metric = rng.choice(metrics)
@@ -69,13 +79,19 @@ def generate_templates(rng: random.Random, count: int) -> List[dict]:
         elif tool_type == "open_incident":
             severity = rng.choice(["low", "medium", "high", "critical"])
             component = rng.choice(components)
-            summary = f"{component} issue detected during monitoring run {rng.randint(100,999)}"
+            summary = f"{component} issue detected during monitoring run {rng.randint(100, 999)}"
             ask = f"Open an incident for {component} with {severity} severity and note the issue."
-            arguments = {"severity": severity, "component": component, "summary": summary}
+            arguments = {
+                "severity": severity,
+                "component": component,
+                "summary": summary,
+            }
         else:
             report_id = f"RPT-{rng.randint(1, 999):03d}"
             focus = rng.choice(focuses)
-            ask = f"Summarize report {report_id} focusing on {focus} for the exec brief."
+            ask = (
+                f"Summarize report {report_id} focusing on {focus} for the exec brief."
+            )
             arguments = {"report_id": report_id, "focus": focus}
         rows.append(
             {

@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -24,7 +23,9 @@ def _prompt_tokens(resp) -> int:
 
 
 def _default_base():
-    return os.getenv("VLLM_API_BASE") or os.getenv("OPENAI_API_BASE", "http://localhost:8000/v1")
+    return os.getenv("VLLM_API_BASE") or os.getenv(
+        "OPENAI_API_BASE", "http://localhost:8000/v1"
+    )
 
 
 def _parse_version(version: str) -> tuple[int, ...]:
@@ -70,23 +71,42 @@ def generate_raw(
             if _use_structured_outputs():
                 r = client.chat.completions.create(
                     model=model,
-                    messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
-                    extra_body={"structured_outputs": {"json_schema": {"name": "spec", "schema": schema}}},
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": _maybe_augment_prompt(prompt, schema),
+                        }
+                    ],
+                    extra_body={
+                        "structured_outputs": {
+                            "json_schema": {"name": "spec", "schema": schema}
+                        }
+                    },
                     temperature=temperature,
                     max_tokens=max_new,
                 )
             else:
                 r = client.chat.completions.create(
                     model=model,
-                    messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
-                    response_format={"type": "json_schema", "json_schema": {"name": "spec", "schema": schema}},
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": _maybe_augment_prompt(prompt, schema),
+                        }
+                    ],
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {"name": "spec", "schema": schema},
+                    },
                     temperature=temperature,
                     max_tokens=max_new,
                 )
         else:
             r = client.chat.completions.create(
                 model=model,
-                messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
+                messages=[
+                    {"role": "user", "content": _maybe_augment_prompt(prompt, schema)}
+                ],
                 response_format={"type": "text"},
                 temperature=temperature,
                 max_tokens=max_new,
@@ -95,7 +115,9 @@ def generate_raw(
         try:
             r = client.chat.completions.create(
                 model=model,
-                messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
+                messages=[
+                    {"role": "user", "content": _maybe_augment_prompt(prompt, schema)}
+                ],
                 response_format={"type": "text"},
                 temperature=temperature,
                 max_tokens=max_new,

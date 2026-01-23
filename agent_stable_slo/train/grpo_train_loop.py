@@ -37,8 +37,17 @@ from agent_stable_slo.utils.config import (
     migrate_config,
     validate_or_raise,
 )
-from agent_stable_slo.utils.data import cache_dataset, fingerprint_tasks, validate_fingerprint
-from agent_stable_slo.utils.dist import destroy_distributed, init_distributed, rank_world, seed_with_rank
+from agent_stable_slo.utils.data import (
+    cache_dataset,
+    fingerprint_tasks,
+    validate_fingerprint,
+)
+from agent_stable_slo.utils.dist import (
+    destroy_distributed,
+    init_distributed,
+    rank_world,
+    seed_with_rank,
+)
 from agent_stable_slo.utils.hardware import detect_hardware, recommended_defaults
 from agent_stable_slo.utils.repro import atomic_write_json, env_snapshot, set_seed
 
@@ -58,7 +67,9 @@ def _guard_prompt(prompt: str, max_chars: int, truncate: bool) -> str:
     if max_chars and len(prompt) > max_chars:
         if truncate:
             return prompt[:max_chars]
-        raise ValueError(f"prompt length {len(prompt)} exceeds max_prompt_chars={max_chars}")
+        raise ValueError(
+            f"prompt length {len(prompt)} exceeds max_prompt_chars={max_chars}"
+        )
     return prompt
 
 
@@ -87,7 +98,8 @@ def _parse_json(text: str, schema: dict) -> Dict[str, Any]:
     # Extract JSON objects embedded in text (handles thinking models)
     # Find all potential JSON objects by looking for { ... } patterns
     import re
-    json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+
+    json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
     matches = re.findall(json_pattern, text)
     for match in matches:
         try:
@@ -140,7 +152,15 @@ def _load_dataset(tasks_path: str) -> List[Dict[str, Any]]:
 
 def _default_targets(model_name: str) -> List[str]:
     if "qwen" in model_name.lower():
-        return ["q_proj", "k_proj", "v_proj", "o_proj", "up_proj", "down_proj", "gate_proj"]
+        return [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "up_proj",
+            "down_proj",
+            "gate_proj",
+        ]
     return ["q_proj", "k_proj", "v_proj", "o_proj"]
 
 
@@ -198,7 +218,11 @@ def _build_model_and_tok(cfg, hw_rec: Dict[str, Any]):
         if hasattr(model, "enable_input_require_grads"):
             model.enable_input_require_grads()
 
-    targets = cfg.lora_targets.split(",") if cfg.lora_targets else _default_targets(cfg.base_model)
+    targets = (
+        cfg.lora_targets.split(",")
+        if cfg.lora_targets
+        else _default_targets(cfg.base_model)
+    )
     lora_cfg = LoraConfig(
         r=cfg.lora_rank,
         lora_alpha=cfg.lora_alpha,
@@ -223,7 +247,15 @@ def _log_to_wandb(run, step: int, reward: float, rec: Dict[str, Any]):
     WL.log(run, metrics, step=step)
 
 
-def _compute_logprob_loss(model, tok, prompt_ids, gen_ids, advantage, use_autocast=False, device_type: str = "cuda"):
+def _compute_logprob_loss(
+    model,
+    tok,
+    prompt_ids,
+    gen_ids,
+    advantage,
+    use_autocast=False,
+    device_type: str = "cuda",
+):
     ctx = torch.amp.autocast(device_type=device_type) if use_autocast else nullcontext()
     with ctx:
         full_ids = torch.cat([prompt_ids, gen_ids], dim=1)
@@ -252,7 +284,15 @@ def _violates_blocklist(texts: Sequence[str], blocked: Sequence[str]) -> bool:
     return False
 
 
-def _maybe_build_manifest(run_dir: Path, cfg: GRPOTrainConfig, hw: Dict[str, Any], fp_src, fp_cached, rank: int, world: int):
+def _maybe_build_manifest(
+    run_dir: Path,
+    cfg: GRPOTrainConfig,
+    hw: Dict[str, Any],
+    fp_src,
+    fp_cached,
+    rank: int,
+    world: int,
+):
     manifest_path = run_dir / "manifest.json"
     if manifest_path.exists():
         return
@@ -260,7 +300,10 @@ def _maybe_build_manifest(run_dir: Path, cfg: GRPOTrainConfig, hw: Dict[str, Any
         "config": cfg.model_dump(),
         "config_version": CONFIG_VERSION,
         "hardware": hw,
-        "dataset": {"source": fp_src.as_dict(), "cached": fp_cached.as_dict() if fp_cached else None},
+        "dataset": {
+            "source": fp_src.as_dict(),
+            "cached": fp_cached.as_dict() if fp_cached else None,
+        },
         "dist": {"rank": rank, "world": world},
         "env": env_snapshot(include_packages=False),
         "created_at": time.time(),
@@ -276,7 +319,9 @@ def _load_yaml(path: str) -> Dict[str, Any]:
     return data
 
 
-def _resolve_config_file(config_file: Optional[str], preset: Optional[str], config_dir: str) -> Optional[str]:
+def _resolve_config_file(
+    config_file: Optional[str], preset: Optional[str], config_dir: str
+) -> Optional[str]:
     if config_file:
         return config_file
     if preset:
@@ -302,9 +347,17 @@ def _run_validation(model, tok, val_ds, cfg, device, blocked):
         return None
     model.eval()
     for rec in val_ds:
-        prompt = _guard_prompt(rec["prompt"], cfg.max_prompt_chars, cfg.truncate_prompts)
+        prompt = _guard_prompt(
+            rec["prompt"], cfg.max_prompt_chars, cfg.truncate_prompts
+        )
         schema = rec["schema"]
-        enc = tok(prompt, return_tensors="pt", padding=True, truncation=True, max_length=cfg.max_prompt_len)
+        enc = tok(
+            prompt,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=cfg.max_prompt_len,
+        )
         input_ids = enc["input_ids"].to(device)
         attn = enc["attention_mask"].to(device)
         with torch.no_grad():
@@ -321,7 +374,11 @@ def _run_validation(model, tok, val_ds, cfg, device, blocked):
         txt = tok.batch_decode(gen_ids, skip_special_tokens=True)[0].strip()
         out_json = _parse_json(txt, schema)
         blocked_now = _violates_blocklist([prompt, txt], blocked)
-        json_valid = 0 if blocked_now and cfg.reject_blocklisted else schema_valid(out_json, schema)
+        json_valid = (
+            0
+            if blocked_now and cfg.reject_blocklisted
+            else schema_valid(out_json, schema)
+        )
         tokens_out = int(gen_ids.shape[1]) if gen_ids.numel() else 0
         reward = composite_reward(
             out_json,
@@ -355,7 +412,9 @@ def train_loop(cfg: GRPOTrainConfig):
     set_seed(seed, deterministic=cfg.repro or cfg.deterministic)
 
     src_fp = fingerprint_tasks(cfg.tasks)
-    validate_fingerprint(src_fp, cfg.expected_dataset_hash, allow_drift=cfg.allow_dataset_drift)
+    validate_fingerprint(
+        src_fp, cfg.expected_dataset_hash, allow_drift=cfg.allow_dataset_drift
+    )
     tasks_path = cfg.tasks
     cached_fp = None
     if cfg.cache_dataset:
@@ -387,7 +446,9 @@ def train_loop(cfg: GRPOTrainConfig):
     model.to(device)
 
     trainable = [p for p in model.parameters() if p.requires_grad]
-    opt = torch.optim.AdamW(trainable, lr=cfg.lr, betas=(0.9, 0.999), weight_decay=cfg.weight_decay)
+    opt = torch.optim.AdamW(
+        trainable, lr=cfg.lr, betas=(0.9, 0.999), weight_decay=cfg.weight_decay
+    )
     scaler = torch.amp.GradScaler(device=device.type) if device.type == "cuda" else None
     grad_accum = max(1, cfg.gradient_accumulation)
     running_baseline = 0.0
@@ -436,14 +497,17 @@ def train_loop(cfg: GRPOTrainConfig):
         "world": world,
     }
 
-    with WL.maybe_run(name=os.path.basename(str(out_dir)), config=run_cfg) as run, open(
-        train_log_path, "a" if append_mode else "w", encoding="utf-8"
-    ) as fo:
+    with (
+        WL.maybe_run(name=os.path.basename(str(out_dir)), config=run_cfg) as run,
+        open(train_log_path, "a" if append_mode else "w", encoding="utf-8") as fo,
+    ):
         accum_loss = 0.0
         accum_count = 0
         for step in range(start_step, cfg.steps):
             row = ds[step % len(ds)]
-            prompt = _guard_prompt(row["prompt"], cfg.max_prompt_chars, cfg.truncate_prompts)
+            prompt = _guard_prompt(
+                row["prompt"], cfg.max_prompt_chars, cfg.truncate_prompts
+            )
             schema = row["schema"]
             gold = row.get("gold")
 
@@ -484,35 +548,52 @@ def train_loop(cfg: GRPOTrainConfig):
                 txt = tok.batch_decode(gen_ids, skip_special_tokens=True)[0].strip()
                 out_json = _parse_json(txt, schema)
 
-                all_outputs.append({
-                    'json': out_json,
-                    'text': txt,
-                    'gen_ids': gen_ids,
-                    'latency_ms': lat_ms,
-                    'tokens_out': tokens_out,
-                })
+                all_outputs.append(
+                    {
+                        "json": out_json,
+                        "text": txt,
+                        "gen_ids": gen_ids,
+                        "latency_ms": lat_ms,
+                        "tokens_out": tokens_out,
+                    }
+                )
 
             # Compute disagreement rate across samples
-            canonical_jsons = [_canonical_json(o['json']) for o in all_outputs]
-            mode_json = max(set(canonical_jsons), key=canonical_jsons.count) if canonical_jsons else ""
-            disagreement_rate = 1.0 - canonical_jsons.count(mode_json) / len(canonical_jsons) if canonical_jsons else 0.0
+            canonical_jsons = [_canonical_json(o["json"]) for o in all_outputs]
+            mode_json = (
+                max(set(canonical_jsons), key=canonical_jsons.count)
+                if canonical_jsons
+                else ""
+            )
+            disagreement_rate = (
+                1.0 - canonical_jsons.count(mode_json) / len(canonical_jsons)
+                if canonical_jsons
+                else 0.0
+            )
 
             # Select best output (schema-valid majority vote)
-            valid_outputs = [o for o, cj in zip(all_outputs, canonical_jsons)
-                             if schema_valid(o['json'], schema)]
+            valid_outputs = [
+                o
+                for o, cj in zip(all_outputs, canonical_jsons)
+                if schema_valid(o["json"], schema)
+            ]
             if valid_outputs:
-                valid_canonicals = [_canonical_json(o['json']) for o in valid_outputs]
+                valid_canonicals = [_canonical_json(o["json"]) for o in valid_outputs]
                 mode_valid = max(set(valid_canonicals), key=valid_canonicals.count)
-                best_output = next(o for o, cj in zip(valid_outputs, valid_canonicals) if cj == mode_valid)
+                best_output = next(
+                    o
+                    for o, cj in zip(valid_outputs, valid_canonicals)
+                    if cj == mode_valid
+                )
             else:
                 best_output = all_outputs[0]
 
             # Unpack best output
-            txt = best_output['text']
-            out_json = best_output['json']
-            gen_ids = best_output['gen_ids']
-            lat_ms = best_output['latency_ms']
-            tokens_out = best_output['tokens_out']
+            txt = best_output["text"]
+            out_json = best_output["json"]
+            gen_ids = best_output["gen_ids"]
+            lat_ms = best_output["latency_ms"]
+            tokens_out = best_output["tokens_out"]
             ttft_ms = lat_ms  # Approximation
 
             blocked_now = _violates_blocklist([full_prompt, txt], blocked_terms)
@@ -524,6 +605,7 @@ def train_loop(cfg: GRPOTrainConfig):
             faithfulness_score = 1.0  # Default
             if cfg.enable_faithfulness_judge:
                 from agent_stable_slo.eval.faithfulness_judge import score_faithfulness
+
                 question, context = _parse_hotpot_prompt(prompt)
                 if question and context:  # Only judge if we have both
                     try:
@@ -614,7 +696,11 @@ def train_loop(cfg: GRPOTrainConfig):
             fo.flush()
             _log_to_wandb(run, step, reward, rec)
 
-            if cfg.checkpoint_every and cfg.checkpoint_every > 0 and (step + 1) % cfg.checkpoint_every == 0:
+            if (
+                cfg.checkpoint_every
+                and cfg.checkpoint_every > 0
+                and (step + 1) % cfg.checkpoint_every == 0
+            ):
                 ckpt_path = ckpt_mgr.save(
                     step=step,
                     model=model,
@@ -622,20 +708,33 @@ def train_loop(cfg: GRPOTrainConfig):
                     optimizer=opt,
                     scaler=scaler,
                     baseline=running_baseline,
-                    metadata={"tasks": tasks_path, "seed": seed, "config_version": cfg.config_version},
+                    metadata={
+                        "tasks": tasks_path,
+                        "seed": seed,
+                        "config_version": cfg.config_version,
+                    },
                     scheduler=None,
                 )
                 run_log.info("checkpoint_saved", step=step, path=str(ckpt_path))
 
-            if cfg.val_interval and cfg.val_interval > 0 and (step + 1) % cfg.val_interval == 0 and cfg.val_tasks:
-                val_metrics = _run_validation(model, tok, val_ds, cfg, device, blocked_terms)
+            if (
+                cfg.val_interval
+                and cfg.val_interval > 0
+                and (step + 1) % cfg.val_interval == 0
+                and cfg.val_tasks
+            ):
+                val_metrics = _run_validation(
+                    model, tok, val_ds, cfg, device, blocked_terms
+                )
                 if val_metrics:
                     run_log.info("val", step=step, **val_metrics)
                     if run:
                         WL.log(run, val_metrics, step=step)
 
             if (step + 1) % max(1, cfg.eval_interval) == 0:
-                print(f"[step {step+1}] reward={reward:.3f} lat_ms={lat_ms:.1f} json_ok={json_valid} loss={accum_loss:.4f}")
+                print(
+                    f"[step {step + 1}] reward={reward:.3f} lat_ms={lat_ms:.1f} json_ok={json_valid} loss={accum_loss:.4f}"
+                )
                 accum_loss = 0.0
 
     adapter_path.mkdir(parents=True, exist_ok=True)
@@ -647,69 +746,162 @@ def train_loop(cfg: GRPOTrainConfig):
 
 def parse_args(argv: Optional[Sequence[str]] = None):
     base = argparse.ArgumentParser(add_help=False)
-    base.add_argument("--config-file", type=str, default=None, help="Optional YAML config file.")
+    base.add_argument(
+        "--config-file", type=str, default=None, help="Optional YAML config file."
+    )
     base.add_argument(
         "--config-preset",
         type=str,
         default=None,
         help="Preset name under configs/grpo (omit .yaml).",
     )
-    base.add_argument("--config-dir", type=str, default="configs/grpo", help="Directory for presets.")
+    base.add_argument(
+        "--config-dir", type=str, default="configs/grpo", help="Directory for presets."
+    )
     known, remaining = base.parse_known_args(argv)
 
-    cfg_file = _resolve_config_file(known.config_file, known.config_preset, known.config_dir)
+    cfg_file = _resolve_config_file(
+        known.config_file, known.config_preset, known.config_dir
+    )
     cfg_defaults: Dict[str, Any] = {}
     if cfg_file:
         cfg_defaults = migrate_config(_load_yaml(cfg_file))
         print(f"[config] loaded {cfg_file}")
 
     ap = argparse.ArgumentParser(parents=[base])
-    ap.add_argument("--base-model", default=cfg_defaults.get("base_model", "Qwen/Qwen2.5-7B-Instruct"))
-    ap.add_argument("--tasks", default=cfg_defaults.get("tasks", "tasks/robust_eval_gold.jsonl"))
+    ap.add_argument(
+        "--base-model",
+        default=cfg_defaults.get("base_model", "Qwen/Qwen2.5-7B-Instruct"),
+    )
+    ap.add_argument(
+        "--tasks", default=cfg_defaults.get("tasks", "tasks/robust_eval_gold.jsonl")
+    )
     ap.add_argument("--out", default=cfg_defaults.get("out", ""))
     ap.add_argument("--steps", type=int, default=cfg_defaults.get("steps", 500))
-    ap.add_argument("--max-prompt-len", type=int, default=cfg_defaults.get("max_prompt_len", 1024))
-    ap.add_argument("--max-new-tokens", type=int, default=cfg_defaults.get("max_new_tokens", 128))
-    ap.add_argument("--temperature", type=float, default=cfg_defaults.get("temperature", 0.7))
+    ap.add_argument(
+        "--max-prompt-len", type=int, default=cfg_defaults.get("max_prompt_len", 1024)
+    )
+    ap.add_argument(
+        "--max-new-tokens", type=int, default=cfg_defaults.get("max_new_tokens", 128)
+    )
+    ap.add_argument(
+        "--temperature", type=float, default=cfg_defaults.get("temperature", 0.7)
+    )
     ap.add_argument("--top-p", type=float, default=cfg_defaults.get("top_p", 0.95))
     ap.add_argument("--lr", type=float, default=cfg_defaults.get("lr", 1e-5))
-    ap.add_argument("--weight-decay", type=float, default=cfg_defaults.get("weight_decay", 0.01))
-    ap.add_argument("--gradient-accumulation", type=int, default=cfg_defaults.get("gradient_accumulation", 1))
-    ap.add_argument("--max-grad-norm", type=float, default=cfg_defaults.get("max_grad_norm", 1.0))
+    ap.add_argument(
+        "--weight-decay", type=float, default=cfg_defaults.get("weight_decay", 0.01)
+    )
+    ap.add_argument(
+        "--gradient-accumulation",
+        type=int,
+        default=cfg_defaults.get("gradient_accumulation", 1),
+    )
+    ap.add_argument(
+        "--max-grad-norm", type=float, default=cfg_defaults.get("max_grad_norm", 1.0)
+    )
     ap.add_argument("--lora-rank", type=int, default=cfg_defaults.get("lora_rank", 16))
-    ap.add_argument("--lora-alpha", type=int, default=cfg_defaults.get("lora_alpha", 32))
-    ap.add_argument("--lora-dropout", type=float, default=cfg_defaults.get("lora_dropout", 0.05))
-    ap.add_argument("--lora-targets", type=str, default=cfg_defaults.get("lora_targets", ""))
+    ap.add_argument(
+        "--lora-alpha", type=int, default=cfg_defaults.get("lora_alpha", 32)
+    )
+    ap.add_argument(
+        "--lora-dropout", type=float, default=cfg_defaults.get("lora_dropout", 0.05)
+    )
+    ap.add_argument(
+        "--lora-targets", type=str, default=cfg_defaults.get("lora_targets", "")
+    )
     ap.add_argument(
         "--load-in-4bit",
         type=lambda x: x.lower() in {"1", "true", "yes"},
         default=cfg_defaults.get("load_in_4bit", None),
         help="Override 4-bit loading (default picks based on hardware).",
     )
-    ap.add_argument("--torch-dtype", type=str, default=cfg_defaults.get("torch_dtype", "float16"))
-    ap.add_argument("--eval-interval", type=int, default=cfg_defaults.get("eval_interval", 50))
-    ap.add_argument("--deterministic", action="store_true", default=cfg_defaults.get("deterministic", False))
-    ap.add_argument("--force-json-fallback", action="store_true", default=cfg_defaults.get("force_json_fallback", False))
-    ap.add_argument("--lam-latency", type=float, default=cfg_defaults.get("lam_latency", 0.0))
+    ap.add_argument(
+        "--torch-dtype", type=str, default=cfg_defaults.get("torch_dtype", "float16")
+    )
+    ap.add_argument(
+        "--eval-interval", type=int, default=cfg_defaults.get("eval_interval", 50)
+    )
+    ap.add_argument(
+        "--deterministic",
+        action="store_true",
+        default=cfg_defaults.get("deterministic", False),
+    )
+    ap.add_argument(
+        "--force-json-fallback",
+        action="store_true",
+        default=cfg_defaults.get("force_json_fallback", False),
+    )
+    ap.add_argument(
+        "--lam-latency", type=float, default=cfg_defaults.get("lam_latency", 0.0)
+    )
     ap.add_argument("--mu-cost", type=float, default=cfg_defaults.get("mu_cost", 0.0))
-    ap.add_argument("--gamma-stability", type=float, default=cfg_defaults.get("gamma_stability", 0.0))
+    ap.add_argument(
+        "--gamma-stability",
+        type=float,
+        default=cfg_defaults.get("gamma_stability", 0.0),
+    )
     ap.add_argument("--seed", type=int, default=cfg_defaults.get("seed", 17))
-    ap.add_argument("--repro", action="store_true", default=cfg_defaults.get("repro", False))
-    ap.add_argument("--cache-dataset", action="store_true", default=cfg_defaults.get("cache_dataset", False))
-    ap.add_argument("--cache-dir", type=str, default=cfg_defaults.get("cache_dir", "out/cache"))
-    ap.add_argument("--checkpoint-every", type=int, default=cfg_defaults.get("checkpoint_every", 0))
-    ap.add_argument("--resume-from", type=str, default=cfg_defaults.get("resume_from", None))
-    ap.add_argument("--no-silent-defaults", action="store_true", default=cfg_defaults.get("no_silent_defaults", False))
-    ap.add_argument("--expected-dataset-hash", type=str, default=cfg_defaults.get("expected_dataset_hash", None))
-    ap.add_argument("--allow-dataset-drift", action="store_true", default=cfg_defaults.get("allow_dataset_drift", False))
-    ap.add_argument("--val-tasks", type=str, default=cfg_defaults.get("val_tasks", None))
-    ap.add_argument("--val-interval", type=int, default=cfg_defaults.get("val_interval", 0))
-    ap.add_argument("--val-samples", type=int, default=cfg_defaults.get("val_samples", 1))
-    ap.add_argument("--max-prompt-chars", type=int, default=cfg_defaults.get("max_prompt_chars", 0))
-    ap.add_argument("--truncate-prompts", action="store_true", default=cfg_defaults.get("truncate_prompts", False))
-    ap.add_argument("--blocklist", type=str, default=cfg_defaults.get("blocklist", None))
-    ap.add_argument("--reject-blocklisted", action="store_true", default=cfg_defaults.get("reject_blocklisted", False))
-    ap.add_argument("--ddp-backend", type=str, default=cfg_defaults.get("ddp_backend", None))
+    ap.add_argument(
+        "--repro", action="store_true", default=cfg_defaults.get("repro", False)
+    )
+    ap.add_argument(
+        "--cache-dataset",
+        action="store_true",
+        default=cfg_defaults.get("cache_dataset", False),
+    )
+    ap.add_argument(
+        "--cache-dir", type=str, default=cfg_defaults.get("cache_dir", "out/cache")
+    )
+    ap.add_argument(
+        "--checkpoint-every", type=int, default=cfg_defaults.get("checkpoint_every", 0)
+    )
+    ap.add_argument(
+        "--resume-from", type=str, default=cfg_defaults.get("resume_from", None)
+    )
+    ap.add_argument(
+        "--no-silent-defaults",
+        action="store_true",
+        default=cfg_defaults.get("no_silent_defaults", False),
+    )
+    ap.add_argument(
+        "--expected-dataset-hash",
+        type=str,
+        default=cfg_defaults.get("expected_dataset_hash", None),
+    )
+    ap.add_argument(
+        "--allow-dataset-drift",
+        action="store_true",
+        default=cfg_defaults.get("allow_dataset_drift", False),
+    )
+    ap.add_argument(
+        "--val-tasks", type=str, default=cfg_defaults.get("val_tasks", None)
+    )
+    ap.add_argument(
+        "--val-interval", type=int, default=cfg_defaults.get("val_interval", 0)
+    )
+    ap.add_argument(
+        "--val-samples", type=int, default=cfg_defaults.get("val_samples", 1)
+    )
+    ap.add_argument(
+        "--max-prompt-chars", type=int, default=cfg_defaults.get("max_prompt_chars", 0)
+    )
+    ap.add_argument(
+        "--truncate-prompts",
+        action="store_true",
+        default=cfg_defaults.get("truncate_prompts", False),
+    )
+    ap.add_argument(
+        "--blocklist", type=str, default=cfg_defaults.get("blocklist", None)
+    )
+    ap.add_argument(
+        "--reject-blocklisted",
+        action="store_true",
+        default=cfg_defaults.get("reject_blocklisted", False),
+    )
+    ap.add_argument(
+        "--ddp-backend", type=str, default=cfg_defaults.get("ddp_backend", None)
+    )
     args = ap.parse_args(remaining)
     cfg_dict = vars(args)
     # Drop loader-only fields not present in the pydantic model.

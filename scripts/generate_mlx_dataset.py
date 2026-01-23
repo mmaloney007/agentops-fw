@@ -9,6 +9,7 @@ Creates train/valid splits covering:
  - Safety classification
  - Code stub JSON
 """
+
 import json
 from pathlib import Path
 from random import randint, choice, seed
@@ -40,14 +41,18 @@ def json_extract_examples(n=40):
     for i in range(n):
         a = randint(0, 9)
         b = randint(0, 9)
-        prompt = f"Return JSON exactly {{\"a\":{a},\"b\":{b}}}.\\nAssistant:"
+        prompt = f'Return JSON exactly {{"a":{a},"b":{b}}}.\\nAssistant:'
         completion = json.dumps({"a": a, "b": b})
         rows.append({"prompt": prompt, "completion": completion})
     return rows
 
 
 def toolseq_examples(n=30):
-    seqs = [["search_contracts", "summarize_report"], ["classify_intent"], ["run_sql_query", "file_ticket"]]
+    seqs = [
+        ["search_contracts", "summarize_report"],
+        ["classify_intent"],
+        ["run_sql_query", "file_ticket"],
+    ]
     rows = []
     for i in range(n):
         steps = seqs[i % len(seqs)]
@@ -74,7 +79,9 @@ def safety_examples(n=20):
         decision = "flag" if i % 3 == 0 else "allow"
         reason = "PII detected" if decision == "flag" else "No PII"
         prompt = f"Policy: data_privacy. Decide flag/allow and risk score.\\nReason: {reason}\\nAssistant:"
-        completion = json.dumps({"decision": decision, "risk_score": 4 if decision == "flag" else 1})
+        completion = json.dumps(
+            {"decision": decision, "risk_score": 4 if decision == "flag" else 1}
+        )
         rows.append({"prompt": prompt, "completion": completion})
     return rows
 
@@ -82,14 +89,29 @@ def safety_examples(n=20):
 def code_examples(n=20):
     rows = []
     for i in range(n):
-        prompt = "Return JSON with function signature for fn_p95(latencies) and one test."
-        completion = json.dumps({"function": "fn_p95", "signature": "def fn_p95(latencies):", "tests": ["fn_p95([1,2,3])"]})
+        prompt = (
+            "Return JSON with function signature for fn_p95(latencies) and one test."
+        )
+        completion = json.dumps(
+            {
+                "function": "fn_p95",
+                "signature": "def fn_p95(latencies):",
+                "tests": ["fn_p95([1,2,3])"],
+            }
+        )
         rows.append({"prompt": prompt, "completion": completion})
     return rows
 
 
 def build_split():
-    rows = summary_examples() + json_extract_examples() + toolseq_examples() + qa_examples() + safety_examples() + code_examples()
+    rows = (
+        summary_examples()
+        + json_extract_examples()
+        + toolseq_examples()
+        + qa_examples()
+        + safety_examples()
+        + code_examples()
+    )
     return rows
 
 
@@ -105,7 +127,9 @@ def main():
     valid_rows = build_split()[:60]
     write_split(OUT_DIR / "mlx_train.jsonl", train_rows)
     write_split(OUT_DIR / "mlx_valid.jsonl", valid_rows)
-    print(f"[done] wrote {len(train_rows)} train and {len(valid_rows)} valid examples under {OUT_DIR}")
+    print(
+        f"[done] wrote {len(train_rows)} train and {len(valid_rows)} valid examples under {OUT_DIR}"
+    )
 
 
 if __name__ == "__main__":

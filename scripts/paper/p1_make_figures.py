@@ -2,6 +2,7 @@
 """
 Generate Paper 1 figures from W&B episodes artifacts or local episodes.jsonl.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,9 +34,17 @@ def _download_wandb_artifact(artifact: str, target_dir: Path) -> Path:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--episodes", default="", help="Path to local episodes.jsonl (optional).")
-    ap.add_argument("--episodes-dir", default="", help="Directory containing one or more episodes.jsonl files.")
-    ap.add_argument("--artifact", default="", help="W&B artifact name (entity/project/name:alias).")
+    ap.add_argument(
+        "--episodes", default="", help="Path to local episodes.jsonl (optional)."
+    )
+    ap.add_argument(
+        "--episodes-dir",
+        default="",
+        help="Directory containing one or more episodes.jsonl files.",
+    )
+    ap.add_argument(
+        "--artifact", default="", help="W&B artifact name (entity/project/name:alias)."
+    )
     ap.add_argument("--out-dir", default="papers/p1/figs")
     args = ap.parse_args()
 
@@ -49,7 +58,9 @@ def main() -> None:
     elif args.episodes:
         episodes = _load_episodes(Path(args.episodes))
     elif args.artifact:
-        download_dir = _download_wandb_artifact(args.artifact, Path("out/wandb_artifacts"))
+        download_dir = _download_wandb_artifact(
+            args.artifact, Path("out/wandb_artifacts")
+        )
         candidates = list(download_dir.rglob("episodes.jsonl"))
         if not candidates:
             raise SystemExit("episodes.jsonl not found in artifact")

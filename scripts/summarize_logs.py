@@ -10,6 +10,7 @@ Usage examples:
 
 Here, "run" means a directory produced by the trainer (e.g., --out out/my_run) containing train_log.jsonl or eval.jsonl.
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -18,7 +19,9 @@ from typing import List, Dict
 import pandas as pd
 
 
-def _bootstrap_ci(values: List[float], iters: int = 200, alpha: float = 0.05) -> Dict[str, float]:
+def _bootstrap_ci(
+    values: List[float], iters: int = 200, alpha: float = 0.05
+) -> Dict[str, float]:
     if not values:
         return {}
     import random
@@ -32,7 +35,11 @@ def _bootstrap_ci(values: List[float], iters: int = 200, alpha: float = 0.05) ->
     means.sort()
     lo_idx = int(alpha / 2 * (iters - 1))
     hi_idx = int((1 - alpha / 2) * (iters - 1))
-    return {"mean": sum(values) / float(n), "ci_lower": means[lo_idx], "ci_upper": means[hi_idx]}
+    return {
+        "mean": sum(values) / float(n),
+        "ci_lower": means[lo_idx],
+        "ci_upper": means[hi_idx],
+    }
 
 
 def summarize_file(path: Path) -> Dict[str, float]:
@@ -75,7 +82,12 @@ def summarize_file(path: Path) -> Dict[str, float]:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--inputs", nargs="+", required=True, help="JSONL files to summarize (train_log.jsonl or eval.jsonl).")
+    ap.add_argument(
+        "--inputs",
+        nargs="+",
+        required=True,
+        help="JSONL files to summarize (train_log.jsonl or eval.jsonl).",
+    )
     ap.add_argument("--out", type=str, default=None, help="Optional CSV output path.")
     args = ap.parse_args()
 

@@ -175,11 +175,11 @@ MODELS = [
 
 # T-Suite task files
 TASKS = [
-    "tasks/clinc_en.jsonl",      # T1: Intent classification
-    "tasks/hotpot_dev.jsonl",    # T2: Grounded reasoning
-    "tasks/t3_tools.jsonl",      # T3: Tool selection
-    "tasks/t4_bfcl.jsonl",       # T4: Function calling
-    "tasks/t5_swebench.jsonl",   # T5: SWE-bench
+    "tasks/clinc_en.jsonl",  # T1: Intent classification
+    "tasks/hotpot_dev.jsonl",  # T2: Grounded reasoning
+    "tasks/t3_tools.jsonl",  # T3: Tool selection
+    "tasks/t4_bfcl.jsonl",  # T4: Function calling
+    "tasks/t5_swebench.jsonl",  # T5: SWE-bench
 ]
 
 
@@ -188,18 +188,18 @@ def run_cmd(cmd: list, env: dict = None, cwd: str = None) -> int:
     full_env = os.environ.copy()
     if env:
         full_env.update(env)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"[RUN] {' '.join(cmd)}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     result = subprocess.run(cmd, env=full_env, cwd=cwd)
     return result.returncode
 
 
 def run_baseline_evals(out_dir: Path, max_records: int = 0):
     """Run baseline evals for all models on T1-T5."""
-    print("\n" + "#"*60)
+    print("\n" + "#" * 60)
     print("# PHASE 1: BASELINE EVALUATIONS")
-    print("#"*60)
+    print("#" * 60)
 
     results = {}
     for model in MODELS:
@@ -222,11 +222,16 @@ def run_baseline_evals(out_dir: Path, max_records: int = 0):
 
         run_name = f"baseline_{model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         cmd = [
-            "python", "scripts/eval_t_suite.py",
-            "--models", f"hf_local:{model_name}",
-            "--tasks", *TASKS,
-            "--out-dir", str(out_dir / "baseline"),
-            "--run-name", run_name,
+            "python",
+            "scripts/eval_t_suite.py",
+            "--models",
+            f"hf_local:{model_name}",
+            "--tasks",
+            *TASKS,
+            "--out-dir",
+            str(out_dir / "baseline"),
+            "--run-name",
+            run_name,
         ]
         if max_records > 0:
             cmd.extend(["--max-records", str(max_records)])
@@ -239,9 +244,9 @@ def run_baseline_evals(out_dir: Path, max_records: int = 0):
 
 def run_training(out_dir: Path, steps: list = [250, 500]):
     """Run P2 training for all models at specified step checkpoints."""
-    print("\n" + "#"*60)
+    print("\n" + "#" * 60)
     print("# PHASE 2: SLO-AWARE GRPO TRAINING")
-    print("#"*60)
+    print("#" * 60)
 
     results = {}
     for model in MODELS:
@@ -251,15 +256,20 @@ def run_training(out_dir: Path, steps: list = [250, 500]):
         for step_count in steps:
             print(f"\n>>> Training: {model_name} @ {step_count} steps")
 
-            run_name = f"p2_{model_name}_{step_count}steps_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             out_path = out_dir / "training" / f"{model_name}_{step_count}steps"
 
             cmd = [
-                "python", "-m", "agent_stable_slo.train.grpo_train_loop",
-                "--config-preset", config_preset,
-                "--steps", str(step_count),
-                "--out", str(out_path),
-                "--checkpoint-every", str(step_count),  # Save at end
+                "python",
+                "-m",
+                "agent_stable_slo.train.grpo_train_loop",
+                "--config-preset",
+                config_preset,
+                "--steps",
+                str(step_count),
+                "--out",
+                str(out_path),
+                "--checkpoint-every",
+                str(step_count),  # Save at end
             ]
 
             env = {"WANDB_MODE": "online"}
@@ -274,9 +284,9 @@ def run_training(out_dir: Path, steps: list = [250, 500]):
 
 def run_post_training_evals(out_dir: Path, max_records: int = 0):
     """Run post-training evals on trained checkpoints."""
-    print("\n" + "#"*60)
+    print("\n" + "#" * 60)
     print("# PHASE 3: POST-TRAINING EVALUATIONS")
-    print("#"*60)
+    print("#" * 60)
 
     results = {}
     training_dir = out_dir / "training"
@@ -285,7 +295,9 @@ def run_post_training_evals(out_dir: Path, max_records: int = 0):
         model_name = model["name"]
 
         for step_count in [250, 500]:
-            checkpoint_dir = training_dir / f"{model_name}_{step_count}steps" / "adapter"
+            checkpoint_dir = (
+                training_dir / f"{model_name}_{step_count}steps" / "adapter"
+            )
 
             if not checkpoint_dir.exists():
                 print(f">>> Skipping {model_name}@{step_count}: checkpoint not found")
@@ -302,11 +314,16 @@ def run_post_training_evals(out_dir: Path, max_records: int = 0):
 
             run_name = f"post_{model_name}_{step_count}steps_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             cmd = [
-                "python", "scripts/eval_t_suite.py",
-                "--models", f"hf_local:{model_name}_trained_{step_count}",
-                "--tasks", *TASKS,
-                "--out-dir", str(out_dir / "post_training"),
-                "--run-name", run_name,
+                "python",
+                "scripts/eval_t_suite.py",
+                "--models",
+                f"hf_local:{model_name}_trained_{step_count}",
+                "--tasks",
+                *TASKS,
+                "--out-dir",
+                str(out_dir / "post_training"),
+                "--run-name",
+                run_name,
             ]
             if max_records > 0:
                 cmd.extend(["--max-records", str(max_records)])
@@ -322,10 +339,18 @@ def run_post_training_evals(out_dir: Path, max_records: int = 0):
 
 def main():
     parser = argparse.ArgumentParser(description="Run full P1/P2 experiments")
-    parser.add_argument("--phase", choices=["all", "baseline", "train", "post"], default="all")
-    parser.add_argument("--out-dir", default="out/p1_p2_results", help="Output directory")
-    parser.add_argument("--max-records", type=int, default=0, help="Limit eval records (0=all)")
-    parser.add_argument("--steps", nargs="+", type=int, default=[250, 500], help="Training steps")
+    parser.add_argument(
+        "--phase", choices=["all", "baseline", "train", "post"], default="all"
+    )
+    parser.add_argument(
+        "--out-dir", default="out/p1_p2_results", help="Output directory"
+    )
+    parser.add_argument(
+        "--max-records", type=int, default=0, help="Limit eval records (0=all)"
+    )
+    parser.add_argument(
+        "--steps", nargs="+", type=int, default=[250, 500], help="Training steps"
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -334,12 +359,12 @@ def main():
     all_results = {}
     start_time = datetime.now()
 
-    print(f"\n{'#'*60}")
-    print(f"# P1/P2 Full Experiment Run")
+    print(f"\n{'#' * 60}")
+    print("# P1/P2 Full Experiment Run")
     print(f"# Started: {start_time.isoformat()}")
     print(f"# Output: {out_dir}")
     print(f"# Phase: {args.phase}")
-    print(f"{'#'*60}")
+    print(f"{'#' * 60}")
 
     if args.phase in ["all", "baseline"]:
         all_results["baseline"] = run_baseline_evals(out_dir, args.max_records)
@@ -348,7 +373,9 @@ def main():
         all_results["training"] = run_training(out_dir, args.steps)
 
     if args.phase in ["all", "post"]:
-        all_results["post_training"] = run_post_training_evals(out_dir, args.max_records)
+        all_results["post_training"] = run_post_training_evals(
+            out_dir, args.max_records
+        )
 
     # Write summary
     end_time = datetime.now()
@@ -364,11 +391,11 @@ def main():
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2)
 
-    print(f"\n{'#'*60}")
-    print(f"# COMPLETE")
+    print(f"\n{'#' * 60}")
+    print("# COMPLETE")
     print(f"# Duration: {summary['duration_minutes']:.1f} minutes")
     print(f"# Summary: {summary_path}")
-    print(f"{'#'*60}")
+    print(f"{'#' * 60}")
 
     return 0
 

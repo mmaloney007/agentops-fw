@@ -85,7 +85,7 @@ Base commit: {base_commit}
             prompt += f"""
 ## Target Tests (must pass after fix)
 
-{chr(10).join('- ' + t for t in target_tests[:5])}
+{chr(10).join("- " + t for t in target_tests[:5])}
 """
 
         prompt += """
@@ -117,8 +117,12 @@ Provide your solution as a unified diff patch that resolves the issue.
 def main():
     parser = argparse.ArgumentParser(description="Build T5 SWE-bench Lite task suite")
     parser.add_argument("--out", default="tasks/t5_swebench.jsonl", help="Output file")
-    parser.add_argument("--count", type=int, default=300, help="Max tasks (300 = full Lite)")
-    parser.add_argument("--cache-dir", default=".cache/swebench", help="Cache directory")
+    parser.add_argument(
+        "--count", type=int, default=300, help="Max tasks (300 = full Lite)"
+    )
+    parser.add_argument(
+        "--cache-dir", default=".cache/swebench", help="Cache directory"
+    )
     args = parser.parse_args()
 
     cache_dir = Path(args.cache_dir)
@@ -133,7 +137,7 @@ def main():
     print(f"  Loaded {len(items)} items")
 
     tasks = []
-    for item in items[:args.count]:
+    for item in items[: args.count]:
         task = convert_swebench_to_task(item)
         if task:
             tasks.append(task)

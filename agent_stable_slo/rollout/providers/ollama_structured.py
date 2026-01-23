@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -28,8 +27,12 @@ def generate_raw(
         # Ollama supports "format":"json" with prompt hints; use schema as format fallback
         fmt = schema
     max_new = max_tokens if max_tokens is not None else _max_tokens()
-    resp = chat(model=model, messages=[{"role": "user", "content": prompt}], format=fmt,
-                options={"temperature": temperature, "num_predict": max_new})
+    resp = chat(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        format=fmt,
+        options={"temperature": temperature, "num_predict": max_new},
+    )
     lat_ms = (time.time() - t0) * 1000.0
     content = resp.get("message", {}).get("content")
     if not content:

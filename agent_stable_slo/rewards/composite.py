@@ -1,12 +1,21 @@
-
 from .schema_reward import schema_valid
 from .slo_reward import latency_penalty, cost_penalty
 from .stability_reward import stability_penalty
-def composite_reward(output_json, schema, ok_success:int,
-                     latency_ms:float, tokens:int,
-                     lam_latency:float, mu_cost:float,
-                     disagreement_rate:float=0.0, gamma_stability:float=0.0,
-                     faithfulness:float=1.0, kappa_faithfulness:float=0.0)->float:
+
+
+def composite_reward(
+    output_json,
+    schema,
+    ok_success: int,
+    latency_ms: float,
+    tokens: int,
+    lam_latency: float,
+    mu_cost: float,
+    disagreement_rate: float = 0.0,
+    gamma_stability: float = 0.0,
+    faithfulness: float = 1.0,
+    kappa_faithfulness: float = 0.0,
+) -> float:
     r = 0.0
     r += 1.0 * schema_valid(output_json, schema)
     r += 1.0 * ok_success

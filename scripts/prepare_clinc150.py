@@ -9,6 +9,7 @@ This script:
 - injects the allowed label list into prompts
 - updates tasks/schemas/clinc_nlu_schema.json to include intent enum
 """
+
 from __future__ import annotations
 
 import argparse
@@ -59,12 +60,16 @@ def rewrite_prompts(prompt: str, labels: List[str]) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--no-backup", action="store_true", help="Do not create .bak files.")
+    ap.add_argument(
+        "--no-backup", action="store_true", help="Do not create .bak files."
+    )
     args = ap.parse_args()
 
     labels = load_labels()
     text_to_label = build_text_to_label(labels)
-    LABELS_PATH.write_text(json.dumps(labels, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    LABELS_PATH.write_text(
+        json.dumps(labels, ensure_ascii=True, indent=2) + "\n", encoding="utf-8"
+    )
 
     bak_tasks = TASKS_PATH.with_suffix(".jsonl.bak")
     bak_schema = SCHEMA_PATH.with_suffix(".json.bak")
@@ -112,7 +117,9 @@ def main() -> None:
     schema["properties"]["intent"] = {"type": "string", "enum": labels}
     if "required" not in schema:
         schema["required"] = ["intent", "is_oos"]
-    SCHEMA_PATH.write_text(json.dumps(schema, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    SCHEMA_PATH.write_text(
+        json.dumps(schema, ensure_ascii=True, indent=2) + "\n", encoding="utf-8"
+    )
     print(f"[done] wrote {LABELS_PATH}")
     print(f"[done] rewrote {TASKS_PATH}")
     print(f"[done] updated {SCHEMA_PATH}")

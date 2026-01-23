@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -12,12 +11,14 @@ TOOLSEQ_DEFAULTS = {
     "file_ticket": ["run_sql_query", "file_ticket"],
 }
 
+
 def _max_tokens(default: Optional[int] = None):
     try:
         val = int(os.getenv("MAX_THOUGHT_TOKENS", str(default or 512)))
         return val if val > 0 else None
     except Exception:
         return default or 512
+
 
 def _completion_tokens(resp) -> int:
     try:
@@ -32,6 +33,7 @@ def _prompt_tokens(resp) -> int:
     except Exception:
         return -1
 
+
 def _maybe_augment_prompt(prompt: str, schema: dict) -> str:
     needs_cite = "citations" in schema.get("properties", {})
     props = schema.get("properties", {})
@@ -40,26 +42,48 @@ def _maybe_augment_prompt(prompt: str, schema: dict) -> str:
         "Use only information explicitly present in the sources/instructions; do not invent facts.",
         "If you are asked for bullets, each bullet must be backed by a source.",
         "If you are asked to cite, every bullet/field must include a citation like [s1].",
-        "Do not add explanations or commentary outside the schema."
+        "Do not add explanations or commentary outside the schema.",
     ]
     if "tool" in props:
         enum = props.get("tool", {}).get("enum", [])
         if enum:
             hints.append(f"Pick exactly one tool from {enum}; use that exact string.")
-        hints.append("Fill every required argument for the chosen tool; do not add optional/unknown fields.")
-        hints.append("If arguments have enums (e.g., window=last_15m|last_hour|last_day, aggregate=p50|p90|p95|p99; severity=low|medium|high|critical), pick the closest match from the request or defaults; do not invent new values.")
-        hints.append("If arrays are required (e.g., fields[]), supply at least one concrete item from the request context.")
-        hints.append("For metrics, use snake_case and include units: latency -> *_latency_ms, rates/percentages -> *_perc; examples: checkout_latency_ms, email_queue_depth, signup_rate_pct, auth_failures_perc.")
-        hints.append("For components, keep the service/system token from the request (auth-service, config-service, orders-db, payment-webhook); use kebab-case, no spaces.")
-        hints.append("For focus/summary strings, copy the phrasing from the request; avoid underscores or paraphrases.")
-        hints.append("Do not invent synonyms: copy metric/component strings exactly from the request and only add the unit suffix (_ms, _perc) when obvious (latency -> _ms, rate/fail/error -> _perc).")
-        hints.append("Output shape must be {\"tool\": \"...\", \"arguments\": {...}} with no extra keys.")
+        hints.append(
+            "Fill every required argument for the chosen tool; do not add optional/unknown fields."
+        )
+        hints.append(
+            "If arguments have enums (e.g., window=last_15m|last_hour|last_day, aggregate=p50|p90|p95|p99; severity=low|medium|high|critical), pick the closest match from the request or defaults; do not invent new values."
+        )
+        hints.append(
+            "If arrays are required (e.g., fields[]), supply at least one concrete item from the request context."
+        )
+        hints.append(
+            "For metrics, use snake_case and include units: latency -> *_latency_ms, rates/percentages -> *_perc; examples: checkout_latency_ms, email_queue_depth, signup_rate_pct, auth_failures_perc."
+        )
+        hints.append(
+            "For components, keep the service/system token from the request (auth-service, config-service, orders-db, payment-webhook); use kebab-case, no spaces."
+        )
+        hints.append(
+            "For focus/summary strings, copy the phrasing from the request; avoid underscores or paraphrases."
+        )
+        hints.append(
+            "Do not invent synonyms: copy metric/component strings exactly from the request and only add the unit suffix (_ms, _perc) when obvious (latency -> _ms, rate/fail/error -> _perc)."
+        )
+        hints.append(
+            'Output shape must be {"tool": "...", "arguments": {...}} with no extra keys.'
+        )
     if needs_cite:
-        hints.append("Every bullet/field must include a supporting source and a citation token like [s1]; do not fabricate citations.")
+        hints.append(
+            "Every bullet/field must include a supporting source and a citation token like [s1]; do not fabricate citations."
+        )
     if "steps" in props:
-        hints.append("Return an ordered list of steps (strings) that follow the instructions; do not add commentary.")
+        hints.append(
+            "Return an ordered list of steps (strings) that follow the instructions; do not add commentary."
+        )
     if "tool" in props:
-        hints.append("Pick the single best tool name and provide arguments per schema; no extra fields.")
+        hints.append(
+            "Pick the single best tool name and provide arguments per schema; no extra fields."
+        )
     if hints:
         return "\n".join(hints) + "\n\n" + prompt
     return prompt
@@ -77,7 +101,9 @@ def _normalize_tool_call(j: dict) -> dict:
             m = str(metric).strip().lower().replace(" ", "_").replace("-", "_")
             if "latency" in m and not m.endswith("_ms"):
                 m = f"{m}_ms"
-            if any(tok in m for tok in ["rate", "error", "fail"]) and not (m.endswith("_perc") or m.endswith("_pct") or m.endswith("rate")):
+            if any(tok in m for tok in ["rate", "error", "fail"]) and not (
+                m.endswith("_perc") or m.endswith("_pct") or m.endswith("rate")
+            ):
                 m = f"{m}_perc"
             args["metric"] = m
         for key in ("window", "aggregate"):
@@ -151,15 +177,22 @@ def generate_raw(
         if mode == "structured":
             r = client.chat.completions.create(
                 model=model,
-                messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
-                response_format={"type": "json_schema", "json_schema": {"name": "spec", "schema": schema}},
+                messages=[
+                    {"role": "user", "content": _maybe_augment_prompt(prompt, schema)}
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"name": "spec", "schema": schema},
+                },
                 temperature=temperature,
                 max_tokens=max_new,
             )
         else:
             r = client.chat.completions.create(
                 model=model,
-                messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
+                messages=[
+                    {"role": "user", "content": _maybe_augment_prompt(prompt, schema)}
+                ],
                 response_format={"type": "text"},
                 temperature=temperature,
                 max_tokens=max_new,
@@ -169,7 +202,9 @@ def generate_raw(
             # Fallback to text and best-effort parse
             r = client.chat.completions.create(
                 model=model,
-                messages=[{"role": "user", "content": _maybe_augment_prompt(prompt, schema)}],
+                messages=[
+                    {"role": "user", "content": _maybe_augment_prompt(prompt, schema)}
+                ],
                 response_format={"type": "text"},
                 temperature=temperature,
                 max_tokens=max_new,
@@ -210,11 +245,11 @@ def generate_raw(
         # If bullets exist but lack citations, append the first source id if available
         if isinstance(j.get("bullets"), list) and j.get("citations"):
             cid = j["citations"][0]
-            fixed=[]
+            fixed = []
             for b in j["bullets"]:
-                bstr=str(b)
+                bstr = str(b)
                 if "[s" not in bstr:
-                    bstr=f"{bstr} ({cid})"
+                    bstr = f"{bstr} ({cid})"
                 fixed.append(bstr)
             j["bullets"] = fixed
     # Post-process tool sequences: ensure non-empty steps

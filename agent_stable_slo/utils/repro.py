@@ -24,7 +24,9 @@ except Exception:  # pragma: no cover - jax is optional
 def _git_rev() -> Optional[str]:
     try:
         return (
-            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+            )
             .decode("utf-8")
             .strip()
         )
@@ -35,7 +37,9 @@ def _git_rev() -> Optional[str]:
 def _git_status() -> Optional[str]:
     try:
         return (
-            subprocess.check_output(["git", "status", "--short", "--branch"], stderr=subprocess.DEVNULL)
+            subprocess.check_output(
+                ["git", "status", "--short", "--branch"], stderr=subprocess.DEVNULL
+            )
             .decode("utf-8", errors="ignore")
             .strip()
         )
@@ -46,7 +50,9 @@ def _git_status() -> Optional[str]:
 def _pip_freeze(max_lines: int = 200) -> List[str]:
     try:
         out = (
-            subprocess.check_output([sys.executable, "-m", "pip", "freeze"], stderr=subprocess.DEVNULL)
+            subprocess.check_output(
+                [sys.executable, "-m", "pip", "freeze"], stderr=subprocess.DEVNULL
+            )
             .decode("utf-8", errors="ignore")
             .splitlines()
         )
@@ -69,7 +75,9 @@ def _cuda_env() -> Dict[str, Any]:
     except Exception:
         pass
     try:
-        info["capability"] = ".".join(str(x) for x in torch.cuda.get_device_capability(0))
+        info["capability"] = ".".join(
+            str(x) for x in torch.cuda.get_device_capability(0)
+        )
     except Exception:
         pass
     try:
@@ -83,7 +91,9 @@ def _cuda_env() -> Dict[str, Any]:
     return info
 
 
-def env_snapshot(extra: Optional[Dict[str, Any]] = None, include_packages: bool = True) -> Dict[str, Any]:
+def env_snapshot(
+    extra: Optional[Dict[str, Any]] = None, include_packages: bool = True
+) -> Dict[str, Any]:
     snap = {
         "python": sys.version.split()[0],
         "platform": platform.platform(),
@@ -137,7 +147,10 @@ def set_seed(seed: int, deterministic: bool = False) -> Dict[str, Any]:
 
 
 def capture_rng_state() -> Dict[str, Any]:
-    state: Dict[str, Any] = {"python": random.getstate(), "numpy": np.random.get_state()}
+    state: Dict[str, Any] = {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+    }
     if torch is not None:
         try:
             state["torch_cpu"] = torch.get_rng_state()

@@ -4,6 +4,7 @@ Stub for short GRPO-style finetune: samples tasks, computes rewards, and (placeh
 would update the model. Currently logs rewards to W&B and writes eval.jsonl so we can
 compare before/after; real optimizer integration can be added later.
 """
+
 import os
 import json
 import argparse
@@ -39,8 +40,16 @@ def main():
     mu = float(os.getenv("MU_COST", "0.0"))
     gamma = float(os.getenv("GAMMA_STABILITY", "0.0"))
     provider = os.getenv("AOFW_PROVIDER", "lmstudio")
-    with WL.maybe_run(name=os.path.basename(args.out),
-                      config={"provider": provider, "steps": args.steps, "samples": args.samples, "tasks": args.tasks, "hardware": hw_cfg}) as run:
+    with WL.maybe_run(
+        name=os.path.basename(args.out),
+        config={
+            "provider": provider,
+            "steps": args.steps,
+            "samples": args.samples,
+            "tasks": args.tasks,
+            "hardware": hw_cfg,
+        },
+    ) as run:
         latencies = []
         with open(eval_path, "w", encoding="utf-8") as fo:
             for i in range(args.steps):
@@ -48,9 +57,20 @@ def main():
                 schema = json.load(open(row["schema_path"], "r", encoding="utf-8"))
                 best = None
                 for _ in range(max(1, args.samples)):
-                    out_json, lat_ms, ttft_ms, tokens = provider_generate(row["prompt"], schema)
-                    r = composite_reward(out_json, schema, ok_success=1, latency_ms=lat_ms, tokens=max(0, tokens),
-                                         lam_latency=lam, mu_cost=mu, disagreement_rate=0.0, gamma_stability=gamma)
+                    out_json, lat_ms, ttft_ms, tokens = provider_generate(
+                        row["prompt"], schema
+                    )
+                    r = composite_reward(
+                        out_json,
+                        schema,
+                        ok_success=1,
+                        latency_ms=lat_ms,
+                        tokens=max(0, tokens),
+                        lam_latency=lam,
+                        mu_cost=mu,
+                        disagreement_rate=0.0,
+                        gamma_stability=gamma,
+                    )
                     cand = {
                         "step": i,
                         "latency_ms": float(round(lat_ms, 3)),
@@ -68,12 +88,28 @@ def main():
                         best = cand
                 fo.write(json.dumps(best) + "\n")
                 latencies.append(best["latency_ms"])
-                WL.log(run, {k: best[k] for k in ["latency_ms", "ttft_ms", "reward", "json_valid"]}, step=i)
+                WL.log(
+                    run,
+                    {
+                        k: best[k]
+                        for k in ["latency_ms", "ttft_ms", "reward", "json_valid"]
+                    },
+                    step=i,
+                )
         if latencies:
             s = sorted(latencies)
             p95 = s[int(0.95 * (len(s) - 1))]
-            WL.log(run, {"summary_p95_ms": p95, "summary_avg_ttft_ms": statistics.mean(latencies)}, step=len(latencies))
-        WL.log_artifact(run, eval_path, name=os.path.basename(args.out) + "-eval", type_="metrics")
+            WL.log(
+                run,
+                {
+                    "summary_p95_ms": p95,
+                    "summary_avg_ttft_ms": statistics.mean(latencies),
+                },
+                step=len(latencies),
+            )
+        WL.log_artifact(
+            run, eval_path, name=os.path.basename(args.out) + "-eval", type_="metrics"
+        )
     print(f"[done] wrote {eval_path}")
 
 

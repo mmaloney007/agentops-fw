@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build tasks JSONL from CLINC OOS (subset plus) for intent classification and oos flag."""
+
 import argparse
 import json
 import random
@@ -19,7 +20,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--count", type=int, default=500)
     ap.add_argument("--seed", type=int, default=17)
-    ap.add_argument("--subset", default="plus", help="clinc_oos subset: plus/small/imbalanced")
+    ap.add_argument(
+        "--subset", default="plus", help="clinc_oos subset: plus/small/imbalanced"
+    )
     ap.add_argument("--split", default="validation", help="train/validation/test")
     ap.add_argument("--out", default="tasks/clinc_en.jsonl")
     args = ap.parse_args()

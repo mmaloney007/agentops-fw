@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 def _import_torch():
     try:
         import torch  # type: ignore
+
         return torch
     except Exception:
         return None
@@ -17,13 +18,13 @@ def _ram_gb() -> Optional[float]:
     try:
         import psutil  # type: ignore
 
-        return round(psutil.virtual_memory().total / (1024 ** 3), 1)
+        return round(psutil.virtual_memory().total / (1024**3), 1)
     except Exception:
         pass
     try:
         pages = os.sysconf("SC_PHYS_PAGES")
         page_size = os.sysconf("SC_PAGE_SIZE")
-        return round((pages * page_size) / (1024 ** 3), 1)
+        return round((pages * page_size) / (1024**3), 1)
     except Exception:
         return None
 
@@ -35,12 +36,14 @@ def _cuda_props(torch_mod) -> Dict[str, Any]:
     except Exception:
         props["name"] = "cuda"
     try:
-        props["capability"] = ".".join([str(x) for x in torch_mod.cuda.get_device_capability(0)])
+        props["capability"] = ".".join(
+            [str(x) for x in torch_mod.cuda.get_device_capability(0)]
+        )
     except Exception:
         props["capability"] = None
     try:
         props["total_mem_gb"] = round(
-            torch_mod.cuda.get_device_properties(0).total_memory / (1024 ** 3), 1
+            torch_mod.cuda.get_device_properties(0).total_memory / (1024**3), 1
         )
     except Exception:
         props["total_mem_gb"] = None
@@ -56,7 +59,9 @@ def _mps_props(torch_mod) -> Dict[str, Any]:
     props["total_mem_gb"] = _ram_gb()
     try:
         # High watermark ratio env helps avoid MPS OOM thrashing
-        props["mps_high_watermark_ratio"] = os.getenv("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "unset")
+        props["mps_high_watermark_ratio"] = os.getenv(
+            "PYTORCH_MPS_HIGH_WATERMARK_RATIO", "unset"
+        )
     except Exception:
         props["mps_high_watermark_ratio"] = "unset"
     return props
@@ -109,7 +114,11 @@ def detect_hardware() -> HardwareInfo:
             supports_bf16=bool(props.get("supports_bf16")),
             notes=notes,
         )
-    if torch_mod and getattr(torch_mod.backends, "mps", None) and torch_mod.backends.mps.is_available():
+    if (
+        torch_mod
+        and getattr(torch_mod.backends, "mps", None)
+        and torch_mod.backends.mps.is_available()
+    ):
         props = _mps_props(torch_mod)
         kind = "apple_mps"
         notes = "use 4/8-bit + Metal; keep batch small"

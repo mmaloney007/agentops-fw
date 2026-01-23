@@ -4,6 +4,7 @@ Expand HotpotQA tasks by generating deterministic prompt variants.
 
 Keeps Context/Question blocks intact so evidence ids remain valid.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -82,7 +83,7 @@ def main() -> None:
         while len(expanded) < args.target:
             src = base[i % len(base)]
             new = dict(src)
-            new["id"] = f"{src.get('id','hotpot')}_x{len(expanded)}"
+            new["id"] = f"{src.get('id', 'hotpot')}_x{len(expanded)}"
             expanded.append(new)
             i += 1
 

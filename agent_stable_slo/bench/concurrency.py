@@ -1,4 +1,3 @@
-
 import argparse
 import time
 import threading
@@ -24,16 +23,24 @@ def worker(task_q, results, schema):
 
 
 def run_bench(qps, duration, schema_path):
-    with WL.maybe_run(name=f"bench-qps{qps}-dur{duration}", config={"qps": qps, "duration": duration, "schema": schema_path}) as run:
+    with WL.maybe_run(
+        name=f"bench-qps{qps}-dur{duration}",
+        config={"qps": qps, "duration": duration, "schema": schema_path},
+    ) as run:
         schema = json.load(open(schema_path, "r", encoding="utf-8"))
         total = int(qps * duration)
-        prompts = [f"Case {i}: return JSON conforming to the schema" for i in range(total)]
+        prompts = [
+            f"Case {i}: return JSON conforming to the schema" for i in range(total)
+        ]
         task_q = queue.Queue()
         for p in prompts:
             task_q.put(p)
         results = []
         concurrency = min(qps, 64)
-        threads = [threading.Thread(target=worker, args=(task_q, results, schema), daemon=True) for _ in range(concurrency)]
+        threads = [
+            threading.Thread(target=worker, args=(task_q, results, schema), daemon=True)
+            for _ in range(concurrency)
+        ]
         for t in threads:
             t.start()
         t0 = time.time()

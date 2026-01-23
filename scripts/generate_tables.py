@@ -17,6 +17,7 @@ Notes:
 - "run" = training output dir (passed via --out), containing train_log.jsonl/eval.jsonl and checkpoints/.
 - If --sweep-checkpoints is set, we evaluate all checkpoints under run_dir/checkpoints on the provided tasks.
 """
+
 import argparse
 import os
 import json
@@ -33,15 +34,36 @@ from agent_stable_slo.utils.hardware import detect_hardware, recommended_default
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run-dir", required=True, help="Run directory (e.g., out/my_run)")
-    ap.add_argument("--tasks", type=str, default=None, help="Tasks JSONL for checkpoint sweep (e.g., tasks/fc_tasks.jsonl)")
-    ap.add_argument("--steps", type=int, default=100, help="Steps per checkpoint sweep (if enabled)")
-    ap.add_argument("--samples", type=int, default=1, help="Samples per task during checkpoint sweep")
+    ap.add_argument(
+        "--tasks",
+        type=str,
+        default=None,
+        help="Tasks JSONL for checkpoint sweep (e.g., tasks/fc_tasks.jsonl)",
+    )
+    ap.add_argument(
+        "--steps", type=int, default=100, help="Steps per checkpoint sweep (if enabled)"
+    )
+    ap.add_argument(
+        "--samples",
+        type=int,
+        default=1,
+        help="Samples per task during checkpoint sweep",
+    )
     ap.add_argument("--max-new-tokens", type=int, default=128)
     ap.add_argument("--deterministic", action="store_true")
     ap.add_argument("--temperature", type=float, default=0.7)
     ap.add_argument("--top-p", type=float, default=0.95)
-    ap.add_argument("--sweep-checkpoints", action="store_true", help="If set, evaluate all checkpoints in the run_dir")
-    ap.add_argument("--max-ckpts", type=int, default=0, help="Limit checkpoints evaluated during sweep (0 = all).")
+    ap.add_argument(
+        "--sweep-checkpoints",
+        action="store_true",
+        help="If set, evaluate all checkpoints in the run_dir",
+    )
+    ap.add_argument(
+        "--max-ckpts",
+        type=int,
+        default=0,
+        help="Limit checkpoints evaluated during sweep (0 = all).",
+    )
     ap.add_argument("--out", type=str, default="table.csv", help="CSV output path")
     args = ap.parse_args()
 
@@ -69,9 +91,13 @@ def main():
             manifest_path = run_dir / "manifest.json"
             if manifest_path.exists():
                 manifest = json.load(open(manifest_path, "r", encoding="utf-8"))
-                tasks_path = manifest.get("config", {}).get("tasks") or manifest.get("tasks")
+                tasks_path = manifest.get("config", {}).get("tasks") or manifest.get(
+                    "tasks"
+                )
         if tasks_path is None:
-            raise SystemExit("tasks file required for checkpoint sweep (pass --tasks or ensure manifest has tasks)")
+            raise SystemExit(
+                "tasks file required for checkpoint sweep (pass --tasks or ensure manifest has tasks)"
+            )
         tasks = _load_tasks(tasks_path)
         hw = detect_hardware()
         hw_cfg = hw.as_dict()
@@ -80,9 +106,13 @@ def main():
         manifest_path = run_dir / "manifest.json"
         if manifest_path.exists():
             manifest = json.load(open(manifest_path, "r", encoding="utf-8"))
-            base_model = manifest.get("config", {}).get("base_model") or manifest.get("base_model")
+            base_model = manifest.get("config", {}).get("base_model") or manifest.get(
+                "base_model"
+            )
         if base_model is None:
-            raise SystemExit("base_model not found in manifest; please set base_model manually in manifest or pass different run_dir")
+            raise SystemExit(
+                "base_model not found in manifest; please set base_model manually in manifest or pass different run_dir"
+            )
 
         ckpts = sorted((run_dir / "checkpoints").glob("step_*"))
         if args.max_ckpts and len(ckpts) > args.max_ckpts:

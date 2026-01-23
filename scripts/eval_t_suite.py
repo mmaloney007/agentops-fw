@@ -8,6 +8,7 @@ Usage:
 
 Set AOFW_PROVIDER/LMSTUDIO_MODEL/OLLAMA_MODEL/VLLM_MODEL env vars as needed.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,7 +74,9 @@ def _score_t1(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     fields = ["category", "severity", "source", "time_window"]
     matches = []
     for f in fields:
-        matches.append(1.0 if _norm(out_json.get(f, "")) == _norm(gold.get(f, "")) else 0.0)
+        matches.append(
+            1.0 if _norm(out_json.get(f, "")) == _norm(gold.get(f, "")) else 0.0
+        )
     metrics["t1_field_acc"] = sum(matches) / len(matches)
     raw_tags = out_json.get("tags", [])
     if not isinstance(raw_tags, list):
@@ -81,7 +84,9 @@ def _score_t1(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     pred_tags = set(_norm(t) for t in raw_tags)
     gold_tags = set(_norm(t) for t in gold.get("tags", []))
     metrics["t1_tag_f1"] = _f1_sets(pred_tags, gold_tags)
-    metrics["t1_exact_match"] = 1.0 if metrics["t1_field_acc"] == 1.0 and metrics["t1_tag_f1"] == 1.0 else 0.0
+    metrics["t1_exact_match"] = (
+        1.0 if metrics["t1_field_acc"] == 1.0 and metrics["t1_tag_f1"] == 1.0 else 0.0
+    )
     return metrics
 
 
@@ -89,14 +94,29 @@ def _score_t2(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     metrics: Dict[str, float] = {}
     if not gold:
         return metrics
-    metrics["t2_summary_f1"] = _f1_sets(_token_set(out_json.get("short_summary", "")), _token_set(gold.get("short_summary", "")))
+    metrics["t2_summary_f1"] = _f1_sets(
+        _token_set(out_json.get("short_summary", "")),
+        _token_set(gold.get("short_summary", "")),
+    )
     pred_points = []
     if isinstance(out_json.get("key_points"), list):
         pred_points = [_norm(p) for p in out_json["key_points"]]
     gold_points = [_norm(p) for p in gold.get("key_points", [])]
-    metrics["t2_key_point_f1"] = _f1_sets(set(" ".join(pred_points).split()), set(" ".join(gold_points).split()))
-    metrics["t2_primary_risk_match"] = 1.0 if _norm(out_json.get("primary_risk", "")) == _norm(gold.get("primary_risk", "")) else 0.0
-    metrics["t2_action_match"] = 1.0 if _norm(out_json.get("recommended_action", "")) == _norm(gold.get("recommended_action", "")) else 0.0
+    metrics["t2_key_point_f1"] = _f1_sets(
+        set(" ".join(pred_points).split()), set(" ".join(gold_points).split())
+    )
+    metrics["t2_primary_risk_match"] = (
+        1.0
+        if _norm(out_json.get("primary_risk", ""))
+        == _norm(gold.get("primary_risk", ""))
+        else 0.0
+    )
+    metrics["t2_action_match"] = (
+        1.0
+        if _norm(out_json.get("recommended_action", ""))
+        == _norm(gold.get("recommended_action", ""))
+        else 0.0
+    )
     return metrics
 
 
@@ -105,9 +125,17 @@ def _score_t3(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     if not gold:
         return metrics
     tool_match = _norm(out_json.get("tool")) == _norm(gold.get("tool"))
-    gold_args = gold.get("arguments", {}) if isinstance(gold.get("arguments"), dict) else {}
-    out_args = out_json.get("arguments", {}) if isinstance(out_json.get("arguments"), dict) else {}
-    args_match = tool_match and all(_norm(out_args.get(k)) == _norm(v) for k, v in gold_args.items())
+    gold_args = (
+        gold.get("arguments", {}) if isinstance(gold.get("arguments"), dict) else {}
+    )
+    out_args = (
+        out_json.get("arguments", {})
+        if isinstance(out_json.get("arguments"), dict)
+        else {}
+    )
+    args_match = tool_match and all(
+        _norm(out_args.get(k)) == _norm(v) for k, v in gold_args.items()
+    )
     metrics["t3_tool_match"] = 1.0 if tool_match else 0.0
     metrics["t3_args_match"] = 1.0 if args_match else 0.0
     metrics["t3_success"] = 1.0 if tool_match and args_match else 0.0
@@ -125,7 +153,11 @@ def _score_t4(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
         return metrics
 
     pred_name = out_json.get("name", "")
-    pred_args = out_json.get("arguments", {}) if isinstance(out_json.get("arguments"), dict) else {}
+    pred_args = (
+        out_json.get("arguments", {})
+        if isinstance(out_json.get("arguments"), dict)
+        else {}
+    )
 
     # BFCL gold is {func_name: {param: [possible_values]}}
     # Check if predicted function name matches any gold function
@@ -154,7 +186,9 @@ def _score_t4(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     else:
         metrics["t4_args_acc"] = 0.0
 
-    metrics["t4_success"] = 1.0 if name_match and metrics.get("t4_args_acc", 0) >= 0.99 else 0.0
+    metrics["t4_success"] = (
+        1.0 if name_match and metrics.get("t4_args_acc", 0) >= 0.99 else 0.0
+    )
     return metrics
 
 
@@ -181,7 +215,9 @@ def _score_t5(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     return metrics
 
 
-def _score_record(task: Dict[str, Any], out_json: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, float]:
+def _score_record(
+    task: Dict[str, Any], out_json: Dict[str, Any], schema: Dict[str, Any]
+) -> Dict[str, float]:
     metrics: Dict[str, float] = {}
     metrics["json_valid"] = 1.0 if _validate_json(out_json, schema) else 0.0
     gold = task.get("gold", {})
@@ -211,7 +247,9 @@ def _aggregate(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         summary[k] = round(statistics.mean(vals), 4)
     latencies = [r["latency_ms"] for r in results if r.get("latency_ms") is not None]
     ttfts = [r["ttft_ms"] for r in results if r.get("ttft_ms") is not None]
-    summary["avg_latency_ms"] = round(statistics.mean(latencies), 2) if latencies else 0.0
+    summary["avg_latency_ms"] = (
+        round(statistics.mean(latencies), 2) if latencies else 0.0
+    )
     summary["avg_ttft_ms"] = round(statistics.mean(ttfts), 2) if ttfts else 0.0
     summary["count"] = len(results)
     return summary
@@ -240,13 +278,32 @@ def main():
     ap.add_argument(
         "--tasks",
         nargs="+",
-        default=["tasks/clinc_en.jsonl", "tasks/hotpot_dev.jsonl", "tasks/t3_tools.jsonl"],
+        default=[
+            "tasks/clinc_en.jsonl",
+            "tasks/hotpot_dev.jsonl",
+            "tasks/t3_tools.jsonl",
+        ],
     )
-    ap.add_argument("--models", nargs="+", required=True, help="List of provider:model specs (e.g., lmstudio:qwen/qwen3-4b-thinking-2507).")
-    ap.add_argument("--mode", default="structured", help="Decode mode: structured|text|grammar (passed to provider_generate).")
-    ap.add_argument("--max-records", type=int, default=0, help="Optional cap on total records.")
-    ap.add_argument("--out-dir", default="out/evals", help="Directory to write per-model results.")
-    ap.add_argument("--run-name", default=None, help="Optional run name; defaults to timestamp.")
+    ap.add_argument(
+        "--models",
+        nargs="+",
+        required=True,
+        help="List of provider:model specs (e.g., lmstudio:qwen/qwen3-4b-thinking-2507).",
+    )
+    ap.add_argument(
+        "--mode",
+        default="structured",
+        help="Decode mode: structured|text|grammar (passed to provider_generate).",
+    )
+    ap.add_argument(
+        "--max-records", type=int, default=0, help="Optional cap on total records."
+    )
+    ap.add_argument(
+        "--out-dir", default="out/evals", help="Directory to write per-model results."
+    )
+    ap.add_argument(
+        "--run-name", default=None, help="Optional run name; defaults to timestamp."
+    )
     args = ap.parse_args()
 
     tasks = _load_tasks(args.tasks, args.max_records or None)
@@ -275,11 +332,15 @@ def main():
                 schema_file = Path(schema_path)
                 if not schema_file.exists():
                     schema_file = Path(__file__).resolve().parents[1] / schema_path
-                schema_cache[schema_path] = json.load(open(schema_file, "r", encoding="utf-8"))
+                schema_cache[schema_path] = json.load(
+                    open(schema_file, "r", encoding="utf-8")
+                )
             schema = schema_cache[schema_path]
             error_msg = None
             try:
-                out_json, lat_ms, ttft_ms, tokens = provider_generate(rec["prompt"], schema, mode=args.mode)
+                out_json, lat_ms, ttft_ms, tokens = provider_generate(
+                    rec["prompt"], schema, mode=args.mode
+                )
                 metrics = _score_record(rec, out_json, schema)
             except Exception as exc:
                 out_json, lat_ms, ttft_ms, tokens = {}, 1e6, 1e6, -1

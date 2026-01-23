@@ -25,10 +25,23 @@ def main():
         os.environ["MU_COST"] = str(mu)
         os.environ["GAMMA_STABILITY"] = str(gam)
         out = f"{PREFIX}/lam{lam}_mu{mu}_gam{gam}"
-        run([sys.executable, "-m", "agent_stable_slo.train.grpo_trl",
-             "--base-model", BASE_MODEL,
-             "--tasks", "tasks/fc_tasks.jsonl",
-             "--out", out, "--steps", str(STEPS), "--max-new-tokens", "196"])
+        run(
+            [
+                sys.executable,
+                "-m",
+                "agent_stable_slo.train.grpo_trl",
+                "--base-model",
+                BASE_MODEL,
+                "--tasks",
+                "tasks/fc_tasks.jsonl",
+                "--out",
+                out,
+                "--steps",
+                str(STEPS),
+                "--max-new-tokens",
+                "196",
+            ]
+        )
 
 
 if __name__ == "__main__":

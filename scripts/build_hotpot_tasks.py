@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build a tasks JSONL from HotpotQA (distractor) for grounded QA + reasoning summary."""
+
 import argparse
 import json
 import random
@@ -45,7 +46,9 @@ def build_context_and_evidence(example):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--split", default="validation", help="hotpot_qa split (train/validation)")
+    ap.add_argument(
+        "--split", default="validation", help="hotpot_qa split (train/validation)"
+    )
     ap.add_argument("--count", type=int, default=200)
     ap.add_argument("--seed", type=int, default=17)
     ap.add_argument("--out", default="tasks/hotpot_dev.jsonl")
