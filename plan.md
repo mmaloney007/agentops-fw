@@ -190,8 +190,8 @@ This gives us: **4 countries, 8 vendors, 13 models** - includes OpenAI's first o
 
 | Paper | Title | Core Claim | Status |
 |-------|-------|------------|--------|
-| **P1** | The Deployment Gap: Why Benchmark Accuracy Fails to Predict Production Readiness | Introduces the paradox, defines Success@SLO | ✅ Draft updated |
-| **P2** | Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap | Shows training behavior, extends NVIDIA | ✅ Draft updated |
+| **P1** | The Deployment Gap: Why Benchmark Accuracy Fails to Predict Production Readiness | Introduces the paradox, defines Success@SLO | ✅ **COMPLETE** - Final PDF |
+| **P2** | Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap | Shows training behavior, extends NVIDIA | ✅ **COMPLETE** - Final PDF |
 | **P3** | AgentSLO-Bench: Ranking Models by What Actually Matters for Deployment | Operationalizes the paradox as community benchmark | 🆕 To write |
 | **P4** | Continuous Deployment Under Contract: MLOps for SLO-Aware Agents | Engineering implications | 🆕 To write |
 | **P5** | Closing the Gap: A Case Study in Production Agent Deployment | Real-world validation | 🆕 To write |
@@ -653,6 +653,16 @@ out/expanded_eval_20260115/     # Expanded evaluation (to run)
 
 ## Progress Log
 
+- **2026-01-23**: 🎉 **P1 + P2 PAPERS FINALIZED**
+  - ✅ T1/T2 accuracy scoring fixed (wrong field names: `t1_field_acc`, `t2_summary_f1`)
+  - ✅ T1/T2 re-run complete for all 13 models (500 samples each)
+  - ✅ gemma-3-12b T5 re-run (corrupted data fixed)
+  - ✅ Paper 1 updated with final results: Success@SLO 49.1% (1B) to 0.0% (12B)
+  - ✅ Paper 2 updated with training results: Last-50 valid 79% (12B), 53% (9B), 0% (sub-6B)
+  - ✅ Both papers transformed to natural academic voice
+  - ✅ Both papers compiled to PDF (20 pages each)
+  - ✅ Merged `paper_1_redirect` → `main` and pushed
+  - **Next**: P3 (AgentSLO-Bench) or editing pass on P1/P2
 - **2026-01-21 (22:45)**: 🎉 P2 TRAINING COMPLETE!
   - ✅ **ALL GEMMA-3-12B RUNS COMPLETE** (6/6 runs)
   - 🎉 **Final Results**: seed42@500: 78%, seed123@500: 80% (best!), seed456@500: 78%
@@ -678,4 +688,4 @@ out/expanded_eval_20260115/     # Expanded evaluation (to run)
 ---
 
 *Plan created: January 2025*
-*Last updated: January 21, 2026 - P2 Training Complete! Gemma-3-12B achieves 79% avg Last-50, Gemma-2-9B 53% - capacity threshold confirmed at 9B*
+*Last updated: January 23, 2026 - P1 + P2 COMPLETE! Final PDFs compiled, merged to main. Next: P3 (AgentSLO-Bench) or editing*
