@@ -1,12 +1,12 @@
 # =============================================================================
-# ECOMM - Coiled Cloud Config
+# MEDIA SMALL - Coiled Cloud Config (media_lp table)
 # =============================================================================
-# Input:  Unity Catalog table (staging-ecomm.default.*)
-# Output: Unity Catalog (staging-c360.ecomm.*)
+# Input:  Unity Catalog table (staging-media-source.default.media_lp)
+# Output: Unity Catalog (staging-c360.media.media_dask_test_54k)
 # Engine: Coiled (4 workers, m5.2xlarge)
 #
-# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
-#         generation for e-commerce transaction data.
+# Tests:  ZSML KPI tiering on Total_Spent with lift metadata. Uses the media_lp
+#         table for quick validation of media streaming use case.
 # =============================================================================
 
 logging:
@@ -15,12 +15,13 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_pr-5
-    n_workers: 6
-    worker_vm_types:
-      - r5.2xlarge  # Memory-optimized (64GB RAM) for 326 cols × 8.3M rows
-    scheduler_vm_types:
-      - c5d.xlarge
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
+    n_workers: 4
+    # worker_cpu: 8
+    # worker_memory: 32GiB
+    worker_vm_types: [m5.2xlarge]
+    scheduler_vm_types: [c5d.xlarge]
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -28,10 +29,10 @@ runtime:
 
 input:
   source: uc_table
-  uc_table: staging-ecomm-clothing-source.default.ecomm_lp
+  uc_table: staging-media-source.default.media_lp
   columns: null
 ids:
-  columns: ["customer_id"]
+  columns: ["Customer_ID"]
   auto_detect: false
   # ---------------------------------------------------------------------------
   # LLM-Enhanced ID Detection (optional, disabled by default)
@@ -47,7 +48,17 @@ ids:
   #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
   #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
 
-functions: []
+functions:
+  - type: zsml
+    source_col: Total_Spent
+    out_col: Total_Spent_Tier
+    zero_threshold: 0.0
+    quantiles: [0.33, 0.66]
+    clip_high_quantile: 0.95
+    unit: "$"
+    range_style: text
+    add_prefix: true
+    kpi: true
 
 preprocessing:
   rename_to_snake: true
@@ -58,48 +69,55 @@ preprocessing:
     categorical: "Unknown"
     continuous: "median"
   # zsml:
-  #   enabled: false
-  #   source_col: null
-  #   out_col: null
+  #   enabled: true
+  #   source_col: Total_Spent
+  #   out_col: Total_Spent_Tier
   #   zero_threshold: 0.0
   #   quantiles: [0.33, 0.66]
   #   clip_high_quantile: 0.95
-  #   unit: ""
+  #   unit: "$"
   #   range_style: text
   #   add_prefix: true
 
 # drop_columns:
 #   - Applied LAST, after preprocessing/renames (snake-case is allowed).
-# drop_columns:
-#   - CustomerJoinDate
+#   - Updated for media_lp table schema (removed non-existent PII columns)
+drop_columns:
+  - Country
+  - State
+  - Zip
+  - Cancellation_Date
+  - Subscription_Start_Date
+  - Subscription_End_Date
+  - Last_Login_Date
 
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 25
+  max_concurrency: 100
   tags:
     id_cols: ["customer_id"]
     kpi_cols:
-      - returns_20_pct
-      - is_loyal_customer
-      - sales_20_pct
-      - loyalty_program_tier
-      - average_net_order_spend
+      - at_risk
+      - is_new_customer
+      - is_churned
+      - is_cycler
+      - is_active
+      - total_spent_tier
     missing_indicator_cols: []
     extra_tags_all: null
     extra_tags_by_column:
-      average_net_order_spend:
-        value_sum_column: total_spend_net_returns_last_3_years
+      total_spent_tier:
+        value_sum_column: total_spent
         value_sum_unit: USD
-        event_sum_column: total_transactions_last_3_years
-        event_sum_unit: order
+        event_sum_column: months_subscribed
+        event_sum_unit: months
     max_card: 25
     use_approx_unique: true
   schema_alignment: true
-  context: |
-    Willow & Birch is a nationally recognized, upscale women's apparel and lifestyle brand, dedicated to serving the needs of modern, discerning women through an direct to consumer retail model.
-    Offering a cross category selection across multiple styles from casual to work to formal Willow & Birch has established itself as a trusted destination for apparel and lifestyle essentials throughout
-    their adult lives and style.
+  context: >
+    VistaStream is a premium streaming platform dedicated to delivering an exceptional
+    entertainment experience to a diverse and discerning subscriber base.
   op_timeout: 45m
 
 # -----------------------------------------------------------------------------
@@ -109,8 +127,8 @@ metadata:
 # Rule-based analysis is always on. LLM enhancement is optional.
 # -----------------------------------------------------------------------------
 data_doctor:
-  enabled: false                   # Disabled for production runs (avoid Int64Dtype issues)
-  save_yaml: true                  # Save suggestions.yaml alongside output
+  enabled: false # Disabled for production runs (avoid Int64Dtype issues)
+  save_yaml: true # Save suggestions.yaml alongside output
   # ---------------------------------------------------------------------------
   # LLM Enhancement (optional, disabled by default)
   # ---------------------------------------------------------------------------
@@ -124,10 +142,9 @@ data_doctor:
 
 output:
   uc_catalog: staging-c360
-  uc_schema: ecomm-clothing
-  uc_volume_name: ecomm_demo_lp
-  uc_table: ecomm_demo_lp
-  run_name: ecomm_demo_lp
-  # s3_base: s3://dummy-bucket/wine/
+  uc_schema: media
+  uc_volume_name: media_dask_test_54k
+  run_name: media_small_test_01
+  # s3_base: s3://dummy-bucket/media_dask_test_54k/
   partitions: []
   target_mb_per_part: 512

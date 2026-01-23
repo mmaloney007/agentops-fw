@@ -1,37 +1,37 @@
 # =============================================================================
-# MEDIA TESTING MILS - Coiled Cloud Config (Millions of rows)
+# MEDIA TESTING 50 MIL - Coiled Cloud Config (50M rows)
 # =============================================================================
-# Input:  Unity Catalog table (staging-media-source.default.media_*)
+# Input:  Unity Catalog table (staging-media-source.default.*)
 # Output: Unity Catalog (staging-c360.media.*)
-# Engine: Coiled (8 workers, m5.2xlarge)
+# Engine: Coiled (5 workers, i7i.8xlarge - high I/O)
 #
-# Tests:  ZSML KPI tiering at scale. Tests partition handling and distributed
-#         computation with large media streaming datasets.
+# Tests:  Large scale testing at 50 million rows. Uses high-performance
+#         instances optimized for parallelizable I/O workloads.
 # =============================================================================
 
 logging:
-  level: debug
-  show_progress: true
+  level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_pr-5
-    n_workers: 6
-    # worker_cpu: 8
-    # worker_memory: 128GiB
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
+    n_workers: 4
     worker_vm_types:
-      - i3.4xlarge #- i3.2xlarge
+      - r7i.12xlarge  # Memory-optimized (384 GiB) for 1575 columns
     scheduler_vm_types:
-      - c5d.xlarge
+      - m7i.4xlarge
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
     op_timeout: 45m
+    # env:
+    #   DASK_DATAFRAME__QUERY_PLANNING: "0"
 
 input:
   source: uc_table
-  uc_table: staging-media-source.default.media_demo_5m
+  uc_table: staging-media-source.default.media_demo_50m
   columns: null
 ids:
   columns: ["Customer_ID"]
@@ -70,16 +70,6 @@ preprocessing:
   fill:
     categorical: "Unknown"
     continuous: "median"
-  # zsml:
-  #   enabled: true
-  #   source_col: Total_Spent
-  #   out_col: Total_Spent_Tier
-  #   zero_threshold: 0.0
-  #   quantiles: [0.33, 0.66]
-  #   clip_high_quantile: 0.95
-  #   unit: "$"
-  #   range_style: text
-  #   add_prefix: true
 
 # drop_columns:
 #   - Applied LAST, after preprocessing/renames (snake-case is allowed).
@@ -97,7 +87,6 @@ metadata:
   sample_rows: 5000
   max_concurrency: 50
   tags:
-    use_approx_unique: false
     id_cols: ["customer_id"]
     kpi_cols:
       - at_risk
@@ -115,6 +104,7 @@ metadata:
         event_sum_column: months_subscribed
         event_sum_unit: months
     max_card: 25
+    use_approx_unique: true
   schema_alignment: true
   context: >
     VistaStream is a premium streaming platform dedicated to delivering an exceptional
@@ -144,9 +134,9 @@ data_doctor:
 output:
   uc_catalog: staging-c360
   uc_schema: media
-  uc_volume_name: media_demo_5m_512mb
-  run_name: media_demo_5m_512mb
-  uc_table: media_demo_5m_512mb
+  uc_volume_name: media_demo_50m
+  run_name: media_demo_50m
+  uc_table: media_demo_50m
   # s3_base: s3://dummy-bucket/media_dask_test_54k/
   partitions: []
   target_mb_per_part: 512

@@ -1,12 +1,12 @@
 # =============================================================================
-# MEDIA SMALL - Coiled Cloud Config (media_lp table)
+# GAMING - Coiled Cloud Config
 # =============================================================================
-# Input:  Unity Catalog table (staging-media-source.default.media_lp)
-# Output: Unity Catalog (staging-c360.media.media_dask_test_54k)
+# Input:  Unity Catalog table (staging-gaming.default.*)
+# Output: Unity Catalog (staging-c360.gaming.*)
 # Engine: Coiled (4 workers, m5.2xlarge)
 #
-# Tests:  ZSML KPI tiering on Total_Spent with lift metadata. Uses the media_lp
-#         table for quick validation of media streaming use case.
+# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
+#         generation for gaming/player engagement data.
 # =============================================================================
 
 logging:
@@ -15,12 +15,13 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_pr-5
-    n_workers: 4
-    # worker_cpu: 8
-    # worker_memory: 32GiB
-    worker_vm_types: [m5.2xlarge]
-    scheduler_vm_types: [c5d.xlarge]
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
+    n_workers: 2
+    worker_vm_types:
+      - i3.2xlarge #- i3.2xlarge
+    scheduler_vm_types:
+      - c5d.xlarge
     idle_timeout: 2h
     no_client_timeout: 2h
     create_timeout: 15m
@@ -28,10 +29,10 @@ runtime:
 
 input:
   source: uc_table
-  uc_table: staging-media-source.default.media_lp
+  uc_table: staging-gaming-source.default.gaming_demo
   columns: null
 ids:
-  columns: ["Customer_ID"]
+  columns: ["player_id"]
   auto_detect: false
   # ---------------------------------------------------------------------------
   # LLM-Enhanced ID Detection (optional, disabled by default)
@@ -47,17 +48,7 @@ ids:
   #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
   #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
 
-functions:
-  - type: zsml
-    source_col: Total_Spent
-    out_col: Total_Spent_Tier
-    zero_threshold: 0.0
-    quantiles: [0.33, 0.66]
-    clip_high_quantile: 0.95
-    unit: "$"
-    range_style: text
-    add_prefix: true
-    kpi: true
+functions: []
 
 preprocessing:
   rename_to_snake: true
@@ -68,57 +59,48 @@ preprocessing:
     categorical: "Unknown"
     continuous: "median"
   # zsml:
-  #   enabled: true
-  #   source_col: Total_Spent
-  #   out_col: Total_Spent_Tier
+  #   enabled: false
+  #   source_col: null
+  #   out_col: null
   #   zero_threshold: 0.0
   #   quantiles: [0.33, 0.66]
   #   clip_high_quantile: 0.95
-  #   unit: "$"
+  #   unit: ""
   #   range_style: text
   #   add_prefix: true
 
 # drop_columns:
 #   - Applied LAST, after preprocessing/renames (snake-case is allowed).
-#   - Updated for media_lp table schema (removed non-existent PII columns)
-drop_columns:
-  - Country
-  - State
-  - Zip
-  - Cancellation_Date
-  - Subscription_Start_Date
-  - Subscription_End_Date
-  - Last_Login_Date
+# drop_columns:
+#   - CustomerJoinDate
 
 metadata:
   model: gpt-5-nano
   sample_rows: 5000
-  max_concurrency: 100
+  max_concurrency: 25
   tags:
-    id_cols: ["customer_id"]
+    id_cols: ["player_id"]
     kpi_cols:
-      - at_risk
-      - is_new_customer
-      - is_churned
-      - is_cycler
-      - is_active
-      - total_spent_tier
+      - kpi_6_m_net_worth
+      - kpi_net_worth_daily
+      - investment_target
+      - net_worth_change
     missing_indicator_cols: []
     extra_tags_all: null
     extra_tags_by_column:
-      total_spent_tier:
-        value_sum_column: total_spent
+      kpi_6_m_net_worth:
+        value_sum_column: total_worth_last_6_m
         value_sum_unit: USD
-        event_sum_column: months_subscribed
-        event_sum_unit: months
+        event_sum_column: days_active_last_6_m
+        event_sum_unit: days
     max_card: 25
     use_approx_unique: true
   schema_alignment: true
-  context: >
-    VistaStream is a premium streaming platform dedicated to delivering an exceptional
-    entertainment experience to a diverse and discerning subscriber base.
+  context: |
+    This dataset is from **Copper Cactus Casino** in Pheonix, Arizona, owned by a conglomerate. It encompasses extensive data on customer interactions,
+    transactions, survey responses, demographic information, and gaming activities.
+    It covers the previous 12 of customer data with two time periods the immediate last 6 months (last_6m) and the previous 6 months (prev_6m).
   op_timeout: 45m
-
 # -----------------------------------------------------------------------------
 # Data Doctor - Automated data quality analysis and suggestions
 # -----------------------------------------------------------------------------
@@ -126,8 +108,8 @@ metadata:
 # Rule-based analysis is always on. LLM enhancement is optional.
 # -----------------------------------------------------------------------------
 data_doctor:
-  enabled: false # Disabled for production runs (avoid Int64Dtype issues)
-  save_yaml: true # Save suggestions.yaml alongside output
+  enabled: false                   # Disabled for production runs (avoid Int64Dtype issues)
+  save_yaml: true                  # Save suggestions.yaml alongside output
   # ---------------------------------------------------------------------------
   # LLM Enhancement (optional, disabled by default)
   # ---------------------------------------------------------------------------
@@ -141,9 +123,10 @@ data_doctor:
 
 output:
   uc_catalog: staging-c360
-  uc_schema: media
-  uc_volume_name: media_dask_test_54k
-  run_name: media_small_test_01
-  # s3_base: s3://dummy-bucket/media_dask_test_54k/
+  uc_schema: gaming
+  uc_volume_name: gaming_demo_lp
+  uc_table: gaming_demo_lp
+  run_name: gaming_demo_lp
+  # s3_base: s3://dummy-bucket/wine/
   partitions: []
   target_mb_per_part: 512

@@ -1,21 +1,22 @@
 # =============================================================================
-# GAMING - Coiled Cloud Config
+# SPORTS AND CONCERT - Coiled Cloud Config
 # =============================================================================
-# Input:  Unity Catalog table (staging-gaming.default.*)
-# Output: Unity Catalog (staging-c360.gaming.*)
+# Input:  Unity Catalog table (staging-sports-and-concerts.default.*)
+# Output: Unity Catalog (staging-c360.sports-and-concerts.*)
 # Engine: Coiled (4 workers, m5.2xlarge)
 #
 # Tests:  Preprocessing only (no functions). Tests ingestion and metadata
-#         generation for gaming/player engagement data.
+#         generation for ticketing/events data without transformations.
 # =============================================================================
 
 logging:
-  level: debug
+  level: info
 
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_pr-5
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
     n_workers: 2
     worker_vm_types:
       - i3.2xlarge #- i3.2xlarge
@@ -28,10 +29,10 @@ runtime:
 
 input:
   source: uc_table
-  uc_table: staging-gaming-source.default.gaming_demo
+  uc_table: staging-sports-and-concerts-source.default.sports_lp
   columns: null
 ids:
-  columns: ["player_id"]
+  columns: ["customer_id"]
   auto_detect: false
   # ---------------------------------------------------------------------------
   # LLM-Enhanced ID Detection (optional, disabled by default)
@@ -78,27 +79,29 @@ metadata:
   sample_rows: 5000
   max_concurrency: 25
   tags:
-    id_cols: ["player_id"]
+    id_cols: ["customer_id"]
     kpi_cols:
-      - kpi_6_m_net_worth
-      - kpi_net_worth_daily
-      - investment_target
-      - net_worth_change
+      - average_event_spend
+      - parking_user
+      - app_user
+      - new_this_year
     missing_indicator_cols: []
     extra_tags_all: null
     extra_tags_by_column:
-      kpi_6_m_net_worth:
-        value_sum_column: total_worth_last_6_m
+      average_event_spend:
+        value_sum_column: total_dollar_spend_all_events_all_years
         value_sum_unit: USD
-        event_sum_column: days_active_last_6_m
-        event_sum_unit: days
+        event_sum_column: total_events_all_categories_all_years
+        event_sum_unit: events
     max_card: 25
     use_approx_unique: true
   schema_alignment: true
   context: |
-    This dataset is from **Copper Cactus Casino** in Pheonix, Arizona, owned by a conglomerate. It encompasses extensive data on customer interactions,
-    transactions, survey responses, demographic information, and gaming activities.
-    It covers the previous 12 of customer data with two time periods the immediate last 6 months (last_6m) and the previous 6 months (prev_6m).
+    Granite Pulse Arena stands as New Hampshire’s premier destination for live entertainment,
+    bringing together the energy of professional hockey, the thrill of basketball, and the excitement of world-class concerts
+    and family events like the Harlem Globetrotters and Disney on Ice. As one of the New England region’s flagship venue,
+    Granite Pulse Arena serves a diverse community of fans and families, uniting audiences with unforgettable experiences in a state-of-the-art,
+    multi-purpose environment.
   op_timeout: 45m
 # -----------------------------------------------------------------------------
 # Data Doctor - Automated data quality analysis and suggestions
@@ -122,10 +125,10 @@ data_doctor:
 
 output:
   uc_catalog: staging-c360
-  uc_schema: gaming
-  uc_volume_name: gaming_demo_lp
-  uc_table: gaming_demo_lp
-  run_name: gaming_demo_lp
+  uc_schema: sports-and-concerts
+  uc_volume_name: sports_and_concert_demo_lp
+  uc_table: sports_and_concert_demo_lp
+  run_name: sports_and_concert_demo_lp
   # s3_base: s3://dummy-bucket/wine/
   partitions: []
   target_mb_per_part: 512

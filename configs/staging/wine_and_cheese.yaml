@@ -16,7 +16,8 @@ logging:
 runtime:
   engine: coiled
   coiled:
-    software_env: neuralift_c360_prep_pr-5
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
     n_workers: 2
     # worker_cpu: 4
     # worker_memory: 16GiB
