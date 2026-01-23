@@ -28,13 +28,22 @@ SLO_DEADLINE_MS = 2000
 OUT_DIR = Path("out/p1_comprehensive_20260118")
 RESULTS_FILE = OUT_DIR / "all_results.json"
 
-# Task files (T1-T5)
+# Task files (T1-T5) - Using full datasets for statistical validity
 TASKS = {
-    "T1": "tasks/t1_structured.jsonl",
-    "T2": "tasks/t2_grounded.jsonl",
-    "T3": "tasks/t3_tools.jsonl",
-    "T4": "tasks/t4_bfcl.jsonl",
-    "T5": "tasks/t5_swebench.jsonl",
+    "T1": "tasks/clinc_en.jsonl",       # 500 records - intent classification
+    "T2": "tasks/hotpot_dev.jsonl",     # 1000 records - multi-hop QA (limit to 500)
+    "T3": "tasks/t3_tools.jsonl",       # 500 records - tool selection
+    "T4": "tasks/t4_bfcl.jsonl",        # 500 records - function calling
+    "T5": "tasks/t5_swebench.jsonl",    # 300 records - SWE-bench patches
+}
+
+# Limit samples per task (0 = use all)
+TASK_LIMITS = {
+    "T1": 500,
+    "T2": 500,  # HotpotQA has 1000, limit to 500 for time
+    "T3": 500,
+    "T4": 500,
+    "T5": 300,
 }
 
 # Models (LM Studio IDs verified working)
@@ -79,12 +88,14 @@ MODELS = {
 }
 
 
-def load_tasks(path: str) -> List[Dict[str, Any]]:
-    """Load tasks from JSONL file."""
+def load_tasks(path: str, limit: int = 0) -> List[Dict[str, Any]]:
+    """Load tasks from JSONL file with optional limit."""
     rows = []
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if line.strip():
             rows.append(json.loads(line))
+            if limit > 0 and len(rows) >= limit:
+                break
     return rows
 
 
@@ -108,8 +119,9 @@ def score_record(
     ttype = task.get("task_type", "")
 
     if ttype == "t1":
-        # T1: Incident classification
-        fields = ["category", "severity", "source", "time_window"]
+        # T1: Intent classification (CLINC dataset)
+        # Fields: intent, domain, is_oos
+        fields = ["intent", "domain", "is_oos"]
         matches = []
         for f in fields:
             pred = str(out_json.get(f, "")).lower().strip()
@@ -118,12 +130,14 @@ def score_record(
         metrics["t1_field_acc"] = sum(matches) / len(matches) if matches else 0.0
 
     elif ttype == "t2":
-        # T2: Grounded reasoning
-        pred_summary = str(out_json.get("short_summary", "")).lower()
-        gold_summary = str(gold.get("short_summary", "")).lower()
-        # Simple token overlap F1
-        pred_tokens = set(pred_summary.split())
-        gold_tokens = set(gold_summary.split())
+        # T2: Grounded reasoning (HotpotQA dataset)
+        # Fields: answer, reasoning_summary, evidence_sent_ids
+        # Compare answer field with token overlap F1
+        pred_answer = str(out_json.get("answer", "")).lower()
+        gold_answer = str(gold.get("answer", "")).lower()
+        # Simple token overlap F1 on answer
+        pred_tokens = set(pred_answer.split())
+        gold_tokens = set(gold_answer.split())
         if gold_tokens:
             inter = len(pred_tokens & gold_tokens)
             prec = inter / max(1, len(pred_tokens))
@@ -175,8 +189,9 @@ def run_eval_task(
     model_name: str, model_id: str, task_name: str, task_file: str
 ) -> Dict[str, Any]:
     """Run evaluation for a single model/task combination."""
-    print(f"  [{task_name}] Loading tasks from {task_file}...")
-    tasks = load_tasks(task_file)
+    limit = TASK_LIMITS.get(task_name, 0)
+    print(f"  [{task_name}] Loading tasks from {task_file} (limit={limit})...")
+    tasks = load_tasks(task_file, limit=limit)
 
     # Set model env var
     os.environ["LMSTUDIO_MODEL"] = model_id
@@ -205,6 +220,10 @@ def run_eval_task(
                 continue
 
         schema = schema_cache[schema_path]
+
+        # Inject task_type from task_name if not present in record
+        if "task_type" not in rec:
+            rec["task_type"] = task_name.lower()  # T1 -> t1, T2 -> t2, etc.
 
         # Run inference
         try:
@@ -388,29 +407,59 @@ def update_progress_md(results: Dict[str, Any]):
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="P1 Evaluation")
+    parser.add_argument("--tasks", nargs="+", default=list(TASKS.keys()),
+                        help="Tasks to run (default: all)")
+    parser.add_argument("--models", nargs="+", default=list(MODELS.keys()),
+                        help="Models to run (default: all)")
+    parser.add_argument("--force", action="store_true",
+                        help="Force re-run even if results exist")
+    args = parser.parse_args()
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     results = load_results()
 
+    tasks_to_run = {k: v for k, v in TASKS.items() if k in args.tasks}
+    models_to_run = {k: v for k, v in MODELS.items() if k in args.models}
+
     print("=" * 60)
     print("P1 Comprehensive Evaluation")
-    print("13 Models × 5 Task Types = 65 evaluations")
+    print(f"Tasks: {list(tasks_to_run.keys())}")
+    print(f"Models: {list(models_to_run.keys())}")
+    print(f"Force re-run: {args.force}")
     print(f"Started: {datetime.now()}")
     print("=" * 60)
 
-    for model_name, model_info in MODELS.items():
+    for model_name, model_info in models_to_run.items():
         print(f"\n>>> {model_name} ({model_info['size']}, {model_info['vendor']})")
 
         if model_name not in results["models"]:
             results["models"][model_name] = {"info": model_info, "tasks": {}}
 
-        for task_name, task_file in TASKS.items():
-            # Skip if already done
+        for task_name, task_file in tasks_to_run.items():
+            # Skip if already done (unless --force)
             existing = results["models"][model_name].get("tasks", {}).get(task_name, {})
-            if isinstance(existing, dict) and "count" in existing:
-                print(
-                    f"  [{task_name}] SKIP - already done ({existing['count']} records)"
-                )
-                continue
+            if not args.force and isinstance(existing, dict) and "count" in existing:
+                # Check if count matches expected (detect old small-sample runs)
+                expected = TASK_LIMITS.get(task_name, 0)
+                json_valid = existing.get("json_valid", 1.0)
+
+                # Detect failed runs (low json_valid or suspiciously fast latency)
+                avg_lat = existing.get("avg_latency_ms", 1000)
+                if json_valid < 0.5 or avg_lat < 10:
+                    print(
+                        f"  [{task_name}] RE-RUN - data looks corrupted (json_valid={json_valid:.1%}, avg_lat={avg_lat:.0f}ms)"
+                    )
+                elif existing["count"] >= expected * 0.9:  # Allow 10% tolerance
+                    print(
+                        f"  [{task_name}] SKIP - already done ({existing['count']} records)"
+                    )
+                    continue
+                else:
+                    print(
+                        f"  [{task_name}] RE-RUN - old data has only {existing['count']} records, need {expected}"
+                    )
 
             try:
                 summary = run_eval_task(
