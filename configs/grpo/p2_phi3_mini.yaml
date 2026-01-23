@@ -1,6 +1,6 @@
 config_version: "0.2.0"
-config_preset: "p2-ministral-8b"
-base_model: "mistralai/Ministral-8B-Instruct-2410"
+config_preset: "p2-phi3-mini"
+base_model: "microsoft/Phi-3-mini-4k-instruct"
 tasks: "tasks/robust_eval_gold.jsonl"
 out: ""
 steps: 500
@@ -10,7 +10,7 @@ temperature: 0.7
 top_p: 0.95
 lr: 1.0e-5
 weight_decay: 0.01
-gradient_accumulation: 2
+gradient_accumulation: 1
 max_grad_norm: 1.0
 lora_rank: 16
 lora_alpha: 32
@@ -18,13 +18,15 @@ lora_dropout: 0.05
 lora_targets: ""
 load_in_4bit: true
 torch_dtype: "bfloat16"
+use_cache: false
+attn_implementation: "eager"
 eval_interval: 50
 deterministic: false
 force_json_fallback: false
 lam_latency: 0.1
 mu_cost: 0.05
 gamma_stability: 0.1
-seed: 1234
+seed: 42
 repro: true
 cache_dataset: true
 cache_dir: "out/cache"

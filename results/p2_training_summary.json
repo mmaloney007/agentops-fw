@@ -1,0 +1,443 @@
+{
+  "out/p1_p2_full_run/training/qwen3-4b_250steps": {
+    "avg_reward": -0.344,
+    "last50_valid_pct": 7.1,
+    "total_steps": 28,
+    "valid_pct": 7.1
+  },
+  "out/p1_p2_full_run/training/qwen3-4b_500steps": {
+    "avg_reward": -0.6193,
+    "last50_valid_pct": 0.0,
+    "total_steps": 6,
+    "valid_pct": 0.0
+  },
+  "out/p2_full_20260114_161728/llama_3.2_3b_250": {
+    "avg_reward": 1.92,
+    "last50_valid_pct": 98.0,
+    "total_steps": 250,
+    "valid_pct": 96.0
+  },
+  "out/p2_full_20260114_161728/llama_3.2_3b_500": {
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  "out/p2_training/gemma-2-9b_seed123_250steps": {
+    "avg_reward": 0.7101,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 48.4
+  },
+  "out/p2_training/gemma-2-9b_seed123_500steps": {
+    "avg_reward": 0.4248,
+    "last50_valid_pct": 70.0,
+    "total_steps": 500,
+    "valid_pct": 35.0
+  },
+  "out/p2_training/gemma-2-9b_seed42_250steps": {
+    "avg_reward": 0.6741,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 47.6
+  },
+  "out/p2_training/gemma-2-9b_seed42_500steps": {
+    "avg_reward": 0.3411,
+    "last50_valid_pct": 34.0,
+    "total_steps": 500,
+    "valid_pct": 30.4
+  },
+  "out/p2_training/gemma-2-9b_seed456_250steps": {
+    "avg_reward": 0.7492,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 49.6
+  },
+  "out/p2_training/gemma-2-9b_seed456_500steps": {
+    "avg_reward": 0.4061,
+    "last50_valid_pct": 56.0,
+    "total_steps": 500,
+    "valid_pct": 33.4
+  },
+  "out/p2_training/gemma-3-12b_seed123_250steps": {
+    "avg_reward": 0.3284,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 47.2
+  },
+  "out/p2_training/gemma-3-12b_seed123_500steps": {
+    "avg_reward": 0.2216,
+    "last50_valid_pct": 80.0,
+    "total_steps": 500,
+    "valid_pct": 40.8
+  },
+  "out/p2_training/gemma-3-12b_seed42_250steps": {
+    "avg_reward": 0.267,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 47.2
+  },
+  "out/p2_training/gemma-3-12b_seed42_500steps": {
+    "avg_reward": 0.2282,
+    "last50_valid_pct": 78.0,
+    "total_steps": 500,
+    "valid_pct": 40.8
+  },
+  "out/p2_training/gemma-3-12b_seed456_250steps": {
+    "avg_reward": 0.2507,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 45.6
+  },
+  "out/p2_training/gemma-3-12b_seed456_500steps": {
+    "avg_reward": 0.2649,
+    "last50_valid_pct": 78.0,
+    "total_steps": 500,
+    "valid_pct": 40.8
+  },
+  "out/p2_training/llama-3.1-8b_seed123_250steps": {
+    "avg_reward": -0.0912,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 33.2
+  },
+  "out/p2_training/llama-3.1-8b_seed123_500steps": {
+    "avg_reward": -0.4012,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 17.0
+  },
+  "out/p2_training/llama-3.1-8b_seed42_250steps": {
+    "avg_reward": -0.1286,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 31.2
+  },
+  "out/p2_training/llama-3.1-8b_seed42_500steps": {
+    "avg_reward": -0.4405,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 16.2
+  },
+  "out/p2_training/llama-3.1-8b_seed456_250steps": {
+    "avg_reward": -0.1477,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 30.8
+  },
+  "out/p2_training/llama-3.1-8b_seed456_500steps": {
+    "avg_reward": -0.379,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 18.2
+  },
+  "out/p2_training/llama-3.2-1b_seed123_250steps": {
+    "avg_reward": 0.4819,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 30.8
+  },
+  "out/p2_training/llama-3.2-1b_seed123_500steps": {
+    "avg_reward": 0.318,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 21.0
+  },
+  "out/p2_training/llama-3.2-1b_seed42_250steps": {
+    "avg_reward": 0.4398,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 30.0
+  },
+  "out/p2_training/llama-3.2-1b_seed42_500steps": {
+    "avg_reward": 0.3011,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 19.6
+  },
+  "out/p2_training/llama-3.2-1b_seed456_250steps": {
+    "avg_reward": 0.487,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 31.6
+  },
+  "out/p2_training/llama-3.2-1b_seed456_500steps": {
+    "avg_reward": 0.2568,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 17.6
+  },
+  "out/p2_training/llama-3.2-3b_seed123_250steps": {
+    "avg_reward": 0.1063,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 25.6
+  },
+  "out/p2_training/llama-3.2-3b_seed123_500steps": {
+    "avg_reward": -0.1769,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 12.8
+  },
+  "out/p2_training/llama-3.2-3b_seed42_250steps": {
+    "avg_reward": 0.1115,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 26.0
+  },
+  "out/p2_training/llama-3.2-3b_seed42_500steps": {
+    "avg_reward": -0.1686,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 13.4
+  },
+  "out/p2_training/llama-3.2-3b_seed456_250steps": {
+    "avg_reward": 0.0921,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 25.6
+  },
+  "out/p2_training/llama-3.2-3b_seed456_500steps": {
+    "avg_reward": -0.1182,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 15.4
+  },
+  "out/p2_training/ministral-8b_seed123_250steps": {
+    "avg_reward": 0.3609,
+    "last50_valid_pct": 8.0,
+    "total_steps": 250,
+    "valid_pct": 31.2
+  },
+  "out/p2_training/ministral-8b_seed123_500steps": {
+    "avg_reward": 0.2329,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 18.8
+  },
+  "out/p2_training/ministral-8b_seed42_250steps": {
+    "avg_reward": 0.3954,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 34.0
+  },
+  "out/p2_training/ministral-8b_seed42_500steps": {
+    "avg_reward": 0.3152,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 22.6
+  },
+  "out/p2_training/ministral-8b_seed456_250steps": {
+    "avg_reward": 0.5819,
+    "last50_valid_pct": 18.0,
+    "total_steps": 250,
+    "valid_pct": 42.8
+  },
+  "out/p2_training/ministral-8b_seed456_500steps": {
+    "avg_reward": 0.2827,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 19.6
+  },
+  "out/p2_training/mistral-7b_seed123_250steps": {
+    "avg_reward": 0.2072,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 33.6
+  },
+  "out/p2_training/mistral-7b_seed123_500steps": {
+    "avg_reward": 0.0746,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 19.6
+  },
+  "out/p2_training/mistral-7b_seed42_250steps": {
+    "avg_reward": 0.2957,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 36.4
+  },
+  "out/p2_training/mistral-7b_seed42_500steps": {
+    "avg_reward": 0.084,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 16.8
+  },
+  "out/p2_training/mistral-7b_seed456_250steps": {
+    "avg_reward": 0.4295,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 37.6
+  },
+  "out/p2_training/mistral-7b_seed456_500steps": {
+    "avg_reward": 0.1075,
+    "last50_valid_pct": 30.0,
+    "total_steps": 500,
+    "valid_pct": 21.8
+  },
+  "out/p2_training/qwen2.5-3b_seed123_250steps": {
+    "avg_reward": 0.9715,
+    "last50_valid_pct": 20.0,
+    "total_steps": 250,
+    "valid_pct": 61.6
+  },
+  "out/p2_training/qwen2.5-3b_seed123_500steps": {
+    "avg_reward": 0.1896,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 30.4
+  },
+  "out/p2_training/qwen2.5-3b_seed42_250steps": {
+    "avg_reward": 0.8777,
+    "last50_valid_pct": 20.0,
+    "total_steps": 250,
+    "valid_pct": 56.0
+  },
+  "out/p2_training/qwen2.5-3b_seed42_500steps": {
+    "avg_reward": 0.1624,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 16.2
+  },
+  "out/p2_training/qwen2.5-3b_seed456_250steps": {
+    "avg_reward": 0.4526,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 32.8
+  },
+  "out/p2_training/qwen2.5-3b_seed456_500steps": {
+    "avg_reward": 0.5821,
+    "last50_valid_pct": 60.0,
+    "total_steps": 500,
+    "valid_pct": 44.6
+  },
+  "out/p2_training/qwen3-4b_seed123_250steps": {
+    "avg_reward": -0.1155,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 34.0
+  },
+  "out/p2_training/qwen3-4b_seed123_500steps": {
+    "avg_reward": -0.3482,
+    "last50_valid_pct": 4.0,
+    "total_steps": 500,
+    "valid_pct": 22.6
+  },
+  "out/p2_training/qwen3-4b_seed42_250steps": {
+    "avg_reward": -0.1286,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 33.2
+  },
+  "out/p2_training/qwen3-4b_seed42_500steps": {
+    "avg_reward": -0.367,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 21.4
+  },
+  "out/p2_training/qwen3-4b_seed456_250steps": {
+    "avg_reward": -0.1374,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 32.8
+  },
+  "out/p2_training/qwen3-4b_seed456_500steps": {
+    "avg_reward": -0.4306,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 18.4
+  },
+  "out/p2_training_20260114/gemma_12b_500": {
+    "avg_reward": 0.2633,
+    "last50_valid_pct": 78.0,
+    "total_steps": 500,
+    "valid_pct": 41.4
+  },
+  "out/p2_training_20260114/llama_3b_500": {
+    "avg_reward": -0.1278,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 14.2
+  },
+  "out/p2_training_20260114/qwen3_4b_500": {
+    "avg_reward": 0.1199,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 22.2
+  },
+  "out/p2_training_fixed/phi-3-mini_seed123_250steps": {
+    "avg_reward": -0.1634,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 1.6
+  },
+  "out/p2_training_fixed/phi-3-mini_seed123_500steps": {
+    "avg_reward": 0.0244,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 7.8
+  },
+  "out/p2_training_fixed/phi-3-mini_seed42_250steps": {
+    "avg_reward": -0.1568,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 1.2
+  },
+  "out/p2_training_fixed/phi-3-mini_seed42_500steps": {
+    "avg_reward": 0.0181,
+    "last50_valid_pct": 0.0,
+    "total_steps": 500,
+    "valid_pct": 6.8
+  },
+  "out/p2_training_fixed/phi-3-mini_seed456_250steps": {
+    "avg_reward": -0.1629,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 0.4
+  },
+  "out/p2_training_fixed/phi-3-mini_seed456_500steps": {
+    "avg_reward": 0.0282,
+    "last50_valid_pct": 2.0,
+    "total_steps": 500,
+    "valid_pct": 7.2
+  },
+  "out/p2_training_fixed/yi-1.5-6b_seed123_250steps": {
+    "avg_reward": 0.2001,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 32.8
+  },
+  "out/p2_training_fixed/yi-1.5-6b_seed123_500steps": {
+    "avg_reward": -0.0522,
+    "last50_valid_pct": 4.0,
+    "total_steps": 500,
+    "valid_pct": 20.4
+  },
+  "out/p2_training_fixed/yi-1.5-6b_seed42_250steps": {
+    "avg_reward": 0.1963,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 32.8
+  },
+  "out/p2_training_fixed/yi-1.5-6b_seed42_500steps": {
+    "avg_reward": -0.0415,
+    "last50_valid_pct": 12.0,
+    "total_steps": 500,
+    "valid_pct": 20.6
+  },
+  "out/p2_training_fixed/yi-1.5-6b_seed456_250steps": {
+    "avg_reward": -0.4568,
+    "last50_valid_pct": 0.0,
+    "total_steps": 26,
+    "valid_pct": 0.0
+  },
+  "out/p2_training_fixed/yi-1.5-6b_seed456_250steps_v2": {
+    "avg_reward": 0.1861,
+    "last50_valid_pct": 0.0,
+    "total_steps": 250,
+    "valid_pct": 34.0
+  },
+  "out/p2_training_fixed/yi-1.5-6b_seed456_500steps_v2": {
+    "avg_reward": -0.0716,
+    "last50_valid_pct": 10.0,
+    "total_steps": 500,
+    "valid_pct": 21.0
+  }
+}
