@@ -5,7 +5,7 @@ from neuralift_c360_prep.config import BundleConfig, load_config
 
 
 def test_load_config_sample():
-    cfg = load_config("configs/data_prep.yaml")
+    cfg = load_config("configs/staging/data_prep.yaml")
     assert cfg.input.source == "parquet"
     assert cfg.output.target_mb_per_part == 512
     assert cfg.output.include_c360_tag is True

@@ -86,7 +86,7 @@ def test_pipeline_data_prep_config_runs(monkeypatch):
         pipeline_mod, "get_client", lambda _cfg: contextlib.nullcontext()
     )
 
-    cfg = load_config("configs/data_prep.yaml")
+    cfg = load_config("configs/staging/data_prep.yaml")
     base = pipeline_mod.run_from_config(cfg)
     assert Path(base, "input_data").exists()
     assert Path(base, "bundleconfig.yaml").exists()
@@ -116,7 +116,7 @@ def test_pipeline_wine_and_cheese_config_runs(monkeypatch):
     )
     monkeypatch.setattr(pipeline_mod, "tag_uc_volume_via_sql", lambda **_kwargs: None)
 
-    cfg = load_config("configs/wine_and_cheese.yaml")
+    cfg = load_config("configs/staging/wine_and_cheese.yaml")
     base = pipeline_mod.run_from_config(cfg)
     assert Path(base, "input_data").exists()
     assert Path(base, "bundleconfig.yaml").exists()
@@ -128,7 +128,7 @@ def test_pipeline_wine_and_cheese_real():
     if os.getenv("NL_INTEGRATION") != "1":
         pytest.skip("Set NL_INTEGRATION=1 to run the real wine_and_cheese pipeline.")
 
-    cfg = load_config("configs/wine_and_cheese.yaml")
+    cfg = load_config("configs/staging/wine_and_cheese.yaml")
     base = pipeline_mod.run_from_config(cfg)
     assert Path(base, "input_data").exists()
     assert Path(base, "bundleconfig.yaml").exists()
