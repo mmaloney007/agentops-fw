@@ -13,19 +13,19 @@ The configs are capable of reading and writing to both local and remote sources/
 Local run (Pixi) meaning local dask and file writing:
 
 ```bash
-pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime local
+pixi run neuralift_c360_prep --config configs/staging/data_prep.yaml --runtime local
 ```
 
 Coiled run (submits a Coiled batch job by default; logs stream in Coiled):
 
 ```bash
-pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime coiled
+pixi run neuralift_c360_prep --config configs/staging/data_prep.yaml --runtime coiled
 ```
 
 Run the driver locally against a Coiled cluster (legacy behavior):
 
 ```bash
-pixi run neuralift_c360_prep --config configs/data_prep.yaml --runtime coiled --no-batch
+pixi run neuralift_c360_prep --config configs/staging/data_prep.yaml --runtime coiled --no-batch
 ```
 
 Batch helper:
@@ -128,33 +128,64 @@ Optional:
 
 ### Available configs and what they do
 
-- `configs/data_prep.yaml`: local demo on `example-data/wine_cheese.parquet`
+Configs are located in `configs/staging/`:
+
+- `data_prep.yaml`: local demo on `example-data/wine_cheese.parquet`
   that writes to `local-output`.
-- `configs/ecomm.yaml`: Coiled UC table `staging-ecomm-clothing-source.default.ecomm_lp`
+- `ecomm.yaml`: Coiled UC table `staging-ecomm-clothing-source.default.ecomm_lp`
   with ecomm KPI tags; writes to `staging-c360.ecomm-clothing.ecomm_demo_lp`.
-- `configs/ecomm_loyalty.yaml`: Coiled UC table
+- `ecomm_loyalty.yaml`: Coiled UC table
   `staging-ecomm-clothing-source.default.ecomm_loyalty_lp`; loyalty KPI tags; writes to
   `staging-c360.ecomm-clothing.loyalty_demo_lp`.
-- `configs/gaming.yaml`: Coiled UC table `staging-gaming-source.default.gaming_demo`;
+- `gaming.yaml`: Coiled UC table `staging-gaming-source.default.gaming_demo`;
   gaming KPI tags; writes to `staging-c360.gaming.gaming_demo_lp`.
-- `configs/marketing_kaggle_local.yaml`: local CSV at
+- `marketing_kaggle_local.yaml`: local CSV at
   `/Users/maloney/neuralift_data/heuristics_data/marketing-kaggle/marketing-kaggle-dab.csv`
   with dtype overrides and feature functions; writes to a placeholder `s3_base`.
-- `configs/media_demo_scale.yaml`: Coiled UC table `staging-c360.media.viva_stream_media_27m`;
+- `media_demo_scale.yaml`: Coiled UC table `staging-c360.media.viva_stream_media_27m`;
   ZSML KPI for `total_spent`; drops PII-like columns; writes to
   `staging-c360.media.vivastream_media_27m_01` with 256 MB target partitions.
-- `configs/media_small.yaml`: Coiled UC table `staging-media-source.default.media_54`;
+- `media_small.yaml`: Coiled UC table `staging-media-source.default.media_54`;
   ZSML KPI; drops PII-like columns; writes to `staging-c360.media` (volume name
   `media_dask_test_54k`).
-- `configs/media_testing_mils.yaml`: Coiled UC table `staging-media-source.default.media_demo_5m`;
+- `media_testing_mils.yaml`: Coiled UC table `staging-media-source.default.media_demo_5m`;
   ZSML KPI; `use_approx_unique: false`; writes to
   `staging-c360.media.media_demo_5m_512mb`.
-- `configs/sports_and_concert.yaml`: Coiled UC table
+- `sports_and_concert.yaml`: Coiled UC table
   `staging-sports-and-concerts-source.default.sports_lp`; sports KPI tags; writes to
   `staging-c360.sports-and-concerts.sports_and_concert_demo_lp`.
-- `configs/wine_and_cheese.yaml`: Coiled UC table
+- `wine_and_cheese.yaml`: Coiled UC table
   `staging-c360.kaggle-marketing.wine_cheese_20250624_01`; adds age feature and drops
   `CustomerJoinDate`; writes to `staging-c360.kaggle-marketing.wine_demo`.
+
+### Config Generator
+
+Generate a starter config YAML from an existing tagged Unity Catalog table:
+
+```bash
+# Print config to stdout
+pixi run python -m neuralift_c360_prep.config_generator staging-c360.media.vivastream_27m
+
+# Write to file
+pixi run python -m neuralift_c360_prep.config_generator staging-c360.media.vivastream_27m \
+  -o configs/staging/vivastream_generated.yaml
+
+# Specify workspace (default: neuralift-dev)
+pixi run python -m neuralift_c360_prep.config_generator staging-c360.media.vivastream_27m \
+  --workspace neuralift-prod \
+  -o configs/staging/vivastream_generated.yaml
+```
+
+The generator reads:
+- Column schema from Databricks SDK
+- Column tags from `information_schema.column_tags` via SQL
+- Table comment for metadata context
+
+Expected column tags:
+- `type: id` - marks column as ID
+- `type: kpi` - marks column as KPI (generates identity function)
+- `value_sum_column`, `value_sum_unit` - lift metadata for KPIs
+- `event_sum_column`, `event_sum_unit` - lift metadata for KPIs
 
 ## Non-prod Databricks UC structure (kaggle_marketing)
 
