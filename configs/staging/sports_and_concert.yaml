@@ -1,0 +1,134 @@
+# =============================================================================
+# SPORTS AND CONCERT - Coiled Cloud Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-sports-and-concerts.default.*)
+# Output: Unity Catalog (staging-c360.sports-and-concerts.*)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
+#         generation for ticketing/events data without transformations.
+# =============================================================================
+
+logging:
+  level: info
+
+runtime:
+  engine: coiled
+  coiled:
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
+    n_workers: 2
+    worker_vm_types:
+      - i3.2xlarge #- i3.2xlarge
+    scheduler_vm_types:
+      - c5d.xlarge
+    idle_timeout: 2h
+    no_client_timeout: 2h
+    create_timeout: 15m
+    op_timeout: 45m
+
+input:
+  source: uc_table
+  uc_table: staging-sports-and-concerts-source.default.sports_lp
+  columns: null
+ids:
+  columns: ["customer_id"]
+  auto_detect: false
+  # ---------------------------------------------------------------------------
+  # LLM-Enhanced ID Detection (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # detection:
+  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
+  #   llm_provider:
+  #     provider: auto             # Options: openai, anthropic, auto
+  #     model: null                # Use provider default or specify: gpt-4o-mini
+  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+  #   llm_cache_enabled: true      # Cache LLM responses to save cost
+  #   uniqueness_threshold: 0.95   # Ratio to consider column unique
+  #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
+  #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
+
+functions: []
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
+  # zsml:
+  #   enabled: false
+  #   source_col: null
+  #   out_col: null
+  #   zero_threshold: 0.0
+  #   quantiles: [0.33, 0.66]
+  #   clip_high_quantile: 0.95
+  #   unit: ""
+  #   range_style: text
+  #   add_prefix: true
+
+# drop_columns:
+#   - Applied LAST, after preprocessing/renames (snake-case is allowed).
+# drop_columns:
+#   - CustomerJoinDate
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 25
+  tags:
+    id_cols: ["customer_id"]
+    kpi_cols:
+      - average_event_spend
+      - parking_user
+      - app_user
+      - new_this_year
+    missing_indicator_cols: []
+    extra_tags_all: null
+    extra_tags_by_column:
+      average_event_spend:
+        value_sum_column: total_dollar_spend_all_events_all_years
+        value_sum_unit: USD
+        event_sum_column: total_events_all_categories_all_years
+        event_sum_unit: events
+    max_card: 25
+    use_approx_unique: true
+  schema_alignment: true
+  context: |
+    Granite Pulse Arena stands as New Hampshire’s premier destination for live entertainment,
+    bringing together the energy of professional hockey, the thrill of basketball, and the excitement of world-class concerts
+    and family events like the Harlem Globetrotters and Disney on Ice. As one of the New England region’s flagship venue,
+    Granite Pulse Arena serves a diverse community of fans and families, uniting audiences with unforgettable experiences in a state-of-the-art,
+    multi-purpose environment.
+  op_timeout: 45m
+# -----------------------------------------------------------------------------
+# Data Doctor - Automated data quality analysis and suggestions
+# -----------------------------------------------------------------------------
+# Runs after metadata generation to provide actionable improvement suggestions.
+# Rule-based analysis is always on. LLM enhancement is optional.
+# -----------------------------------------------------------------------------
+data_doctor:
+  enabled: false                   # Disabled for production runs (avoid Int64Dtype issues)
+  save_yaml: true                  # Save suggestions.yaml alongside output
+  # ---------------------------------------------------------------------------
+  # LLM Enhancement (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # llm_enabled: false             # Set to true to enable LLM analysis
+  # llm_provider:
+  #   provider: auto               # Options: openai, anthropic, auto
+  #   model: null                  # Use provider default or specify: gpt-4o-mini
+  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
+  # llm_cache_enabled: true        # Cache LLM responses to save cost
+  # generate_executive_summary: true  # Generate natural language summary
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: sports-and-concerts
+  uc_volume_name: sports_and_concert_demo_lp
+  uc_table: sports_and_concert_demo_lp
+  run_name: sports_and_concert_demo_lp
+  # s3_base: s3://dummy-bucket/wine/
+  partitions: []
+  target_mb_per_part: 512

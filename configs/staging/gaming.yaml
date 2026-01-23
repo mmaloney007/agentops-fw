@@ -1,0 +1,132 @@
+# =============================================================================
+# GAMING - Coiled Cloud Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-gaming.default.*)
+# Output: Unity Catalog (staging-c360.gaming.*)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  Preprocessing only (no functions). Tests ingestion and metadata
+#         generation for gaming/player engagement data.
+# =============================================================================
+
+logging:
+  level: debug
+
+runtime:
+  engine: coiled
+  coiled:
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
+    n_workers: 2
+    worker_vm_types:
+      - i3.2xlarge #- i3.2xlarge
+    scheduler_vm_types:
+      - c5d.xlarge
+    idle_timeout: 2h
+    no_client_timeout: 2h
+    create_timeout: 15m
+    op_timeout: 45m
+
+input:
+  source: uc_table
+  uc_table: staging-gaming-source.default.gaming_demo
+  columns: null
+ids:
+  columns: ["player_id"]
+  auto_detect: false
+  # ---------------------------------------------------------------------------
+  # LLM-Enhanced ID Detection (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # detection:
+  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
+  #   llm_provider:
+  #     provider: auto             # Options: openai, anthropic, auto
+  #     model: null                # Use provider default or specify: gpt-4o-mini
+  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+  #   llm_cache_enabled: true      # Cache LLM responses to save cost
+  #   uniqueness_threshold: 0.95   # Ratio to consider column unique
+  #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
+  #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
+
+functions: []
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
+  # zsml:
+  #   enabled: false
+  #   source_col: null
+  #   out_col: null
+  #   zero_threshold: 0.0
+  #   quantiles: [0.33, 0.66]
+  #   clip_high_quantile: 0.95
+  #   unit: ""
+  #   range_style: text
+  #   add_prefix: true
+
+# drop_columns:
+#   - Applied LAST, after preprocessing/renames (snake-case is allowed).
+# drop_columns:
+#   - CustomerJoinDate
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 25
+  tags:
+    id_cols: ["player_id"]
+    kpi_cols:
+      - kpi_6_m_net_worth
+      - kpi_net_worth_daily
+      - investment_target
+      - net_worth_change
+    missing_indicator_cols: []
+    extra_tags_all: null
+    extra_tags_by_column:
+      kpi_6_m_net_worth:
+        value_sum_column: total_worth_last_6_m
+        value_sum_unit: USD
+        event_sum_column: days_active_last_6_m
+        event_sum_unit: days
+    max_card: 25
+    use_approx_unique: true
+  schema_alignment: true
+  context: |
+    This dataset is from **Copper Cactus Casino** in Pheonix, Arizona, owned by a conglomerate. It encompasses extensive data on customer interactions,
+    transactions, survey responses, demographic information, and gaming activities.
+    It covers the previous 12 of customer data with two time periods the immediate last 6 months (last_6m) and the previous 6 months (prev_6m).
+  op_timeout: 45m
+# -----------------------------------------------------------------------------
+# Data Doctor - Automated data quality analysis and suggestions
+# -----------------------------------------------------------------------------
+# Runs after metadata generation to provide actionable improvement suggestions.
+# Rule-based analysis is always on. LLM enhancement is optional.
+# -----------------------------------------------------------------------------
+data_doctor:
+  enabled: false                   # Disabled for production runs (avoid Int64Dtype issues)
+  save_yaml: true                  # Save suggestions.yaml alongside output
+  # ---------------------------------------------------------------------------
+  # LLM Enhancement (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # llm_enabled: false             # Set to true to enable LLM analysis
+  # llm_provider:
+  #   provider: auto               # Options: openai, anthropic, auto
+  #   model: null                  # Use provider default or specify: gpt-4o-mini
+  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
+  # llm_cache_enabled: true        # Cache LLM responses to save cost
+  # generate_executive_summary: true  # Generate natural language summary
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: gaming
+  uc_volume_name: gaming_demo_lp
+  uc_table: gaming_demo_lp
+  run_name: gaming_demo_lp
+  # s3_base: s3://dummy-bucket/wine/
+  partitions: []
+  target_mb_per_part: 512

@@ -5,8 +5,7 @@ preprocess.py (Dask)
 Preprocessing + ZSML helpers
 
 Purpose:
-    - Apply optional feature_functions (partition-wise), then KPI functions, then core preprocessing
-      (rename→bool-fix→missing→drop rules), and finally drop configured columns.
+    - Apply core preprocessing only (rename→bool-fix→missing→drop rules).
     - Generate missing-value reports and fills, add missing flags, and drop empty/constant/unique-only columns.
     - Fit/apply ZSML tiers for KPIs and produce summary reports.
 
@@ -39,7 +38,8 @@ import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 from dask import compute as dask_compute
-from dask.dataframe.utils import meta_nonempty
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -151,8 +151,13 @@ def _boolfix_partition(pdf: pd.DataFrame, candidate_cols: list[str]) -> pd.DataF
         tokens = pdf[col].dropna().astype(str).str.strip().str.lower().unique()
         if 0 < len(tokens) <= _BOOL_MAX_UNIQUES and set(tokens) <= (_TRUTHY | _FALSY):
             mapped = pdf[col].map(_bool_token)
-            if not mapped.isna().any():  # only if all map cleanly
-                pdf[col] = mapped.astype("boolean")
+            # Fill any NULLs with mode (most common value), defaulting to False
+            if mapped.isna().any():
+                mode_val = mapped.mode()
+                fill_val = mode_val.iloc[0] if len(mode_val) > 0 else False
+                mapped = mapped.fillna(fill_val)
+            # Cast to int8 (0/1) - avoids pandas nullable boolean type
+            pdf[col] = mapped.astype("int8")
     return pdf
 
 
@@ -218,12 +223,14 @@ def missing_report_and_fill_dask(
     fill: bool = False,
     fill_strings_with: str = "const",  # "const" | "mode"
     fill_strings_const: str = "Unknown",
-    fill_numbers_with: str = "median",  # "median" | "zero"
+    fill_numbers_with: str = "median",  # "median" | "mean" | "zero" | number
+    fill_datetime_with: str | None = "1901-01-01",  # Sentinel date for NULL datetimes
     add_flags: bool = False,
     verbose: bool = True,
     big_row_threshold: int = 5_000_000,
     numeric_sample_rows: int = 500_000,
     progress_every: int = 25,
+    fill_overrides: dict[str, Any] | None = None,  # NEW: per-column overrides
 ) -> tuple[dd.DataFrame, pd.DataFrame, dict[str, Any]]:
     """
     Memory-efficient missing report + optional fills with progress logging.
@@ -272,33 +279,68 @@ def missing_report_and_fill_dask(
         f"[missing] split by type: numeric={len(num_cols)}, "
         f"datetime={len(dt_cols)}, string/other={len(str_cols)}"
     )
+    if dt_cols:
+        _log_step(f"[missing] datetime columns: {dt_cols}")
+
+    # Handle per-column overrides
+    overrides = fill_overrides or {}
 
     medians: Dict[str, float] = {}
-    if fill and num_cols and fill_numbers_with == "median":
+    means: Dict[str, float] = {}
+    # Determine which numeric columns need median vs mean
+    num_cols_for_median = [
+        c for c in num_cols if c not in overrides and fill_numbers_with == "median"
+    ]
+    num_cols_for_mean = [
+        c for c in num_cols if c not in overrides and fill_numbers_with == "mean"
+    ]
+
+    if fill and num_cols_for_median:
         medians = _compute_numeric_medians_bigaware(
             ddf,
-            num_cols,
+            num_cols_for_median,
             total_rows=total_rows,
             big_row_threshold=big_row_threshold,
             sample_rows=numeric_sample_rows,
         )
 
-    string_modes: dict[str, Any] = {}
-    if fill and str_cols and fill_strings_with == "mode":
+    if fill and num_cols_for_mean:
         _log_step(
-            f"[missing/modes] computing string modes for {len(str_cols)} columns (batched)..."
+            f"[missing/means] computing means for {len(num_cols_for_mean)} numeric cols",
+            verbose,
+        )
+        mean_vals = ddf[num_cols_for_mean].mean().compute()
+        for col in num_cols_for_mean:
+            try:
+                means[col] = float(mean_vals[col])
+            except Exception:
+                means[col] = 0.0
+
+    # Filter string cols that don't have overrides for mode calculation
+    str_cols_for_mode = [
+        c for c in str_cols if c not in overrides and fill_strings_with == "mode"
+    ]
+
+    string_modes: dict[str, Any] = {}
+    if fill and str_cols_for_mode:
+        _log_step(
+            f"[missing/modes] computing string modes for {len(str_cols_for_mode)} columns (batched)..."
         )
         # OPTIMIZATION: Batch all value_counts computations into a single dask_compute call
         # This reduces scheduler round-trips from O(n) to O(1)
-        mode_tasks = [ddf[col].dropna().value_counts().head(1) for col in str_cols]
+        mode_tasks = [
+            ddf[col].dropna().value_counts().head(1) for col in str_cols_for_mode
+        ]
         mode_results = dask_compute(*mode_tasks)
 
-        for col, vc in zip(str_cols, mode_results):
+        for col, vc in zip(str_cols_for_mode, mode_results):
             if len(vc):
                 string_modes[col] = vc.index[0]
             else:
                 string_modes[col] = fill_strings_const
-        _log_step(f"[missing/modes] computed modes for {len(str_cols)} columns")
+        _log_step(
+            f"[missing/modes] computed modes for {len(str_cols_for_mode)} columns"
+        )
 
     suggestions: list[dict[str, Any]] = []
     fill_map: dict[str, Any] = {}
@@ -314,22 +356,43 @@ def missing_report_and_fill_dask(
         suggest_fill: Any = None
 
         if fill:
-            if pd.api.types.is_numeric_dtype(dtype):
-                if fill_numbers_with == "zero" or nulls == total_rows:
+            # Check for per-column override first
+            if col in overrides:
+                fill_val = overrides[col]
+                fill_map[col] = fill_val
+                suggest_fill = fill_val
+            elif pd.api.types.is_numeric_dtype(dtype):
+                if nulls == total_rows:
                     fill_val = 0
-                else:
+                elif fill_numbers_with == "median":
                     fill_val = medians.get(col, 0.0)
+                elif fill_numbers_with == "mean":
+                    fill_val = means.get(col, 0.0)
+                elif isinstance(fill_numbers_with, (int, float)):
+                    fill_val = fill_numbers_with
+                else:
+                    # "zero" or fallback
+                    fill_val = 0
                 fill_map[col] = fill_val
                 suggest_fill = fill_val
 
             elif pd.api.types.is_datetime64_any_dtype(dtype):
-                fill_val = pd.NaT
+                # Fill datetime NULLs with sentinel date (default: 1901-01-01)
+                if fill_datetime_with:
+                    fill_val = pd.Timestamp(fill_datetime_with)
+                    fill_map[col] = fill_val
+                    suggest_fill = str(fill_val.date())
+                else:
+                    fill_val = pd.NaT  # No fill if datetime fill disabled
 
             else:
                 if fill_strings_with == "const":
                     fill_val = fill_strings_const
-                else:
+                elif fill_strings_with == "mode":
                     fill_val = string_modes.get(col, fill_strings_const)
+                else:
+                    # Custom string value
+                    fill_val = fill_strings_with
                 fill_map[col] = fill_val
                 suggest_fill = fill_val
 
@@ -355,6 +418,32 @@ def missing_report_and_fill_dask(
     out = ddf
 
     if fill and fill_map:
+        fill_rows = []
+        for col, value in fill_map.items():
+            fill_rows.append(
+                {
+                    "column": col,
+                    "null_count": int(null_counts.get(col, 0)),
+                    "fill_value": value,
+                }
+            )
+        fill_df = pd.DataFrame(fill_rows).sort_values("null_count", ascending=False)
+        if verbose:
+            _log_step("[missing] fill summary:")
+            with pd.option_context("display.max_colwidth", None, "display.width", 200):
+                print(fill_df.to_markdown(index=False))
+        else:
+            logger.info(
+                "[missing] fill summary:\n%s",
+                fill_df.to_string(index=False),
+            )
+        # Log datetime columns filled with sentinel
+        if fill_datetime_with:
+            dt_filled = [c for c in dt_cols if c in fill_map]
+            if dt_filled:
+                _log_step(
+                    f"[missing] datetime filled with {fill_datetime_with}: {dt_filled}"
+                )
         _log_step(
             f"[missing] applying fills for {len(fill_map)} column(s) via .fillna(...)"
         )
@@ -387,9 +476,13 @@ def preprocess_dask_scaled(
     boolfix_cols: Iterable[str] | None = None,
     drop_columns: Iterable[str] | None = None,
     fill_missing: bool = False,
-    fill_strings_with: str = "const",
+    fill_strings_with: str = "const",  # "const" | "mode" | custom string
     fill_strings_const: str = "Unknown",
-    fill_numbers_with: str = "median",
+    fill_numbers_with: str
+    | int
+    | float = "median",  # "median" | "mean" | "zero" | number
+    fill_datetime_with: str | None = "1901-01-01",  # Sentinel date for NULL datetimes
+    fill_overrides: dict[str, Any] | None = None,  # NEW: per-column overrides
     add_missing_flags: bool = False,
     drop_empty: bool = True,
     drop_constants: bool = False,
@@ -500,6 +593,8 @@ def preprocess_dask_scaled(
         fill_strings_with=fill_strings_with,
         fill_strings_const=fill_strings_const,
         fill_numbers_with=fill_numbers_with,
+        fill_datetime_with=fill_datetime_with,
+        fill_overrides=fill_overrides,
         add_flags=add_missing_flags,
         verbose=debug,
         big_row_threshold=big_row_threshold,
@@ -621,7 +716,7 @@ def _format_range(
 
 
 def _to_num_dd(series: dd.Series) -> dd.Series:
-    if np.issubdtype(series.dtype, np.number):
+    if pd.api.types.is_numeric_dtype(series.dtype):
         return series.astype("float64")
     return series.map_partitions(pd.to_numeric, errors="coerce", meta=("x", "float64"))
 
@@ -942,137 +1037,52 @@ def ensure_zsml_kpi_dask(
 
 
 # ---------------------------------------------------------------------------
-# Public wrapper with feature_functions + KPI functions + preprocessing
+# Public wrapper with core preprocessing only
 # ---------------------------------------------------------------------------
 def preprocess(ddf, cfg):
     """
-    Apply feature_functions -> KPI functions -> preprocessing -> drop_columns.
+    Apply core preprocessing only (rename, bool-fix, fill, drop empty/constant).
+    Functions and drop-columns are applied in the pipeline stage.
     """
-    hooks = getattr(cfg, "feature_functions", []) or []
-    import importlib
-
-    debug = getattr(cfg.logging, "level", "info") == "debug"
-
-    orig_cols = list(ddf.columns)
-
-    if hooks:
-        funcs = []
-        for hook in hooks:
-            mod_name, fn_name = hook.split(":", 1)
-            mod = importlib.import_module(mod_name)
-            fn = getattr(mod, fn_name)
-            funcs.append(fn)
-
-        def _run_all(pdf: pd.DataFrame) -> pd.DataFrame:
-            out = pdf.copy()
-            for fn in funcs:
-                out = fn(out)
-            return out
-
-        sample_meta = meta_nonempty(ddf._meta)
-        sample_meta = _run_all(sample_meta)
-        ddf = ddf.map_partitions(_run_all, meta=sample_meta.head(0))
-
-        before_cols = set(orig_cols)
-        after_cols = set(ddf.columns)
-        new_cols = sorted(after_cols - before_cols)
-        _log_step(
-            f"[feature_functions] applied {len(funcs)} hook(s); new columns: {new_cols or 'none'}"
-        )
-        # Show id cols and newly added columns, if present
-        id_candidates = getattr(cfg.input, "id_cols", []) or []
-        id_snake = [_to_snake(c) for c in id_candidates]
-        cols_for_head = [
-            c for c in id_candidates + id_snake + new_cols if c in ddf.columns
-        ][:10]
-        _log_head(ddf, cols_for_head, debug, "after feature_functions")
-
+    verbose = getattr(cfg.logging, "level", "info") == "debug"
+    debug = verbose  # alias for compatibility
     pre_cfg = getattr(cfg, "preprocessing", None) or getattr(cfg, "cleaning", None)
 
-    # KPI functions (supports multiple ZSML definitions or cleaning.zsml)
-    kpi_funcs = []
-    # Back-compat: preprocessing/cleaning.zsml enabled
-    zsml_cfg = getattr(pre_cfg, "zsml", None)
-    if getattr(zsml_cfg, "enabled", False) and getattr(zsml_cfg, "source_col", None):
-        kpi_funcs.append(
-            {
-                "type": "zsml",
-                "source_col": zsml_cfg.source_col,
-                "out_col": zsml_cfg.out_col,
-                "zero_threshold": zsml_cfg.zero_threshold,
-                "quantiles": zsml_cfg.quantiles,
-                "clip_high_quantile": zsml_cfg.clip_high_quantile,
-                "unit": zsml_cfg.unit,
-                "range_style": zsml_cfg.range_style,
-                "add_prefix": zsml_cfg.add_prefix,
-            }
-        )
-    # New: kpi_functions list
-    for k in getattr(cfg, "kpi_functions", []) or []:
-        if getattr(k, "type", "zsml") == "zsml":
-            kpi_funcs.append(
-                {
-                    "type": "zsml",
-                    "source_col": k.source_col,
-                    "out_col": k.out_col,
-                    "zero_threshold": k.zero_threshold,
-                    "quantiles": k.quantiles,
-                    "clip_high_quantile": k.clip_high_quantile,
-                    "unit": k.unit,
-                    "range_style": k.range_style,
-                    "add_prefix": k.add_prefix,
-                }
-            )
+    # Determine whether fill was explicitly configured
+    fields_set = getattr(pre_cfg, "model_fields_set", None)
+    if fields_set is None:
+        fields_set = getattr(pre_cfg, "__pydantic_fields_set__", set())
+    fill_explicit = "fill" in (fields_set or set())
 
-    for kpi in kpi_funcs:
-        source_col = kpi["source_col"]
-        source_col_snake = _to_snake(source_col)
-        # Preprocessing (rename to snake_case) happens later; accept either form here.
-        if source_col not in ddf.columns and source_col_snake in ddf.columns:
-            source_col = source_col_snake
-        if source_col not in ddf.columns:
-            raise KeyError(
-                f"ZSML source_col '{kpi['source_col']}' not found "
-                f"(tried '{kpi['source_col']}' and '{source_col_snake}')"
-            )
+    fill_cfg = getattr(pre_cfg, "fill", None)
 
-        tier_col = kpi["out_col"] or f"{source_col}_tier"
-        tier_col = _to_snake(tier_col)
+    # Determine fill settings from new FillConfig or legacy missing_fill
+    fill_enabled = True
+    fill_categorical = "Unknown"
+    fill_continuous: str | int | float = "median"
+    fill_datetime: str | None = "1901-01-01"
+    fill_overrides: dict = {}
 
-        model = fit_zsml_edges_dask(
-            ddf[source_col],
-            zero_threshold=kpi["zero_threshold"],
-            quantiles=kpi["quantiles"],
-            clip_high_quantile=kpi["clip_high_quantile"],
-        )
-        tier_series = apply_zsml_dask(
-            ddf[source_col],
-            model,
-            label_ranges=kpi["range_style"] in {"math", "text"},
-            add_prefix=kpi["add_prefix"],
-            unit=kpi["unit"],
-            range_style=kpi["range_style"],
-        )
-        ddf = ddf.assign(**{tier_col: tier_series})
-        _log_step(
-            f"[kpi] zsml applied on '{source_col}' -> '{tier_col}' "
-            f"(quantiles={kpi['quantiles']}, zero_threshold={kpi['zero_threshold']})"
-        )
-        # Show id + source + tier columns
-        id_candidates = getattr(cfg.input, "id_cols", []) or []
-        id_snake = [_to_snake(c) for c in id_candidates]
-        cols_for_head = [
-            c
-            for c in id_candidates + id_snake + [source_col, tier_col]
-            if c in ddf.columns
-        ][:10]
-        _log_head(ddf, cols_for_head, debug, f"kpi '{tier_col}'")
+    if fill_explicit and fill_cfg is not None:
+        fill_categorical = getattr(fill_cfg, "categorical", "Unknown") or "Unknown"
+        fill_continuous = getattr(fill_cfg, "continuous", "median") or "median"
+        fill_datetime = getattr(fill_cfg, "datetime", "1901-01-01")
+        fill_overrides = dict(getattr(fill_cfg, "overrides", {}) or {})
+    else:
+        legacy_fill = getattr(pre_cfg, "missing_fill", "auto")
+        fill_enabled = legacy_fill == "auto"
 
-    # Core preprocessing
     ddf = preprocess_dask_scaled(
         ddf,
-        drop_columns=getattr(cfg, "drop_columns", []),
-        fill_missing=getattr(pre_cfg, "missing_fill", "auto") == "auto",
+        drop_columns=None,
+        fill_missing=fill_enabled,
+        fill_strings_with="const" if fill_categorical not in ("mode",) else "mode",
+        fill_strings_const=fill_categorical
+        if fill_categorical != "mode"
+        else "Unknown",
+        fill_numbers_with=fill_continuous,
+        fill_datetime_with=fill_datetime,
+        fill_overrides=fill_overrides,
         drop_constants=getattr(pre_cfg, "drop_constant", True),
         drop_every_value_is_unique=False,
         drop_empty=getattr(pre_cfg, "drop_empty", True),
@@ -1081,18 +1091,32 @@ def preprocess(ddf, cfg):
         verbose=debug,
     )
 
-    # Drop configured columns after preprocessing (support original and snake_case forms)
-    drops = getattr(cfg, "drop_columns", []) or []
-    if drops:
-        to_drop = []
-        for col in drops:
-            snake = _to_snake(col)
-            if col in ddf.columns:
-                to_drop.append(col)
-            elif snake in ddf.columns:
-                to_drop.append(snake)
-        if to_drop:
-            ddf = ddf.drop(columns=sorted(set(to_drop)))
+    return ddf
+
+
+def drop_configured_columns(
+    ddf: dd.DataFrame,
+    drop_columns: Iterable[str] | None,
+    *,
+    verbose: bool = False,
+) -> dd.DataFrame:
+    """Drop configured columns after functions have run."""
+    drops = list(drop_columns or [])
+    if not drops:
+        return ddf
+
+    to_drop = []
+    for col in drops:
+        snake = _to_snake(col)
+        if col in ddf.columns:
+            to_drop.append(col)
+        elif snake in ddf.columns:
+            to_drop.append(snake)
+    if to_drop:
+        ddf = ddf.drop(columns=sorted(set(to_drop)))
+        _log_step(
+            f"[drop] drop_columns → {len(set(to_drop))} column(s): {sorted(set(to_drop))}"
+        )
     return ddf
 
 
@@ -1105,6 +1129,7 @@ __all__ = [
     "zsml_report_dask",
     "ensure_zsml_kpi_dask",
     "preprocess",
+    "drop_configured_columns",
 ]
 
 

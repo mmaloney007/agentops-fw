@@ -1,0 +1,151 @@
+# =============================================================================
+# WINE AND CHEESE UC READ LOCAL WRITE - Hybrid Config
+# =============================================================================
+# Input:  Unity Catalog table (staging-c360.kaggle-marketing.wine_cheese_*)
+# Output: local-output/ (local filesystem)
+# Engine: Coiled (2 workers)
+#
+# Tests:  UC read → local write workflow. Full function suite with KPIs.
+#         Tests hybrid cloud/local output pattern for debugging UC data.
+# =============================================================================
+
+logging:
+  level: info
+  show_progress: true
+
+runtime:
+  engine: local
+  # Note: Changed from coiled to local because s3_base points to local filesystem
+  # Coiled workers cannot write to local paths
+
+input:
+  source: uc_table
+  uc_table: staging-c360.kaggle-marketing.wine_cheese_20250624_01
+  columns: null
+ids:
+  columns: ["id"]
+  auto_detect: false
+  # ---------------------------------------------------------------------------
+  # LLM-Enhanced ID Detection (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # detection:
+  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
+  #   llm_provider:
+  #     provider: auto             # Options: openai, anthropic, auto
+  #     model: null                # Use provider default or specify: gpt-4o-mini
+  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+  #   llm_cache_enabled: true      # Cache LLM responses to save cost
+  #   uniqueness_threshold: 0.95   # Ratio to consider column unique
+  #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
+  #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
+
+functions:
+  # KPI functions (kpi: true marks output as KPI)
+  - type: zsml
+    source_col: Revenue
+    out_col: revenue_tier
+    quantiles: [0.33, 0.66]
+    kpi: true
+    lift:
+      value_sum_column: Revenue
+      value_sum_unit: USD
+      event_sum_column: Purchases
+      event_sum_unit: events
+
+  - type: identity
+    column: CustomerComplainedRecently
+    kpi: true
+
+  # Feature engineering functions
+  - type: callable
+    callable: neuralift_c360_prep.features.birthday:add_age_from_year
+    inputs: [Year_Birth]
+
+  - type: binning
+    source_col: Age
+    out_col: age_bin
+
+  - type: string_normalize
+    source_col: Education
+    out_col: education_clean
+
+  - type: frequency_encode
+    source_col: Marital_Status
+    out_col: marital_status_freq
+    normalize: true
+
+  - type: days_since
+    source_col: CustomerJoinDate
+    out_col: days_since_join
+    reference_date: "2024-01-01"
+
+  - type: date_parts
+    source_col: CustomerJoinDate
+
+  - type: winsorize
+    source_col: Income
+    lower_quantile: 0.01
+    upper_quantile: 0.99
+
+  - type: log_transform
+    source_col: AmmountSpentOnWine
+    log_method: log1p
+    log_clip_min: 0
+
+  - type: categorical_bucket
+    source_col: Marital_Status
+    top_k: 3
+    other_label: other
+
+  - type: ratio
+    numerator_col: AmmountSpentOnWine
+    denominator_col: Income
+    out_col: spend_wine_per_income
+    on_zero: zero
+
+drop_columns: []
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 75
+  context: "Wine and cheese UC read / local write demo"
+  op_timeout: 45m
+
+# -----------------------------------------------------------------------------
+# Data Doctor - Automated data quality analysis and suggestions
+# -----------------------------------------------------------------------------
+# Runs after metadata generation to provide actionable improvement suggestions.
+# Rule-based analysis is always on. LLM enhancement is optional.
+# -----------------------------------------------------------------------------
+data_doctor:
+  enabled: true                    # Run Data Doctor analysis (rule-based)
+  save_yaml: true                  # Save suggestions.yaml alongside output
+  # ---------------------------------------------------------------------------
+  # LLM Enhancement (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # llm_enabled: false             # Set to true to enable LLM analysis
+  # llm_provider:
+  #   provider: auto               # Options: openai, anthropic, auto
+  #   model: null                  # Use provider default or specify: gpt-4o-mini
+  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
+  # llm_cache_enabled: true        # Cache LLM responses to save cost
+  # generate_executive_summary: true  # Generate natural language summary
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: kaggle-marketing
+  uc_table: wine_cheese_uc_local
+  run_name: wine_cheese_uc_read_local_write
+  s3_base: local-output/wine_cheese_uc
+  partitions: []
+  target_mb_per_part: 512

@@ -166,6 +166,10 @@ def build_coiled_cluster_kwargs(
     else:
         cluster_kwargs["scheduler_cpu"] = c.scheduler_cpu
         cluster_kwargs["scheduler_memory"] = c.scheduler_memory
+
+    # Workspace for dev/prod isolation
+    cluster_kwargs["workspace"] = c.workspace
+
     return cluster_kwargs
 
 

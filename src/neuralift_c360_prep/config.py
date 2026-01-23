@@ -30,14 +30,24 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
+import logging
 import os
+import warnings
 from pathlib import Path
-from typing import List, Literal, Optional, Sequence
+from typing import Any, List, Literal, Optional, Sequence, Union
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, model_validator, ConfigDict
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationError,
+    model_validator,
+    ConfigDict,
+)
 
 from .env import load_dotenv_file
+
+logger = logging.getLogger(__name__)
 
 SourceType = Literal[
     "uc_table",
@@ -52,6 +62,9 @@ SourceType = Literal[
 
 
 class CoiledConfig(BaseModel):
+    workspace: str = (
+        "neuralift-dev"  # Coiled workspace (use "neuralift-prod" for production)
+    )
     name: str = "neuralift_c360_prep"
     software_env: str = "neuralift_c360_prep"
     n_workers: int = 2
@@ -113,11 +126,6 @@ class RuntimeConfig(BaseModel):
     coiled: CoiledConfig = Field(default_factory=CoiledConfig)
 
 
-class SnapshotConfig(BaseModel):
-    enabled: bool = False
-    repartition_target: Optional[int] = None
-
-
 class BigQueryConfig(BaseModel):
     project: str = ""
     dataset: str = ""
@@ -130,6 +138,74 @@ class AzureConfig(BaseModel):
     account_name: str = ""
     container: str = ""
     path: str = ""
+
+
+# ---------------------------------------------------------------------------
+#  New unified config classes (agentic experience)
+# ---------------------------------------------------------------------------
+
+
+class LLMProviderConfig(BaseModel):
+    """Configuration for LLM provider."""
+
+    provider: Literal["openai", "anthropic", "auto"] = "auto"
+    model: Optional[str] = None  # Provider-specific model name
+    timeout_seconds: int = 60
+    max_retries: int = 4
+
+
+class IdDetectionConfig(BaseModel):
+    """Configuration for LLM-enhanced ID/Primary Key detection."""
+
+    # LLM enhancement options
+    llm_enabled: bool = False  # Opt-in by default
+    llm_provider: LLMProviderConfig = Field(default_factory=LLMProviderConfig)
+
+    # Cost control
+    max_llm_columns: int = 20  # Max columns to analyze with LLM
+    llm_cache_enabled: bool = True
+    llm_cache_dir: str = ".nl_id_cache"
+
+    # Detection tuning
+    uniqueness_threshold: float = 0.95  # Ratio to consider unique
+    gray_zone_lower: float = 0.80  # Lower bound for ambiguous uniqueness
+    detect_uuid_format: bool = True  # Enable UUID/GUID format detection
+
+
+class IdsConfig(BaseModel):
+    """ID column configuration with auto-detection support."""
+
+    columns: List[str] = Field(default_factory=list)
+    auto_detect: bool = True
+    detection: IdDetectionConfig = Field(default_factory=IdDetectionConfig)
+
+
+class FillConfig(BaseModel):
+    """Granular missing value fill strategies."""
+
+    categorical: Union[str, None] = "Unknown"  # "Unknown" | "mode" | custom string
+    continuous: Union[str, float, int, None] = "median"  # "median" | "mean" | number
+    datetime: Union[str, None] = "1901-01-01"  # Sentinel date for NULL datetimes
+    overrides: dict[str, Union[str, float, int, None]] = Field(default_factory=dict)
+
+
+class LiftConfig(BaseModel):
+    """Lift/tag metadata for KPIs (value and event sums)."""
+
+    value_sum_column: Optional[str] = None
+    value_sum_unit: Optional[str] = None
+    event_sum_column: Optional[str] = None
+    event_sum_unit: Optional[str] = None
+
+
+class IdentityKPIConfig(BaseModel):
+    """Identity KPI: tag existing column as KPI without transformation.
+
+    DEPRECATED: Use FunctionConfig with type='identity' instead.
+    """
+
+    column: str
+    lift: LiftConfig = Field(default_factory=LiftConfig)
 
 
 class InputConfig(BaseModel):
@@ -145,12 +221,17 @@ class InputConfig(BaseModel):
     dtype_overrides: Optional[dict[str, str]] = None
     require_logical_names: bool = True
     id_cols: List[str] = Field(default_factory=list)
-    snapshot: SnapshotConfig = Field(default_factory=SnapshotConfig)
     # Performance options
     use_pyarrow_strings: bool = (
         True  # Use PyArrow-backed strings for ~50% memory reduction
     )
     read_blocksize_mb: int = 128  # Blocksize for reads; smaller = more parallelism
+
+    @model_validator(mode="before")
+    def _reject_snapshot(cls, data):
+        if isinstance(data, dict) and "snapshot" in data:
+            raise ValueError("snapshot is no longer supported; remove input.snapshot")
+        return data
 
     @model_validator(mode="after")
     def _validate_source(self) -> "InputConfig":
@@ -195,20 +276,366 @@ class PreprocessingConfig(BaseModel):
     bool_fix: bool = True
     drop_empty: bool = True
     drop_constant: bool = True
+    # Legacy field (deprecated, use fill instead)
     missing_fill: Literal["auto", "none"] = "auto"
+    # NEW: Granular fill options
+    fill: FillConfig = Field(default_factory=FillConfig)
     zsml: ZSMLConfig = Field(default_factory=ZSMLConfig)
 
+    @model_validator(mode="after")
+    def _warn_legacy_fill(self) -> "PreprocessingConfig":
+        # Note: We can't easily detect if missing_fill was explicitly set vs default
+        # The deprecation warning will be emitted in BundleConfig validator instead
+        return self
 
-class KPIFunctionConfig(BaseModel):
-    type: Literal["zsml"] = "zsml"
-    source_col: str
-    out_col: Optional[str] = None
+
+class FunctionConfig(BaseModel):
+    """Unified function configuration - all function types in one model.
+
+    This is the NEW simplified config format where all functions live in a single
+    flat list. Any function can be marked as a KPI with `kpi: true` and can have
+    lift metadata with the `lift:` block.
+
+    Example YAML:
+        functions:
+          - type: zsml
+            source_col: Revenue
+            out_col: revenue_tier
+            kpi: true
+            lift:
+              value_sum_column: Revenue
+              value_sum_unit: USD
+              event_sum_column: Purchases
+              event_sum_unit: events
+
+          - type: identity
+            column: CustomerComplainedRecently
+            kpi: true
+
+          - type: binning
+            source_col: Age
+            out_col: age_bin
+    """
+
+    type: Literal[
+        # KPI/Identity types
+        "zsml",  # ZSML KPI tiering
+        "identity",  # Tag existing column (no transformation)
+        # Feature engineering types
+        "callable",
+        "binning",
+        "winsorize",
+        "log_transform",
+        "date_parts",
+        "categorical_bucket",
+        "ratio",
+        "string_normalize",
+        "frequency_encode",
+        "days_since",
+    ] = "callable"
+
+    # =========================================================================
+    # Universal fields (available on ALL function types)
+    # =========================================================================
+    kpi: bool = False  # Mark output as KPI column
+    kpi_columns: List[str] = Field(default_factory=list)  # For multi-output functions
+    lift: LiftConfig = Field(default_factory=LiftConfig)  # Lift metadata
+    return_mode: Literal["all", "new_only", "list"] = "all"
+    return_columns: List[str] = Field(default_factory=list)
+    null_fill: Optional[Union[str, float, int]] = (
+        None  # Fill NULLs in output (default: no fill)
+    )
+
+    # =========================================================================
+    # Identity type - tag existing column
+    # =========================================================================
+    column: Optional[str] = None  # Required for type=identity
+
+    # =========================================================================
+    # ZSML type - KPI tiering
+    # =========================================================================
     zero_threshold: float = 0.0
-    quantiles: Sequence[float] = (0.33, 0.66)
     clip_high_quantile: float = 0.95
     unit: str = ""
     range_style: Literal["text", "math"] = "text"
     add_prefix: bool = True
+
+    # =========================================================================
+    # Common source/output fields
+    # =========================================================================
+    source_col: Optional[str] = None
+    out_col: Optional[str] = None
+    output_suffix: Optional[str] = None
+    callable: Optional[str] = None  # "module:function" for type=callable
+    inputs: List[str] = Field(default_factory=list)
+    params: dict[str, Any] = Field(default_factory=dict)
+
+    # =========================================================================
+    # Binning fields
+    # =========================================================================
+    bins: Optional[Sequence[float]] = None
+    quantiles: Optional[Sequence[float]] = (0.33, 0.66)  # Shared with ZSML
+    labels: Optional[Sequence[str]] = None
+    right: bool = True
+    include_lowest: bool = True
+
+    # =========================================================================
+    # Winsorize fields
+    # =========================================================================
+    lower_quantile: Optional[float] = 0.01
+    upper_quantile: Optional[float] = 0.99
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+
+    # =========================================================================
+    # Log transform fields
+    # =========================================================================
+    log_method: Literal["log1p", "log"] = "log1p"
+    log_offset: float = 0.0
+    log_clip_min: Optional[float] = 0.0
+    log_clip_max: Optional[float] = None
+    log_on_nonpositive: Literal["nan", "zero"] = (
+        "zero"  # Default to zero to avoid NULLs
+    )
+
+    # =========================================================================
+    # String normalize fields
+    # =========================================================================
+    string_case: Literal["lower", "upper", "title", "none"] = "lower"
+    strip: bool = True
+    collapse_whitespace: bool = True
+    replace_regex: Optional[str] = None
+    replace_with: str = ""
+
+    # =========================================================================
+    # Frequency encode fields
+    # =========================================================================
+    normalize: bool = True
+
+    # =========================================================================
+    # Date parts fields
+    # =========================================================================
+    date_parts: Optional[Sequence[str]] = None
+    drop_source: bool = True
+    timestamp_unit: Optional[Literal["auto", "s", "ms", "us", "ns"]] = "auto"
+    timezone: Optional[str] = None
+    auto_daypart: bool = True
+    daypart_bins: Optional[dict[str, Sequence[int]]] = None
+
+    # =========================================================================
+    # Days since fields
+    # =========================================================================
+    reference_date: Optional[str] = None
+
+    # =========================================================================
+    # Categorical bucket fields
+    # =========================================================================
+    top_k: Optional[int] = None
+    min_count: Optional[int] = None
+    other_label: str = "other"
+
+    # =========================================================================
+    # Ratio fields
+    # =========================================================================
+    numerator_col: Optional[str] = None
+    denominator_col: Optional[str] = None
+    on_zero: Literal["nan", "zero", "epsilon"] = "zero"
+    epsilon: float = 1.0e-9
+
+    @model_validator(mode="before")
+    def _coerce_aliases(cls, data):
+        if not isinstance(data, dict):
+            return data
+        # Alias mappings
+        if "out_suffix" in data and "output_suffix" not in data:
+            data["output_suffix"] = data.pop("out_suffix")
+        if "return" in data and "return_mode" not in data:
+            data["return_mode"] = data.pop("return")
+        if "kpi_cols" in data and "kpi_columns" not in data:
+            data["kpi_columns"] = data.pop("kpi_cols")
+        if "method" in data and "log_method" not in data:
+            data["log_method"] = data.pop("method")
+        if "offset" in data and "log_offset" not in data:
+            data["log_offset"] = data.pop("offset")
+        if "clip_min" in data and "log_clip_min" not in data:
+            data["log_clip_min"] = data.pop("clip_min")
+        if "clip_max" in data and "log_clip_max" not in data:
+            data["log_clip_max"] = data.pop("clip_max")
+        if "on_nonpositive" in data and "log_on_nonpositive" not in data:
+            data["log_on_nonpositive"] = data.pop("on_nonpositive")
+        if "parts" in data and "date_parts" not in data:
+            data["date_parts"] = data.pop("parts")
+        # Only map unit -> timestamp_unit for date_parts functions
+        # (zsml uses `unit` for currency formatting like "$")
+        if (
+            "unit" in data
+            and "timestamp_unit" not in data
+            and data.get("type") == "date_parts"
+        ):
+            data["timestamp_unit"] = data.pop("unit")
+        if "tz" in data and "timezone" not in data:
+            data["timezone"] = data.pop("tz")
+        if "timezone_col" in data or "tz_col" in data:
+            raise ValueError("timezone_col is not supported; use timezone")
+        if "dayparts" in data and "daypart_bins" not in data:
+            data["daypart_bins"] = data.pop("dayparts")
+        if "numerator" in data and "numerator_col" not in data:
+            data["numerator_col"] = data.pop("numerator")
+        if "denominator" in data and "denominator_col" not in data:
+            data["denominator_col"] = data.pop("denominator")
+        return data
+
+    @model_validator(mode="after")
+    def _validate_type_fields(self) -> "FunctionConfig":
+        """Validate required fields per function type."""
+        needs_source = {
+            "binning",
+            "winsorize",
+            "log_transform",
+            "date_parts",
+            "categorical_bucket",
+            "string_normalize",
+            "frequency_encode",
+            "days_since",
+        }
+        # Identity type validation
+        if self.type == "identity":
+            if not self.column:
+                raise ValueError("type=identity requires 'column'")
+        # ZSML type validation
+        elif self.type == "zsml":
+            if not self.source_col:
+                raise ValueError("type=zsml requires 'source_col'")
+        # Callable type validation
+        elif self.type == "callable":
+            if not self.callable:
+                raise ValueError("type=callable requires 'callable'")
+        # Source column types
+        elif self.type in needs_source:
+            if not (self.source_col or self.inputs):
+                raise ValueError(f"type={self.type} requires source_col or inputs")
+        # Ratio type validation
+        if self.type == "ratio":
+            has_inputs = len(self.inputs or []) >= 2
+            if not (self.numerator_col and self.denominator_col) and not has_inputs:
+                raise ValueError(
+                    "type=ratio requires numerator_col/denominator_col or inputs[0:2]"
+                )
+        # Categorical bucket validation
+        if (
+            self.type == "categorical_bucket"
+            and self.top_k is None
+            and self.min_count is None
+        ):
+            raise ValueError("categorical_bucket requires top_k or min_count")
+        # Winsorize validation
+        if self.type == "winsorize":
+            if self.lower_bound is None and self.lower_quantile is None:
+                raise ValueError("winsorize requires lower_bound or lower_quantile")
+            if self.upper_bound is None and self.upper_quantile is None:
+                raise ValueError("winsorize requires upper_bound or upper_quantile")
+        # Date parts validation
+        if (
+            self.type == "date_parts"
+            and self.date_parts is not None
+            and len(self.date_parts) == 0
+        ):
+            raise ValueError("date_parts must be non-empty if provided")
+        if self.daypart_bins is not None:
+            for name, bounds in self.daypart_bins.items():
+                if len(bounds) != 2:
+                    raise ValueError(f"daypart_bins '{name}' must have 2 bounds")
+                if not all(isinstance(v, (int, float)) for v in bounds):
+                    raise ValueError(f"daypart_bins '{name}' must be numeric")
+        return self
+
+
+# Legacy aliases for backward compatibility
+KPIFunctionConfig = FunctionConfig  # DEPRECATED
+FeatureFunctionConfig = FunctionConfig  # DEPRECATED
+
+
+class FunctionsConfig(BaseModel):
+    """Unified function configuration - single flat list.
+
+    NEW FORMAT (recommended):
+        functions:
+          - type: zsml
+            source_col: Revenue
+            kpi: true
+          - type: binning
+            source_col: Age
+
+    OLD FORMAT (deprecated but still works):
+        functions:
+          kpis:
+            - type: zsml
+              source_col: Revenue
+          features:
+            - type: binning
+              source_col: Age
+    """
+
+    # Single flat list of functions (new format)
+    functions: List[FunctionConfig] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    def _migrate_legacy_format(cls, data):
+        """Migrate old 3-section format to new flat list.
+
+        Also handles new format where functions: is a flat list in YAML.
+        """
+        # NEW FORMAT: functions: [list] - wrap in dict
+        if isinstance(data, list):
+            return {"functions": data}
+
+        if not isinstance(data, dict):
+            return data
+
+        # Check for old format (has kpis, identity_kpis, or features keys)
+        has_old_format = any(k in data for k in ("kpis", "identity_kpis", "features"))
+        if not has_old_format:
+            return data
+
+        # Migrate to flat list
+        flat: List[dict] = []
+
+        # Migrate kpis → type=zsml with kpi=True
+        for kpi in data.pop("kpis", []) or []:
+            if isinstance(kpi, dict):
+                kpi = dict(kpi)  # Copy to avoid mutating original
+                kpi["kpi"] = True
+                if "type" not in kpi:
+                    kpi["type"] = "zsml"
+                flat.append(kpi)
+
+        # Migrate identity_kpis → type=identity with kpi=True
+        for ident in data.pop("identity_kpis", []) or []:
+            if isinstance(ident, dict):
+                flat.append(
+                    {
+                        "type": "identity",
+                        "column": ident.get("column"),
+                        "kpi": True,
+                        "lift": ident.get("lift", {}),
+                    }
+                )
+
+        # Migrate features (keep as-is)
+        for feat in data.pop("features", []) or []:
+            if isinstance(feat, str):
+                flat.append({"type": "callable", "callable": feat})
+            elif isinstance(feat, dict):
+                flat.append(feat)
+
+        warnings.warn(
+            "functions.{kpis,identity_kpis,features} format is deprecated. "
+            "Use a flat list: functions: [{type: zsml, kpi: true, ...}]",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+
+        return {"functions": flat}
 
 
 class TagConfig(BaseModel):
@@ -226,14 +653,36 @@ class TagConfig(BaseModel):
     )
 
 
+class DataDoctorConfig(BaseModel):
+    """Configuration for the Data Doctor analysis module."""
+
+    enabled: bool = True  # Run after metadata by default
+    save_yaml: bool = True  # Save suggestions.yaml alongside output
+    show_business_alternatives: bool = True  # Show business-friendly fill options
+    high_null_threshold: int = 100  # Null count threshold for high priority
+    high_cardinality_threshold: int = 50  # Unique count for high-card categoricals
+    top_k_bucket: int = 10  # Default top_k for categorical bucketing suggestions
+    # Ranking and limiting suggestions
+    max_suggestions: int | None = None  # Limit to top N suggestions (None = all)
+    ranking_enabled: bool = True  # Enable impact scoring (0-100 scale)
+    # LLM enhancement settings
+    llm_enabled: bool = False  # Opt-in for LLM analysis
+    llm_provider: LLMProviderConfig = Field(default_factory=LLMProviderConfig)
+    llm_cache_enabled: bool = True
+    llm_cache_dir: str = ".nl_doctor_cache"
+    max_llm_columns: int | None = None  # Max columns to send to LLM (None = all)
+    generate_executive_summary: bool = True  # Generate LLM executive summary
+
+
 class MetadataConfig(BaseModel):
     model: str = "gpt-5-nano"
     sample_rows: int = 5_000
-    max_concurrency: int = 15
+    max_concurrency: int = 75
     tags: TagConfig = Field(default_factory=TagConfig)
     schema_alignment: bool = True
     context: str = ""
     op_timeout: str = "45m"
+    lift_strict: bool = False
     use_wandb: bool = True
     use_gpu: bool = True
     config_debug: bool = False
@@ -294,6 +743,7 @@ class LoggingConfig(BaseModel):
     dask_level: Literal["debug", "info", "warning", "error"] = "info"
     llm_level: Literal["debug", "info", "warning", "error"] = "info"
     debug_head_rows: int = 5
+    show_progress: bool = True  # Show progress bars for long-running operations
 
 
 class BundleConfig(BaseModel):
@@ -302,6 +752,11 @@ class BundleConfig(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     input: InputConfig = Field(default_factory=InputConfig)
+    # NEW: Unified ID configuration
+    ids: IdsConfig = Field(default_factory=IdsConfig)
+    # NEW: Unified functions configuration
+    functions: FunctionsConfig = Field(default_factory=FunctionsConfig)
+    # Legacy fields (deprecated, use ids and functions instead)
     feature_functions: List[str] = Field(default_factory=list)
     kpi_functions: List[KPIFunctionConfig] = Field(default_factory=list)
     preprocessing: PreprocessingConfig = Field(
@@ -309,15 +764,22 @@ class BundleConfig(BaseModel):
     )
     drop_columns: List[str] = Field(default_factory=list)
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
+    # Data Doctor: post-metadata analysis and suggestions
+    data_doctor: DataDoctorConfig = Field(default_factory=DataDoctorConfig)
     output: OutputConfig
 
     @model_validator(mode="before")
     def _promote_legacy_keys(cls, data):
         if not isinstance(data, dict):
             return data
+
+        # Track deprecation warnings to emit
+        deprecations: list[str] = []
+
         # Accept legacy "cleaning" key as alias for preprocessing.
         if "cleaning" in data and "preprocessing" not in data:
             data["preprocessing"] = data.get("cleaning") or {}
+
         pre = data.get("preprocessing")
         # Lift legacy drop_columns nested under cleaning/preprocessing to top-level.
         if isinstance(pre, dict) and "drop_columns" in pre:
@@ -326,7 +788,86 @@ class BundleConfig(BaseModel):
             data["preprocessing"] = pre
         if data.get("drop_columns") is None:
             data["drop_columns"] = []
+        if isinstance(pre, dict) and "missing_fill" in pre and "fill" not in pre:
+            deprecations.append(
+                "preprocessing.missing_fill is deprecated, use preprocessing.fill instead"
+            )
+
+        # Promote input.id_cols → ids.columns
+        inp = data.get("input", {})
+        if isinstance(inp, dict) and inp.get("id_cols"):
+            ids_config = data.setdefault("ids", {})
+            if isinstance(ids_config, dict) and not ids_config.get("columns"):
+                ids_config["columns"] = inp["id_cols"]
+                deprecations.append(
+                    "input.id_cols is deprecated, use ids.columns instead"
+                )
+
+        # Promote feature_functions → functions (flat list)
+        if data.get("feature_functions"):
+            funcs = data.setdefault("functions", {})
+            if isinstance(funcs, dict) and not funcs.get("functions"):
+                # Convert string callables to function configs
+                flat = []
+                for feat in data["feature_functions"]:
+                    if isinstance(feat, str):
+                        flat.append({"type": "callable", "callable": feat})
+                    else:
+                        flat.append(feat)
+                funcs["functions"] = flat
+                deprecations.append(
+                    "feature_functions is deprecated, use functions list instead"
+                )
+
+        # Promote kpi_functions → functions (flat list with kpi=True)
+        if data.get("kpi_functions"):
+            funcs = data.setdefault("functions", {})
+            if isinstance(funcs, dict):
+                existing = funcs.get("functions", [])
+                for kpi in data["kpi_functions"]:
+                    if isinstance(kpi, dict):
+                        kpi = dict(kpi)
+                        kpi["kpi"] = True
+                        if "type" not in kpi:
+                            kpi["type"] = "zsml"
+                        existing.append(kpi)
+                funcs["functions"] = existing
+                deprecations.append(
+                    "kpi_functions is deprecated, use functions list instead"
+                )
+
+        # Emit deprecation warnings
+        for msg in deprecations:
+            warnings.warn(msg, DeprecationWarning, stacklevel=4)
+
         return data
+
+    @model_validator(mode="after")
+    def _sync_legacy_fields(self) -> "BundleConfig":
+        """Sync new config fields to legacy fields for backward compatibility."""
+        # Sync ids.columns → input.id_cols (so existing code still works)
+        if self.ids.columns and not self.input.id_cols:
+            object.__setattr__(self.input, "id_cols", list(self.ids.columns))
+
+        # Sync functions.functions → feature_functions (for legacy code)
+        if self.functions.functions and not self.feature_functions:
+            legacy_features = [
+                f.callable
+                for f in self.functions.functions
+                if getattr(f, "type", None) == "callable" and f.callable
+            ]
+            object.__setattr__(self, "feature_functions", legacy_features)
+
+        # Sync functions.functions (kpi=True) → kpi_functions (for legacy code)
+        if self.functions.functions and not self.kpi_functions:
+            kpi_funcs = [
+                f
+                for f in self.functions.functions
+                if getattr(f, "kpi", False) and getattr(f, "type", None) == "zsml"
+            ]
+            object.__setattr__(self, "kpi_functions", kpi_funcs)
+
+        return self
 
     @model_validator(mode="after")
     def _require_creds(self) -> "BundleConfig":
@@ -369,4 +910,22 @@ def load_config(path: str | Path) -> BundleConfig:
 
 CleaningConfig = PreprocessingConfig  # backwards compatibility
 
-__all__ = ["BundleConfig", "load_config", "PreprocessingConfig", "CleaningConfig"]
+__all__ = [
+    "BundleConfig",
+    "load_config",
+    "PreprocessingConfig",
+    "CleaningConfig",
+    # New config classes
+    "IdsConfig",
+    "IdDetectionConfig",
+    "LLMProviderConfig",
+    "FillConfig",
+    "LiftConfig",
+    "FunctionConfig",  # NEW: Unified function config
+    "FunctionsConfig",
+    "DataDoctorConfig",
+    # Legacy aliases (deprecated)
+    "KPIFunctionConfig",
+    "FeatureFunctionConfig",
+    "IdentityKPIConfig",
+]

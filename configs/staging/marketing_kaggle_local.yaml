@@ -1,0 +1,117 @@
+# =============================================================================
+# MARKETING KAGGLE - Local CSV Config
+# =============================================================================
+# Input:  Local CSV file (marketing-kaggle-dab.csv)
+# Output: S3 bucket (dummy-bucket/marketing-kaggle-local/)
+# Engine: Local (no cluster)
+#
+# Tests:  Callable functions only - birthday, state/region mapping, zip utils.
+#         Tests CSV ingestion with dtype overrides.
+# =============================================================================
+
+logging:
+  level: info
+
+runtime:
+  engine: local
+
+input:
+  source: csv
+  csv_path: /Users/maloney/neuralift_data/heuristics_data/marketing-kaggle/marketing-kaggle-dab.csv
+  dtype_overrides:
+    AverageOrderValue: object
+    Income: float64
+ids:
+  columns: ["ID"]
+  auto_detect: true
+  # ---------------------------------------------------------------------------
+  # LLM-Enhanced ID Detection (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # detection:
+  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
+  #   llm_provider:
+  #     provider: auto             # Options: openai, anthropic, auto
+  #     model: null                # Use provider default or specify: gpt-4o-mini
+  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+  #   llm_cache_enabled: true      # Cache LLM responses to save cost
+  #   uniqueness_threshold: 0.95   # Ratio to consider column unique
+  #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
+  #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
+
+functions:
+  - type: callable
+    callable: neuralift_c360_prep.features.birthday:add_birth_month
+
+  - type: callable
+    callable: neuralift_c360_prep.features.map_state_and_region:map_state_and_region
+
+  - type: callable
+    callable: neuralift_c360_prep.features.zip_utils:clean_zip_codes_dask
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
+  zsml:
+    enabled: false
+    source_col: null
+    out_col: null
+    zero_threshold: 0.0
+    quantiles: [0.33, 0.66]
+    clip_high_quantile: 0.95
+    unit: ""
+    range_style: text
+    add_prefix: true
+
+# drop_columns:
+#   - Applied LAST, after preprocessing/renames (snake-case is allowed).
+drop_columns:
+  - customer_join_date
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 15
+  tags:
+    id_cols: ["id"]
+    kpi_cols: ["revenue", "purchases"]
+    missing_indicator_cols: []
+    extra_tags_all: null
+    extra_tags_by_column: {}
+    max_card: 25
+    use_approx_unique: true
+  schema_alignment: true
+  context: "Marketing Kaggle CSV run"
+  op_timeout: 45m
+
+# -----------------------------------------------------------------------------
+# Data Doctor - Automated data quality analysis and suggestions
+# -----------------------------------------------------------------------------
+# Runs after metadata generation to provide actionable improvement suggestions.
+# Rule-based analysis is always on. LLM enhancement is optional.
+# -----------------------------------------------------------------------------
+data_doctor:
+  enabled: true                    # Run Data Doctor analysis (rule-based)
+  save_yaml: true                  # Save suggestions.yaml alongside output
+  # ---------------------------------------------------------------------------
+  # LLM Enhancement (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # llm_enabled: false             # Set to true to enable LLM analysis
+  # llm_provider:
+  #   provider: auto               # Options: openai, anthropic, auto
+  #   model: null                  # Use provider default or specify: gpt-4o-mini
+  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
+  # llm_cache_enabled: true        # Cache LLM responses to save cost
+  # generate_executive_summary: true  # Generate natural language summary
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: kaggle-marketing
+  uc_table: marketing_kaggle_local
+  s3_base: local-output/marketing-kaggle-local
+  partitions: ["id"]
+  target_mb_per_part: 512

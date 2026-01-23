@@ -24,29 +24,59 @@ Copyright © 2025 Neuralift, Inc.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import yaml
 
 from .cluster import get_client
 from .config import BundleConfig
-from .databricks_oauth import get_databricks_access_token
+
+# Token fetch moved to write._connect_dbsql() for lazy refresh on long-running jobs
+from .data_doctor import (
+    analyze_data as data_doctor_analyze,
+    print_report as data_doctor_print,
+)
+from .functions import apply_functions
+from .id_detection import suggest_id_columns, print_id_suggestions
 from .ingest import load_lazy_dask
 from .log_utils import setup_logging
-from .preprocess import preprocess
+from .preprocess import preprocess, drop_configured_columns
 from .write import (
     count_parquet_files,
     write_ddf_and_yaml_to_s3,
     create_managed_uc_volume_via_sql,
     tag_uc_volume_via_sql,
 )
-from .metadata import build_metadata, build_minimal_config, resolve_output_table_name
+from .metadata import (
+    build_metadata,
+    build_pretty_config_from_data_dict,
+    render_config_yaml_with_comments,
+    resolve_output_table_name,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _strip_scheme(host: str) -> str:
     return host.replace("https://", "").replace("http://", "").rstrip("/")
+
+
+def _configure_third_party_logging(*, debug_mode: bool) -> None:
+    if debug_mode:
+        return
+    logging.getLogger("distributed.shuffle").setLevel(logging.ERROR)
+    logging.getLogger("distributed.shuffle._scheduler_plugin").setLevel(logging.ERROR)
+    logging.getLogger("distributed.scheduler").setLevel(logging.ERROR)
+    os.environ.setdefault("RUST_LOG", "deltalake=error,delta_kernel=error")
+
+
+def _resolve_wandb_project(cfg: BundleConfig, fallback: str) -> str | None:
+    """Resolve W&B project name from config or use fallback."""
+    meta_cfg = getattr(cfg, "metadata", None)
+    if meta_cfg and getattr(meta_cfg, "use_wandb", False):
+        return getattr(meta_cfg, "wandb_project", None) or fallback
+    return fallback
 
 
 def _build_dbsql_conn_params(*, require: bool) -> dict | None:
@@ -63,15 +93,14 @@ def _build_dbsql_conn_params(*, require: bool) -> dict | None:
             )
         return None
 
-    access_token = get_databricks_access_token(
-        host=host,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    # Pass credentials, not pre-fetched token. _connect_dbsql() will fetch
+    # fresh token on each connection (cache handles deduplication).
+    # This fixes long-running jobs where tokens expire mid-run.
     return {
         "server_hostname": _strip_scheme(host),
         "http_path": f"/sql/1.0/warehouses/{wh}",
-        "access_token": access_token,
+        "client_id": client_id,
+        "client_secret": client_secret,
     }
 
 
@@ -81,6 +110,7 @@ def _print_output_summary(
     table_name: str,
     parquet_count: int | None,
     volume_info: dict | None,
+    has_suggestions: bool = False,
 ) -> None:
     logger.info("=== Output Summary ===")
     logger.info("Base URI       : %s", base_uri)
@@ -88,7 +118,10 @@ def _print_output_summary(
         logger.info("Parquet files  : unknown")
     else:
         logger.info("Parquet files  : %s", parquet_count)
-    logger.info("Artifacts      : config.yaml, bundleconfig.yaml, data_dictionary.json")
+    artifacts = "config.yaml, bundleconfig.yaml, data_dictionary.json"
+    if has_suggestions:
+        artifacts += ", suggestions.yaml"
+    logger.info("Artifacts      : %s", artifacts)
     if volume_info:
         logger.info("=== UC Volume ===")
         logger.info("Name           : %s", volume_info["volume_name"])
@@ -111,6 +144,12 @@ def run_from_config(cfg: BundleConfig) -> str:
         dask_level=cfg.logging.dask_level,
         llm_level=cfg.logging.llm_level,
     )
+
+    # If debug, force progress logs on and configure third party logging
+    debug_mode = cfg.logging.level == "debug"
+    _configure_third_party_logging(debug_mode=debug_mode)
+    if debug_mode and not cfg.logging.show_progress:
+        cfg.logging.show_progress = True
 
     with get_client(cfg):
         logger.info("Starting pipeline (engine=%s)", cfg.runtime.engine)
@@ -142,7 +181,6 @@ def run_from_config(cfg: BundleConfig) -> str:
             columns=cfg.input.columns,
             dtype_overrides=cfg.input.dtype_overrides,
             read_blocksize_mb=cfg.output.target_mb_per_part,
-            snapshot_mode="off",
             conn_params=conn_params,
             allow_dbsql_fallback=cfg.input.source == "uc_table",
             require_logical_names=cfg.input.require_logical_names,
@@ -152,7 +190,24 @@ def run_from_config(cfg: BundleConfig) -> str:
             else 0,
         )
 
+        # ID detection and suggestions (for agentic use)
+        ids_cfg = getattr(cfg, "ids", None)
+        if ids_cfg and getattr(ids_cfg, "auto_detect", True):
+            explicit_ids = list(getattr(ids_cfg, "columns", []) or [])
+            # Also include legacy input.id_cols
+            explicit_ids = explicit_ids or list(cfg.input.id_cols or [])
+            suggestions = suggest_id_columns(
+                ddf,
+                exclude_columns=explicit_ids,
+                check_uniqueness=cfg.logging.show_progress,  # skip expensive uniqueness check if not showing progress
+            )
+            print_id_suggestions(suggestions, explicit_ids=explicit_ids)
+
         ddf = preprocess(ddf, cfg)
+        ddf = apply_functions(ddf, cfg)
+        ddf = drop_configured_columns(
+            ddf, getattr(cfg, "drop_columns", []), verbose=cfg.logging.level == "debug"
+        )
 
         # Persist after preprocessing to avoid re-computing during metadata generation
         if getattr(cfg.output, "persist_after_preprocess", True):
@@ -201,19 +256,37 @@ def run_from_config(cfg: BundleConfig) -> str:
         table_name = resolve_output_table_name(cfg)
         meta, meta_text = build_metadata(ddf, cfg, table_name_override=table_name)
         bundle_config_text = yaml.safe_dump(cfg.model_dump(), sort_keys=False)
-        row_count_value = meta.get("_row_count")
-        try:
-            row_count = int(row_count_value) if row_count_value is not None else None
-        except (TypeError, ValueError):
-            row_count = None
-        run_name = cfg.output.run_name or table_name
-        pretty_config = build_minimal_config(row_count=row_count, run_name=run_name)
-        pretty_config_text = yaml.safe_dump(
-            pretty_config,
-            sort_keys=False,
-            default_flow_style=False,
-            allow_unicode=False,
+        meta_json = json.loads(meta_text)
+
+        # Run Data Doctor analysis (if enabled)
+        data_doctor_report = None
+        if getattr(cfg.data_doctor, "enabled", True):
+            logger.info("Running Data Doctor analysis...")
+            data_doctor_report = data_doctor_analyze(
+                ddf,
+                meta_json,
+                cfg,
+                show_progress=cfg.logging.show_progress,
+            )
+            data_doctor_print(
+                data_doctor_report,
+                show_alternatives=getattr(
+                    cfg.data_doctor, "show_business_alternatives", True
+                ),
+                use_print=cfg.logging.level in {"info", "debug"},
+            )
+
+        wandb_project = _resolve_wandb_project(cfg, cfg.output.run_name or table_name)
+        pretty_config = build_pretty_config_from_data_dict(
+            data_dict=meta_json,
+            ddf=ddf,
+            use_gpu=cfg.metadata.use_gpu,
+            use_wandb=cfg.metadata.use_wandb,
+            config_debug=cfg.metadata.config_debug,
+            wandb_project=wandb_project,
+            max_card_for_cat=cfg.metadata.tags.max_card,
         )
+        pretty_config_text = render_config_yaml_with_comments(pretty_config)
 
         base_uri = cfg.output.s3_base
         volume_tags = None
@@ -258,12 +331,18 @@ def run_from_config(cfg: BundleConfig) -> str:
             }
             base_uri = s3_loc
 
+        # Generate data doctor suggestions yaml if enabled
+        suggestions_yaml_text = None
+        if data_doctor_report and getattr(cfg.data_doctor, "save_yaml", True):
+            suggestions_yaml_text = data_doctor_report.yaml_text
+
         base_uri = write_ddf_and_yaml_to_s3(
             ddf=ddf,
             s3_base=base_uri,
             config_yaml_text=pretty_config_text,
             meta_json_text=meta_text,
             bundle_config_yaml_text=bundle_config_text,
+            suggestions_yaml_text=suggestions_yaml_text,
             partition_on=cfg.output.partitions,
             target_mb_per_part=cfg.output.target_mb_per_part,
             force_npartitions=cfg.output.force_npartitions,
@@ -299,6 +378,7 @@ def run_from_config(cfg: BundleConfig) -> str:
             table_name=table_name,
             parquet_count=parquet_count,
             volume_info=volume_tags,
+            has_suggestions=suggestions_yaml_text is not None,
         )
 
     logger.info("Pipeline complete; output at %s", base_uri)

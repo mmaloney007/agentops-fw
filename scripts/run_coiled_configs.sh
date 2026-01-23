@@ -6,7 +6,6 @@ RUNTIME="coiled"
 LOG_DIR="run-logs/$(date +%Y%m%d_%H%M%S)"
 SKIP_LLM=0
 TIMEOUT_SECS=$((75 * 60))
-LOCAL_DRIVER=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -20,10 +19,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-llm)
             SKIP_LLM=1
-            shift
-            ;;
-        --local-driver)
-            LOCAL_DRIVER=1
             shift
             ;;
         --timeout-minutes)
@@ -191,36 +186,23 @@ for config in "${CONFIGS[@]}"; do
     run_cmd=(
         pixi run neuralift_c360_prep --config "$config" --runtime "$RUNTIME"
     )
-    if [[ "$LOCAL_DRIVER" -eq 1 ]]; then
-        run_cmd+=(--no-batch)
-    fi
     run_with_timeout "$log_file" "${run_env[@]}" "${run_cmd[@]}"
     exit_code=$?
     if [[ "$exit_code" -eq 0 ]]; then
-        if [[ "$LOCAL_DRIVER" -eq 1 ]]; then
-            status="ok"
-        else
-            status="submitted"
-        fi
+        status="ok"
     elif [[ "$exit_code" -eq 124 ]]; then
         status="timeout"
     else
         status="fail($exit_code)"
     fi
 
-    if [[ "$LOCAL_DRIVER" -eq 1 ]]; then
-        base_line=$(extract_last_value "Base URI" "$log_file")
-        base_uri=${base_line##*: }
-        if [[ "$base_uri" == "$base_line" ]]; then
-            base_uri=""
-        fi
-        uc_volume=$(extract_uc_field "Name" "$log_file")
-        uc_path=$(extract_uc_field "UC Path" "$log_file")
-    else
+    base_line=$(extract_last_value "Base URI" "$log_file")
+    base_uri=${base_line##*: }
+    if [[ "$base_uri" == "$base_line" ]]; then
         base_uri=""
-        uc_volume=""
-        uc_path=""
     fi
+    uc_volume=$(extract_uc_field "Name" "$log_file")
+    uc_path=$(extract_uc_field "UC Path" "$log_file")
 
     printf '%s,%s,%s,%s,%s,%s\n' \
         "$(csv_escape "$config")" \

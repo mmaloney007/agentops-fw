@@ -46,6 +46,8 @@ import yaml
 from databricks import sql  # type: ignore
 from dask.distributed import as_completed, get_client, wait
 
+from .databricks_oauth import get_databricks_access_token
+
 try:
     from uuid6 import uuid7  # type: ignore
 except Exception:  # pragma: no cover
@@ -183,21 +185,20 @@ def tag_uc_volume_via_sql(
 
 
 def _connect_dbsql(conn_params: Mapping[str, str]) -> sql.Connection:  # type: ignore[name-defined]
-    connect_kwargs = {
-        "server_hostname": conn_params["server_hostname"],
-        "http_path": conn_params["http_path"],
-    }
-    if "access_token" in conn_params:
-        connect_kwargs["access_token"] = conn_params["access_token"]
-    else:
-        connect_kwargs.update(
-            {
-                "auth_type": conn_params["auth_type"],
-                "client_id": conn_params["client_id"],
-                "client_secret": conn_params["client_secret"],
-            }
-        )
-    return sql.connect(**connect_kwargs)
+    """Connect to Databricks SQL with fresh token (cache handles deduplication)."""
+    # Always fetch fresh token - the cache in databricks_oauth.py checks expiry
+    # and returns cached token if still valid, or fetches new one if expired.
+    # This fixes long-running jobs where pre-fetched tokens expire.
+    access_token = get_databricks_access_token(
+        host=conn_params["server_hostname"],
+        client_id=conn_params["client_id"],
+        client_secret=conn_params["client_secret"],
+    )
+    return sql.connect(
+        server_hostname=conn_params["server_hostname"],
+        http_path=conn_params["http_path"],
+        access_token=access_token,
+    )
 
 
 def _storage_options_for_base(
@@ -258,6 +259,7 @@ def write_ddf_and_yaml_to_s3(
     config_yaml_text: str,
     meta_json_text: str,  # this is already JSON text
     bundle_config_yaml_text: str | None = None,
+    suggestions_yaml_text: str | None = None,  # Data Doctor suggestions
     partition_on: Iterable[str] | None = None,
     aws_key_env: str = "AWS_ACCESS_KEY_ID",
     aws_secret_env: str = "AWS_SECRET_ACCESS_KEY",
@@ -494,17 +496,21 @@ def write_ddf_and_yaml_to_s3(
             logger.info(f"[s3] finished task {i}/{n_parts}")
         logger.info(f"[s3] Parquet write complete in {time.time() - t0:.2f}s.")
 
-    extra_files = ["config.yaml"]
+    extra_files = []
+    # extra_files.append("config.yaml")  # disabled for now
     if bundle_config_yaml_text is not None:
         extra_files.append("bundleconfig.yaml")
     extra_files.append("data_dictionary.json")
+    if suggestions_yaml_text is not None:
+        extra_files.append("suggestions.yaml")
     logger.info(f"[s3] writing {', '.join(extra_files)} ...")
     t1 = time.time()
 
     for fname, content in (
-        ("config.yaml", config_yaml_text),
+        # ("config.yaml", config_yaml_text),  # disabled for now
         ("bundleconfig.yaml", bundle_config_yaml_text),
         ("data_dictionary.json", meta_json_text),
+        ("suggestions.yaml", suggestions_yaml_text),
     ):
         if content is None:
             continue

@@ -1,0 +1,150 @@
+# =============================================================================
+# MEDIA SMALL - Coiled Cloud Config (media_lp table)
+# =============================================================================
+# Input:  Unity Catalog table (staging-media-source.default.media_lp)
+# Output: Unity Catalog (staging-c360.media.media_dask_test_54k)
+# Engine: Coiled (4 workers, m5.2xlarge)
+#
+# Tests:  ZSML KPI tiering on Total_Spent with lift metadata. Uses the media_lp
+#         table for quick validation of media streaming use case.
+# =============================================================================
+
+logging:
+  level: debug
+
+runtime:
+  engine: coiled
+  coiled:
+    workspace: neuralift-dev
+    software_env: neuralift_c360_prep
+    n_workers: 4
+    # worker_cpu: 8
+    # worker_memory: 32GiB
+    worker_vm_types: [m5.2xlarge]
+    scheduler_vm_types: [c5d.xlarge]
+    idle_timeout: 2h
+    no_client_timeout: 2h
+    create_timeout: 15m
+    op_timeout: 45m
+
+input:
+  source: uc_table
+  uc_table: staging-media-source.default.media_lp
+  columns: null
+ids:
+  columns: ["Customer_ID"]
+  auto_detect: false
+  # ---------------------------------------------------------------------------
+  # LLM-Enhanced ID Detection (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # detection:
+  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
+  #   llm_provider:
+  #     provider: auto             # Options: openai, anthropic, auto
+  #     model: null                # Use provider default or specify: gpt-4o-mini
+  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+  #   llm_cache_enabled: true      # Cache LLM responses to save cost
+  #   uniqueness_threshold: 0.95   # Ratio to consider column unique
+  #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
+  #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
+
+functions:
+  - type: zsml
+    source_col: Total_Spent
+    out_col: Total_Spent_Tier
+    zero_threshold: 0.0
+    quantiles: [0.33, 0.66]
+    clip_high_quantile: 0.95
+    unit: "$"
+    range_style: text
+    add_prefix: true
+    kpi: true
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
+  # zsml:
+  #   enabled: true
+  #   source_col: Total_Spent
+  #   out_col: Total_Spent_Tier
+  #   zero_threshold: 0.0
+  #   quantiles: [0.33, 0.66]
+  #   clip_high_quantile: 0.95
+  #   unit: "$"
+  #   range_style: text
+  #   add_prefix: true
+
+# drop_columns:
+#   - Applied LAST, after preprocessing/renames (snake-case is allowed).
+#   - Updated for media_lp table schema (removed non-existent PII columns)
+drop_columns:
+  - Country
+  - State
+  - Zip
+  - Cancellation_Date
+  - Subscription_Start_Date
+  - Subscription_End_Date
+  - Last_Login_Date
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 100
+  tags:
+    id_cols: ["customer_id"]
+    kpi_cols:
+      - at_risk
+      - is_new_customer
+      - is_churned
+      - is_cycler
+      - is_active
+      - total_spent_tier
+    missing_indicator_cols: []
+    extra_tags_all: null
+    extra_tags_by_column:
+      total_spent_tier:
+        value_sum_column: total_spent
+        value_sum_unit: USD
+        event_sum_column: months_subscribed
+        event_sum_unit: months
+    max_card: 25
+    use_approx_unique: true
+  schema_alignment: true
+  context: >
+    VistaStream is a premium streaming platform dedicated to delivering an exceptional
+    entertainment experience to a diverse and discerning subscriber base.
+  op_timeout: 45m
+
+# -----------------------------------------------------------------------------
+# Data Doctor - Automated data quality analysis and suggestions
+# -----------------------------------------------------------------------------
+# Runs after metadata generation to provide actionable improvement suggestions.
+# Rule-based analysis is always on. LLM enhancement is optional.
+# -----------------------------------------------------------------------------
+data_doctor:
+  enabled: false # Disabled for production runs (avoid Int64Dtype issues)
+  save_yaml: true # Save suggestions.yaml alongside output
+  # ---------------------------------------------------------------------------
+  # LLM Enhancement (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # llm_enabled: false             # Set to true to enable LLM analysis
+  # llm_provider:
+  #   provider: auto               # Options: openai, anthropic, auto
+  #   model: null                  # Use provider default or specify: gpt-4o-mini
+  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
+  # llm_cache_enabled: true        # Cache LLM responses to save cost
+  # generate_executive_summary: true  # Generate natural language summary
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: media
+  uc_volume_name: media_dask_test_54k
+  run_name: media_small_test_01
+  # s3_base: s3://dummy-bucket/media_dask_test_54k/
+  partitions: []
+  target_mb_per_part: 512

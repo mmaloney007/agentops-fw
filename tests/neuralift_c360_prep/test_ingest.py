@@ -27,7 +27,8 @@ def test_ingest_parquet_roundtrip(tmp_path):
     cfg = BundleConfig.model_validate(
         {
             "runtime": {"engine": "local"},
-            "input": {"source": "parquet", "parquet_path": str(src), "id_cols": ["id"]},
+            "input": {"source": "parquet", "parquet_path": str(src)},
+            "ids": {"columns": ["id"]},
             "output": _base_output(),
         }
     )

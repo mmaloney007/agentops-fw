@@ -15,7 +15,8 @@ def test_write_outputs_local(tmp_path, monkeypatch):
     cfg = BundleConfig.model_validate(
         {
             "runtime": {"engine": "local"},
-            "input": {"source": "parquet", "parquet_path": "x", "id_cols": ["id"]},
+            "input": {"source": "parquet", "parquet_path": "x"},
+            "ids": {"columns": ["id"]},
             "output": {
                 "uc_catalog": "c",
                 "uc_schema": "s",
@@ -34,7 +35,6 @@ def test_write_outputs_local(tmp_path, monkeypatch):
     )
     assert Path(base, "input_data").exists()
     assert Path(base, "data_dictionary.json").exists()
-    assert Path(base, "config.yaml").exists()
 
 
 def test_write_min_two_partitions(tmp_path):

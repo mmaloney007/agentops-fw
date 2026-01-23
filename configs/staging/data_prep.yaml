@@ -1,0 +1,149 @@
+# =============================================================================
+# DATA PREP - Local Development Config
+# =============================================================================
+# Input:  Local parquet file (wine_cheese.parquet)
+# Output: local-output/
+# Engine: Local (no cluster)
+#
+# Tests:  Full function suite - all 12 function types including zsml, identity,
+#         binning, winsorize, log_transform, date_parts, categorical_bucket,
+#         ratio, string_normalize, frequency_encode, days_since, callable.
+# =============================================================================
+
+logging:
+  level: info
+
+runtime:
+  engine: local
+
+input:
+  source: parquet
+  parquet_path: ./example-data/wine_cheese.parquet
+  columns: null
+ids:
+  columns: ["ID"]
+  auto_detect: true
+  # ---------------------------------------------------------------------------
+  # LLM-Enhanced ID Detection (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # detection:
+  #   llm_enabled: false           # Set to true to enable LLM semantic analysis
+  #   llm_provider:
+  #     provider: auto             # Options: openai, anthropic, auto
+  #     model: null                # Use provider default or specify: gpt-4o-mini
+  #   max_llm_columns: 20          # Limit columns sent to LLM (cost control)
+  #   llm_cache_enabled: true      # Cache LLM responses to save cost
+  #   uniqueness_threshold: 0.95   # Ratio to consider column unique
+  #   gray_zone_lower: 0.80        # Lower bound for ambiguous uniqueness
+  #   detect_uuid_format: true     # Enable UUID/GUID pattern detection
+
+preprocessing:
+  rename_to_snake: true
+  bool_fix: true
+  drop_empty: true
+  drop_constant: true
+  fill:
+    categorical: "Unknown"
+    continuous: "median"
+
+functions:
+  # KPI functions (kpi: true marks output as KPI)
+  - type: zsml
+    source_col: Revenue
+    out_col: revenue_tier
+    quantiles: [0.33, 0.66]
+    kpi: true
+    lift:
+      value_sum_column: Revenue
+      value_sum_unit: USD
+      event_sum_column: Purchases
+      event_sum_unit: events
+
+  - type: identity
+    column: CustomerComplainedRecently
+    kpi: true
+
+  # Feature engineering functions
+  - type: binning
+    source_col: Age
+    out_col: age_bin
+
+  - type: callable
+    callable: neuralift_c360_prep.features.birthday:add_age_from_year
+    inputs: [Year_Birth]
+
+  - type: string_normalize
+    source_col: Education
+    out_col: education_clean
+
+  - type: frequency_encode
+    source_col: Marital_Status
+    out_col: marital_status_freq
+    normalize: true
+
+  - type: days_since
+    source_col: CustomerJoinDate
+    out_col: days_since_join
+    reference_date: "2024-01-01"
+
+  - type: date_parts
+    source_col: CustomerJoinDate
+
+  - type: winsorize
+    source_col: Income
+    lower_quantile: 0.01
+    upper_quantile: 0.99
+
+  - type: log_transform
+    source_col: AmmountSpentOnWine
+    log_method: log1p
+    log_clip_min: 0
+
+  - type: categorical_bucket
+    source_col: Marital_Status
+    top_k: 3
+    other_label: other
+
+  - type: ratio
+    numerator_col: AmmountSpentOnWine
+    denominator_col: Income
+    out_col: spend_wine_per_income
+    on_zero: zero
+
+drop_columns: []
+
+metadata:
+  model: gpt-5-nano
+  sample_rows: 5000
+  max_concurrency: 75
+  context: "Local wine/cheese parquet demo"
+  op_timeout: 45m
+
+# -----------------------------------------------------------------------------
+# Data Doctor - Automated data quality analysis and suggestions
+# -----------------------------------------------------------------------------
+# Runs after metadata generation to provide actionable improvement suggestions.
+# Rule-based analysis is always on. LLM enhancement is optional.
+# -----------------------------------------------------------------------------
+data_doctor:
+  enabled: true                    # Run Data Doctor analysis (rule-based)
+  save_yaml: true                  # Save suggestions.yaml alongside output
+  # ---------------------------------------------------------------------------
+  # LLM Enhancement (optional, disabled by default)
+  # ---------------------------------------------------------------------------
+  # llm_enabled: false             # Set to true to enable LLM analysis
+  # llm_provider:
+  #   provider: auto               # Options: openai, anthropic, auto
+  #   model: null                  # Use provider default or specify: gpt-4o-mini
+  # max_llm_columns: null          # Limit columns sent to LLM (null = all)
+  # llm_cache_enabled: true        # Cache LLM responses to save cost
+  # generate_executive_summary: true  # Generate natural language summary
+
+output:
+  uc_catalog: staging-c360
+  uc_schema: kaggle-marketing
+  uc_table: wine_cheese_local
+  s3_base: local-output
+  partitions: []
+  target_mb_per_part: 512
+  force_npartitions: null
