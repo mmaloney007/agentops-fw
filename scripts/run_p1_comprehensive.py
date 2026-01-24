@@ -18,7 +18,7 @@ from pathlib import Path
 
 # Configuration
 LMSTUDIO_BASE = os.getenv("OPENAI_API_BASE", "http://10.11.196.166:1234/v1")
-OUT_DIR = Path("out/p1_comprehensive_20260118")
+OUT_DIR = Path(os.getenv("P1_OUT_DIR", "out/p1_comprehensive_20260118"))
 RESULTS_FILE = OUT_DIR / "results.json"
 SLO_DEADLINE_MS = 2000
 
@@ -98,6 +98,7 @@ def compute_metrics(predictions_file: Path) -> dict:
     latencies = []
     json_valid = 0
     total = 0
+    joint_success = 0
     task_metrics = {}
 
     for line in predictions_file.read_text().splitlines():
@@ -112,6 +113,25 @@ def compute_metrics(predictions_file: Path) -> dict:
         if metrics.get("json_valid", 0) == 1.0:
             json_valid += 1
 
+        # Joint Success@SLO = JSON valid AND task-correct AND on-time.
+        ttype = r.get("task_type", "")
+        lat_ok = lat <= SLO_DEADLINE_MS
+        json_ok = metrics.get("json_valid", 0) == 1.0
+        if ttype == "t1":
+            task_ok = metrics.get("t1_field_acc", 0) >= 0.75  # 3/4 fields
+        elif ttype == "t2":
+            task_ok = metrics.get("t2_summary_f1", 0) >= 0.3  # meaningful overlap
+        elif ttype == "t3":
+            task_ok = metrics.get("t3_success", 0) == 1.0  # tool + args
+        elif ttype == "t4":
+            task_ok = metrics.get("t4_func_match", 0) == 1.0  # function name
+        elif ttype == "t5":
+            task_ok = metrics.get("t5_has_patch", 0) == 1.0  # has patch
+        else:
+            task_ok = True
+        if json_ok and task_ok and lat_ok:
+            joint_success += 1
+
         # Aggregate task-specific metrics
         for k, v in metrics.items():
             if k not in task_metrics:
@@ -124,15 +144,13 @@ def compute_metrics(predictions_file: Path) -> dict:
     sorted_lat = sorted(latencies)
     p95_idx = int(len(sorted_lat) * 0.95)
     p99_idx = int(len(sorted_lat) * 0.99)
-    within_slo = sum(1 for lat in latencies if lat <= SLO_DEADLINE_MS)
-
     result = {
         "count": total,
         "json_valid_pct": round(json_valid / total * 100, 1),
         "avg_latency_ms": round(sum(latencies) / len(latencies), 1),
         "p95_latency_ms": round(sorted_lat[p95_idx], 1),
         "p99_latency_ms": round(sorted_lat[p99_idx], 1),
-        "success_at_slo_pct": round(within_slo / total * 100, 1),
+        "success_at_slo_pct": round(joint_success / total * 100, 1),
     }
 
     # Add aggregated task metrics
@@ -160,10 +178,8 @@ def run_eval(model_name: str, model_id: str, task_name: str, task_file: str) -> 
     env["OPENAI_API_BASE"] = LMSTUDIO_BASE
     env["AOFW_PROVIDER"] = "lmstudio"
 
-    # Use venv python explicitly
-    venv_python = Path(__file__).parent.parent / ".venv" / "bin" / "python"
     cmd = [
-        str(venv_python),
+        sys.executable,
         "scripts/eval_t_suite.py",
         "--models",
         f"lmstudio:{model_id}",

@@ -1,4 +1,4 @@
-\begin{thebibliography}{16}
+\begin{thebibliography}{18}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -46,12 +46,25 @@ Saibo Geng, Maria Antoniak, Haoyu Wang, Qian Han, Barry Haddow, and Alexandra
 \newblock Jsonschemabench: A comprehensive benchmark for structured json
   generation, 2025.
 
+\bibitem[{Gorilla Team, UC Berkeley}(2024)]{berkeley2024bfcl}
+{Gorilla Team, UC Berkeley}.
+\newblock Berkeley function calling leaderboard.
+\newblock \url{https://gorilla.cs.berkeley.edu/leaderboard.html}, 2024.
+\newblock Comprehensive function calling benchmark.
+
 \bibitem[Hendrycks et~al.(2021)Hendrycks, Burns, Basart, Zou, Mazeika, Song,
   and Steinhardt]{hendrycks2021mmlu}
 Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas Mazeika, Dawn
   Song, and Jacob Steinhardt.
 \newblock Measuring massive multitask language understanding.
 \newblock \emph{arXiv preprint arXiv:2009.03300}, 2021.
+
+\bibitem[Jimenez et~al.(2024)Jimenez, Yang, Wettig, Yao, Pei, Press, and
+  Narasimhan]{princeton2024swe}
+Carlos~E. Jimenez, John Yang, Alexander Wettig, Shunyu Yao, Kexin Pei, Ofir
+  Press, and Karthik Narasimhan.
+\newblock {SWE-bench}: Can language models resolve real-world github issues?,
+  2024.
 
 \bibitem[Kwon et~al.(2023)]{kwon2023vllm}
 Woosuk Kwon et~al.

@@ -77,7 +77,7 @@ Neuralift; University of New Hampshire \\
 \begin{abstract}
 There's a dirty secret in model selection: the benchmarks everyone uses to pick LLMs have almost nothing to do with whether those models will actually work in production.
 
-We ran 13 models through structured output tasks with a 2-second deadline. The results were stark. Accuracy and deployment success don't just fail to correlate---they actively diverge. The smallest model in our study, Llama-3.2-1B, achieved the highest production success rate. The largest models failed almost every request.
+We ran 13 models through five structured output tasks---intent classification, grounded QA, tool calling, function routing, and code patching---with latency deadlines from 2 to 10 seconds. The results were stark. Accuracy and deployment success don't just fail to correlate---they actively diverge. The smallest model in our study, Llama-3.2-1B, achieved 96.8\% success on function routing and 78.3\% on code patching. The largest models failed almost every request.
 
 \begin{center}
 \begin{tabular}{llc}
@@ -103,7 +103,7 @@ Gemma-3-12B & Google & 0.0\% (worst) \\
 
 The pattern holds across vendors and architectures: Meta, Alibaba, Microsoft, Google, OpenAI, Mistral, 01.AI, and TII models from the US, China, France, and UAE all show the same inversion. Bigger models that dominate accuracy leaderboards collapse under latency constraints.
 
-We introduce \emph{Success@SLO}---the fraction of requests that are both correct AND arrive on time. This single metric captures what production systems actually experience. We also release SpecSLOEval, a framework for measuring structure, accuracy, faithfulness, stability, and latency through a unified evaluation harness.
+We introduce \emph{Success@SLO}---the fraction of requests that are both correct AND arrive on time. This single metric captures what production systems actually experience. We also release SpecSLOEval, a framework for measuring structure, accuracy, faithfulness, stability, and latency across five task types through a unified evaluation harness.
 
 The implication is uncomfortable but clear: if you're selecting models by accuracy alone, you're selecting for failure.
 \end{abstract}
@@ -114,7 +114,7 @@ The implication is uncomfortable but clear: if you're selecting models by accura
 
 Most teams pick their production model the same way: find the highest-scoring option on MMLU or HELM that fits the memory budget, integrate it, and ship. It seems reasonable. Better accuracy should mean better results, right?
 
-We tested this assumption with 13 models and 2,500 structured output tasks. What we found should make anyone rethink how they select models.
+We tested this assumption with 13 models across five task types and 2,300 structured output examples. What we found should make anyone rethink how they select models.
 
 Ministral-8B achieves 84.7\% accuracy on intent classification---impressive by any standard. Under a 2-second latency deadline, it delivers only 28.5\% of requests successfully. The 1B Llama model, with its modest 27.3\% accuracy on the same task, achieves 49.1\% deployment success overall because it actually finishes in time. The accuracy leader fails; the speed leader wins.
 
@@ -665,11 +665,13 @@ Thirteen open-weight models spanning 1B--20B parameters from eight vendors acros
 \end{itemize}
 
 \paragraph{Tasks.}
-Three task types representing common agent workloads:
+Five task types representing common agent workloads, spanning simple classification to complex code generation:
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{T1 (CLINC-150)}~\citep{larson2019clinc150}: Intent classification with 150 classes. 500 examples. Output is structured JSON with intent field and confidence.
-    \item \textbf{T2 (HotpotQA)}~\citep{yang2018hotpotqa}: Multi-hop grounded QA requiring reasoning over multiple documents. 1000 examples. Output includes answer and supporting evidence.
-    \item \textbf{T3 (Tool Calling)}: Function invocation with typed arguments. 500 examples. Tests structured argument generation and tool success.
+    \item \textbf{T1 (CLINC-150)}~\citep{larson2019clinc150}: Intent classification with 150 classes. 500 examples. Output is structured JSON with intent field and confidence. SLO: 2000ms.
+    \item \textbf{T2 (HotpotQA)}~\citep{yang2018hotpotqa}: Multi-hop grounded QA requiring reasoning over multiple documents. 500 examples. Output includes answer and supporting evidence. SLO: 2000ms.
+    \item \textbf{T3 (Tool Calling)}: Function invocation with typed arguments. 500 examples. Tests structured argument generation and tool success. SLO: 2000ms.
+    \item \textbf{T4 (BFCL Function Routing)}~\citep{berkeley2024bfcl}: Berkeley Function Calling Leaderboard task. Given a user query and available functions, select the correct function. 500 examples. Tests function routing accuracy under latency constraints. SLO: 2000ms.
+    \item \textbf{T5 (SWE-bench Patching)}~\citep{princeton2024swe}: Given a bug description and repository context, generate a code patch. 300 examples. Tests complex code generation with structured diff output. SLO: 10000ms (longer due to code complexity).
 \end{itemize}
 
 \paragraph{SLO.}
@@ -709,7 +711,48 @@ Llama-3.2-1B & Meta & 1B & GQA & 27.3\% & 37.0\% & \textbf{49.1\%} & 1 & 5,988 \
 \end{tabular}
 \end{table}
 
-\paragraph{What the data shows:}
+\paragraph{Per-task breakdown.}
+Table~\ref{tab:per-task} reveals that the deployment gap varies dramatically by task type.
+Some tasks favor small models absolutely; others show more nuanced patterns.
+
+\begin{table}[t]
+\centering
+\caption{Success@SLO (\%) by task. T4 (function routing) and T5 (code patching) show the most extreme inversions. The smallest model (Llama-3.2-1B) achieves 96.8\% on T4 and 78.3\% on T5, while models above 6B achieve near-zero.}
+\label{tab:per-task}
+\small
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Model} & \textbf{Size} & \textbf{T1} & \textbf{T2} & \textbf{T3} & \textbf{T4} & \textbf{T5} \\
+\midrule
+Llama-3.2-1B & 1B & 0.0 & 21.0 & 49.6 & \textbf{96.8} & \textbf{78.3} \\
+Llama-3.2-3B & 3B & 6.2 & 0.2 & 54.8 & 97.0 & 0.7 \\
+Qwen2.5-3B & 3B & 3.2 & 0.0 & 62.4 & 97.2 & 8.7 \\
+Phi-3-mini & 3.8B & 10.6 & 0.0 & 64.6 & 92.8 & 1.0 \\
+Qwen3-4B & 4B & 0.8 & 0.0 & 61.6 & 87.2 & 0.0 \\
+Yi-1.5-6B & 6B & 0.4 & 0.0 & 0.0 & 1.8 & 0.0 \\
+Mistral-7B-v0.3 & 7B & 0.0 & 0.0 & 40.0 & 9.8 & 0.0 \\
+Falcon-Mamba-7B & 7B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+GPT-OSS-20B & 20B$^\dagger$ & 0.0 & 0.0 & 0.0 & 1.2 & 1.7 \\
+Ministral-8B & 8B & 65.0 & 0.0 & 48.2 & 29.2 & 0.0 \\
+Llama-3.1-8B & 8B & 49.4 & 0.0 & 9.2 & 7.6 & 0.0 \\
+Gemma-2-9B & 9B & 10.8 & 0.0 & 0.0 & 0.4 & 0.0 \\
+Gemma-3-12B & 12B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize $^\dagger$20B total, 3.6B active per token (MoE).}
+\end{tabular}
+\end{table}
+
+The patterns are striking:
+
+\textbf{T4 (Function Routing)} shows the most extreme inversion. The 1B model achieves 96.8\% Success@SLO---nearly perfect. Models at 3-4B stay above 87\%. But by 6B, performance collapses to under 2\%. The task is simple enough that small models can handle it, but large models timeout trying to overthink it.
+
+\textbf{T5 (Code Patching)} tells a similar story but with more variance. Llama-3.2-1B hits 78.3\% despite the longest SLO (10 seconds). Larger models generate verbose patches that blow past even this lenient deadline. The one exception is GPT-OSS-20B at 1.7\%---its MoE architecture provides enough efficiency to occasionally complete, but not reliably.
+
+\textbf{T1 and T2} favor mid-range models. Ministral-8B leads T1 at 65\% (its high accuracy matters here), while Llama-3.2-1B leads T2 at 21\% (speed wins for multi-hop QA).
+
+\textbf{T3 (Tool Calling)} shows the most even distribution, with models from 1B to 8B achieving 9-65\%. This is the one task where accuracy and latency balance out.
+
+\paragraph{What the data shows.}
 
 The results tell a consistent story across all 13 models and 8 vendors.
 
@@ -1169,15 +1212,15 @@ If all three conditions apply---tight SLOs, structured outputs, constrained reso
 \subsection{Limitations}
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Sample size.} We evaluate 13 models from 8 vendors across 4 countries. With n=13 (39 runs with 3 seeds each), our statistical claims have reasonable power, though validation on additional models would strengthen generalizability.
+    \item \textbf{Sample size.} We evaluate 13 models from 8 vendors across 4 countries on 2,300 examples across 5 task types. With n=13 models, our statistical claims have reasonable power, though validation on additional models would strengthen generalizability.
 
-    \item \textbf{Single hardware configuration.} Results are from RTX 4090 with 4-bit quantization. Different hardware (A100, H100, Apple Silicon) may shift absolute latencies.
+    \item \textbf{Single hardware configuration.} Results are from RTX 4090 with 4-bit quantization. Different hardware (A100, H100, Apple Silicon) may shift absolute latencies, though we expect rank orderings to persist.
 
-    \item \textbf{SLO threshold sensitivity.} Our findings depend on the 2s deadline. Section~\ref{fig:slo-sensitivity} shows sensitivity analysis across 1--10s thresholds; the ranking inversion persists across all realistic interactive deadlines, but results would differ for batch processing scenarios (30s+).
+    \item \textbf{SLO threshold sensitivity.} Our findings depend on our chosen deadlines (2s for T1--T4, 10s for T5). Section~\ref{fig:slo-sensitivity} shows sensitivity analysis across 1--10s thresholds; the ranking inversion persists across all realistic interactive deadlines, but results would differ for batch processing scenarios (30s+).
 
-    \item \textbf{Task coverage.} Our tasks focus on structured output (classification, QA, tool calling). The deployment gap may differ for open-ended generation or very long contexts.
+    \item \textbf{Task coverage.} Our five tasks span classification (T1), multi-hop QA (T2), tool calling (T3), function routing (T4), and code generation (T5). This covers the major categories of structured output tasks, but the deployment gap may differ for open-ended generation, very long contexts, or multi-turn dialogues.
 
-    \item \textbf{Judge reliability.} Faithfulness scoring depends on an LLM judge with its own biases and failure modes.
+    \item \textbf{Judge reliability.} Faithfulness scoring for T2 depends on an LLM judge with its own biases and failure modes.
 \end{enumerate}
 
 
