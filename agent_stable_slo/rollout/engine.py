@@ -45,6 +45,7 @@ class Attempt:
     tokens_in: int
     tokens_out: int
     timings: Dict[str, float]
+    logprobs: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -93,34 +94,46 @@ def _provider_generate_raw(
     mode: str,
     temperature: float,
     max_tokens: Optional[int],
-) -> Tuple[str, Dict[str, Any], float, float, int, int]:
+    request_logprobs: bool = False,
+) -> Tuple[str, Dict[str, Any], float, float, int, int, Optional[Dict[str, Any]]]:
     backend = os.getenv("AOFW_PROVIDER", "lmstudio").lower()
     if backend == "lmstudio":
         from .providers.lmstudio_openai import generate_raw
 
         return generate_raw(
-            prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+            prompt,
+            schema,
+            mode=mode,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            request_logprobs=request_logprobs,
         )
     if backend == "ollama":
         from .providers.ollama_structured import generate_raw
 
-        return generate_raw(
+        result = generate_raw(
             prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
         )
+        # Ollama provider returns 6 values, add None for logprobs
+        return (*result, None)
     if backend == "vllm":
         from .providers.vllm_openai import generate_raw
 
-        return generate_raw(
+        result = generate_raw(
             prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
         )
+        # vllm provider returns 6 values, add None for logprobs
+        return (*result, None)
     if backend == "hf_local":
         from .providers.hf_local import generate_raw
 
-        return generate_raw(
+        result = generate_raw(
             prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
         )
+        # hf_local provider returns 6 values, add None for logprobs
+        return (*result, None)
     # Fallback: empty output
-    return "", {}, 5.0, 5.0, -1, -1
+    return "", {}, 5.0, 5.0, -1, -1, None
 
 
 def provider_generate(
@@ -129,12 +142,30 @@ def provider_generate(
     mode: str | None = None,
     temperature: float = 0.0,
     max_tokens: Optional[int] = None,
-) -> Tuple[Dict[str, Any], float, float, int]:
+    request_logprobs: bool = False,
+) -> Tuple[Dict[str, Any], float, float, int, Optional[Dict[str, Any]]]:
     decode_mode = mode or os.getenv("DECODE_MODE", "structured")
-    _raw, parsed, lat_ms, ttft_ms, _tokens_in, tokens_out = _provider_generate_raw(
-        prompt, schema, decode_mode, temperature, max_tokens
+    _raw, parsed, lat_ms, ttft_ms, _tokens_in, tokens_out, logprobs = (
+        _provider_generate_raw(
+            prompt, schema, decode_mode, temperature, max_tokens, request_logprobs
+        )
     )
-    return parsed, lat_ms, ttft_ms, tokens_out
+    return parsed, lat_ms, ttft_ms, tokens_out, logprobs
+
+
+def provider_generate_raw(
+    prompt: str,
+    schema: Dict[str, Any],
+    mode: str | None = None,
+    temperature: float = 0.0,
+    max_tokens: Optional[int] = None,
+    request_logprobs: bool = False,
+) -> Tuple[str, Dict[str, Any], float, float, int, int, Optional[Dict[str, Any]]]:
+    """Generate with raw text output included."""
+    decode_mode = mode or os.getenv("DECODE_MODE", "structured")
+    return _provider_generate_raw(
+        prompt, schema, decode_mode, temperature, max_tokens, request_logprobs
+    )
 
 
 def _build_attempt(
@@ -147,6 +178,7 @@ def _build_attempt(
     tokens_in: int,
     tokens_out: int,
     timings: Dict[str, float],
+    logprobs: Optional[Dict[str, Any]] = None,
 ) -> Attempt:
     return Attempt(
         raw_text=raw_text,
@@ -158,6 +190,7 @@ def _build_attempt(
         tokens_in=int(tokens_in),
         tokens_out=int(tokens_out),
         timings=timings,
+        logprobs=logprobs,
     )
 
 
@@ -173,6 +206,7 @@ def generate_with_mode(
     self_consistency_max_ms: int,
     self_consistency_selection: str = "majority_vote",
     include_error_in_repair_prompt: bool = True,
+    request_logprobs: bool = False,
 ) -> GenerationResult:
     attempts: List[Attempt] = []
     retry_count = 0
@@ -184,8 +218,15 @@ def generate_with_mode(
 
     def call_provider(cur_prompt: str, provider_mode: str) -> Attempt:
         call_start = time.perf_counter()
-        raw, parsed, lat_ms, ttft_ms, tokens_in, tokens_out = _provider_generate_raw(
-            cur_prompt, schema, provider_mode, temperature, max_tokens
+        raw, parsed, lat_ms, ttft_ms, tokens_in, tokens_out, logprobs = (
+            _provider_generate_raw(
+                cur_prompt,
+                schema,
+                provider_mode,
+                temperature,
+                max_tokens,
+                request_logprobs,
+            )
         )
         call_end = time.perf_counter()
         val_start = time.perf_counter()
@@ -214,6 +255,7 @@ def generate_with_mode(
             tokens_in,
             tokens_out,
             timings,
+            logprobs,
         )
         return attempt
 

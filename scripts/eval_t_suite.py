@@ -12,17 +12,24 @@ Set AOFW_PROVIDER/LMSTUDIO_MODEL/OLLAMA_MODEL/VLLM_MODEL env vars as needed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import statistics
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from jsonschema import Draft202012Validator, ValidationError
 
-from agent_stable_slo.rollout.engine import provider_generate
+from agent_stable_slo.rollout.engine import provider_generate_raw
 from agent_stable_slo.utils.data import fingerprint_tasks
+from agent_stable_slo.eval.detailed_capture import (
+    CaptureConfig,
+    build_detailed_result,
+    aggregate_stability_metrics,
+)
 
 
 def _norm(text: Any) -> str:
@@ -215,6 +222,57 @@ def _score_t5(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float
     return metrics
 
 
+def _extract_number(text: str) -> Optional[float]:
+    """Extract a number from text, handling various formats."""
+    import re
+    if not text:
+        return None
+    # Clean up text
+    text = str(text).strip()
+    # Try to find a number pattern (handles negatives, decimals, commas)
+    # Look for patterns like: 72, -3.14, 1,234, $50, 50%
+    patterns = [
+        r'[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?',  # with commas: 1,234.56
+        r'[-+]?\d+\.?\d*',  # simple: 123.45
+    ]
+    for pattern in patterns:
+        matches = re.findall(pattern, text.replace(',', ''))
+        if matches:
+            try:
+                return float(matches[-1])  # Take the last number found
+            except ValueError:
+                continue
+    return None
+
+
+def _score_t6(out_json: Dict[str, Any], gold: Dict[str, Any]) -> Dict[str, float]:
+    """Score T6 GSM8K math tasks."""
+    metrics: Dict[str, float] = {}
+    if not gold:
+        return metrics
+
+    gold_answer = gold.get("answer", "")
+    pred_answer = out_json.get("answer", "")
+
+    # Extract numeric values for comparison
+    gold_num = _extract_number(str(gold_answer))
+    pred_num = _extract_number(str(pred_answer))
+
+    # Exact string match (normalized)
+    metrics["t6_exact_match"] = 1.0 if _norm(str(pred_answer)) == _norm(str(gold_answer)) else 0.0
+
+    # Numeric match (handles formatting differences)
+    if gold_num is not None and pred_num is not None:
+        metrics["t6_numeric_match"] = 1.0 if abs(gold_num - pred_num) < 1e-6 else 0.0
+    else:
+        metrics["t6_numeric_match"] = 0.0
+
+    # Overall success (either exact or numeric match)
+    metrics["t6_success"] = max(metrics["t6_exact_match"], metrics["t6_numeric_match"])
+
+    return metrics
+
+
 def _score_record(
     task: Dict[str, Any], out_json: Dict[str, Any], schema: Dict[str, Any]
 ) -> Dict[str, float]:
@@ -232,6 +290,8 @@ def _score_record(
         metrics.update(_score_t4(out_json, gold))
     elif ttype == "t5":
         metrics.update(_score_t5(out_json, gold))
+    elif ttype == "t6":
+        metrics.update(_score_t6(out_json, gold))
     return metrics
 
 
@@ -304,6 +364,34 @@ def main():
     ap.add_argument(
         "--run-name", default=None, help="Optional run name; defaults to timestamp."
     )
+    ap.add_argument(
+        "--capture-detailed",
+        action="store_true",
+        help="Capture detailed field breakdown, error taxonomy, and gold comparison.",
+    )
+    ap.add_argument(
+        "--capture-logprobs",
+        action="store_true",
+        help="Request and capture logprobs from the model (if supported).",
+    )
+    ap.add_argument(
+        "--stability-runs",
+        type=int,
+        default=1,
+        help="Number of runs per prompt for stability analysis.",
+    )
+    ap.add_argument(
+        "--slo-budget-ms",
+        type=float,
+        default=2000.0,
+        help="SLO budget in milliseconds for error classification.",
+    )
+    ap.add_argument(
+        "--parallel",
+        type=int,
+        default=1,
+        help="Number of parallel workers for concurrent evaluation (default: 1 = sequential).",
+    )
     args = ap.parse_args()
 
     tasks = _load_tasks(args.tasks, args.max_records or None)
@@ -317,13 +405,118 @@ def main():
     schema_cache: Dict[str, Dict[str, Any]] = {}
     task_fps = {Path(p).name: fingerprint_tasks(p).as_dict() for p in args.tasks}
 
+    # Build capture config
+    capture_config = CaptureConfig(
+        capture_field_breakdown=args.capture_detailed,
+        capture_error_taxonomy=args.capture_detailed,
+        capture_raw_output=args.capture_detailed,
+        capture_gold_comparison=args.capture_detailed,
+        capture_latency_decomposition=args.capture_detailed,
+        capture_logprobs=args.capture_logprobs,
+        stability_runs=args.stability_runs,
+    )
+
+    def _eval_single_task(
+        rec: Dict[str, Any],
+        schema: Dict[str, Any],
+        run_idx: int,
+        model_info: Dict[str, str],
+        mode: str,
+        capture_logprobs: bool,
+        capture_detailed: bool,
+        slo_budget_ms: float,
+        capture_config: CaptureConfig,
+    ) -> Dict[str, Any]:
+        """Evaluate a single task - designed for parallel execution."""
+        error_msg = None
+        raw_text = ""
+        logprobs_data = None
+        parse_error = None
+        schema_error = None
+
+        try:
+            (
+                raw_text,
+                out_json,
+                lat_ms,
+                ttft_ms,
+                tokens_in,
+                tokens_out,
+                logprobs_data,
+            ) = provider_generate_raw(
+                rec["prompt"],
+                schema,
+                mode=mode,
+                request_logprobs=capture_logprobs,
+            )
+            metrics = _score_record(rec, out_json, schema)
+        except json.JSONDecodeError as exc:
+            out_json = {}
+            lat_ms, ttft_ms, tokens_in, tokens_out = 1e6, 1e6, -1, -1
+            metrics = {"json_valid": 0.0}
+            error_msg = str(exc)
+            parse_error = str(exc)
+        except Exception as exc:
+            out_json = {}
+            lat_ms, ttft_ms, tokens_in, tokens_out = 1e6, 1e6, -1, -1
+            metrics = {"json_valid": 0.0}
+            error_msg = str(exc)
+
+        prompt_hash = hashlib.sha256(
+            rec.get("prompt", "").encode("utf-8")
+        ).hexdigest()
+
+        result = {
+            "id": rec.get("id"),
+            "task_type": rec.get("task_type"),
+            "prompt": rec.get("prompt"),
+            "prompt_hash": prompt_hash,
+            "output_json": out_json,
+            "metrics": metrics,
+            "latency_ms": float(lat_ms),
+            "ttft_ms": float(ttft_ms),
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "schema_path": rec.get("schema_path"),
+            "error": error_msg,
+            "run_idx": run_idx,
+        }
+
+        # Add gold for reference
+        gold = rec.get("gold")
+        if gold is not None:
+            result["gold"] = gold
+
+        # Add detailed capture if enabled
+        if capture_detailed or capture_logprobs:
+            detailed = build_detailed_result(
+                task_id=rec.get("id", ""),
+                task_type=rec.get("task_type", ""),
+                prompt=rec.get("prompt", ""),
+                raw_output=raw_text,
+                parsed_output=out_json if out_json else None,
+                gold=gold,
+                schema=schema,
+                parse_error=parse_error,
+                schema_error=schema_error,
+                latency_ms=lat_ms,
+                slo_budget_ms=slo_budget_ms,
+                model=model_info["model"],
+                provider=model_info["provider"],
+                logprobs_data=logprobs_data,
+                config=capture_config,
+            )
+            result["detailed"] = detailed
+
+        return result
+
     for spec in args.models:
         model_info = _parse_model_spec(spec)
         _set_provider_env(model_info["provider"], model_info["model"])
         model_dir = out_root / model_info["slug"]
         model_dir.mkdir(parents=True, exist_ok=True)
 
-        results = []
+        # Pre-load schemas
         for rec in tasks:
             schema_path = rec.get("schema_path")
             if not schema_path:
@@ -335,31 +528,58 @@ def main():
                 schema_cache[schema_path] = json.load(
                     open(schema_file, "r", encoding="utf-8")
                 )
-            schema = schema_cache[schema_path]
-            error_msg = None
-            try:
-                out_json, lat_ms, ttft_ms, tokens = provider_generate(
-                    rec["prompt"], schema, mode=args.mode
-                )
-                metrics = _score_record(rec, out_json, schema)
-            except Exception as exc:
-                out_json, lat_ms, ttft_ms, tokens = {}, 1e6, 1e6, -1
-                metrics = {"json_valid": 0.0}
-                error_msg = str(exc)
-            results.append(
-                {
-                    "id": rec.get("id"),
-                    "task_type": rec.get("task_type"),
-                    "prompt": rec.get("prompt"),
-                    "output_json": out_json,
-                    "metrics": metrics,
-                    "latency_ms": float(lat_ms),
-                    "ttft_ms": float(ttft_ms),
-                    "tokens_out": tokens,
-                    "schema_path": schema_path,
-                    "error": error_msg,
+
+        # Build work items
+        work_items = []
+        for rec in tasks:
+            schema = schema_cache[rec.get("schema_path")]
+            for run_idx in range(args.stability_runs):
+                work_items.append((rec, schema, run_idx))
+
+        results = []
+        if args.parallel > 1:
+            # Parallel execution
+            print(f"[{model_info['slug']}] Running {len(work_items)} tasks with {args.parallel} workers...")
+            with ThreadPoolExecutor(max_workers=args.parallel) as executor:
+                futures = {
+                    executor.submit(
+                        _eval_single_task,
+                        rec,
+                        schema,
+                        run_idx,
+                        model_info,
+                        args.mode,
+                        args.capture_logprobs,
+                        args.capture_detailed,
+                        args.slo_budget_ms,
+                        capture_config,
+                    ): (rec, run_idx)
+                    for rec, schema, run_idx in work_items
                 }
-            )
+                completed = 0
+                for future in as_completed(futures):
+                    result = future.result()
+                    results.append(result)
+                    completed += 1
+                    if completed % 100 == 0:
+                        print(f"[{model_info['slug']}] Progress: {completed}/{len(work_items)}")
+        else:
+            # Sequential execution
+            for i, (rec, schema, run_idx) in enumerate(work_items):
+                result = _eval_single_task(
+                    rec,
+                    schema,
+                    run_idx,
+                    model_info,
+                    args.mode,
+                    args.capture_logprobs,
+                    args.capture_detailed,
+                    args.slo_budget_ms,
+                    capture_config,
+                )
+                results.append(result)
+                if (i + 1) % 100 == 0:
+                    print(f"[{model_info['slug']}] Progress: {i+1}/{len(work_items)}")
         preds_path = model_dir / "predictions.jsonl"
         with preds_path.open("w", encoding="utf-8") as f:
             for r in results:
@@ -372,8 +592,14 @@ def main():
                 "decode_mode": args.mode,
                 "tasks": [Path(p).name for p in args.tasks],
                 "task_fingerprints": task_fps,
+                "stability_runs": args.stability_runs,
             }
         )
+
+        # Add stability metrics if multiple runs
+        if args.stability_runs > 1:
+            stability_metrics = aggregate_stability_metrics(results, "prompt_hash")
+            summary["stability"] = stability_metrics
         with (model_dir / "summary.json").open("w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, ensure_ascii=False)
         print(f"[{model_info['slug']}] {summary}")
