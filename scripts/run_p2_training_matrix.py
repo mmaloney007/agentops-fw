@@ -508,17 +508,21 @@ def run_single_training(
     tracker: ProgressTracker,
     dry_run: bool = False,
     verbose: bool = False,
+    oom_safe: bool = False,
 ) -> Tuple[bool, str]:
     """
     Execute a single training run.
     Returns (success, message).
+
+    Args:
+        oom_safe: Force OOM-safe settings (4-bit, grad_ckpt, etc.)
     """
     # Check for existing checkpoint to resume from
     resume_from = extract_last_checkpoint(run.run_dir)
     if resume_from > 0:
         print(f"  Resuming from checkpoint step {resume_from}")
 
-    cmd = build_train_command(run, resume_from)
+    cmd = build_train_command(run, resume_from, oom_safe=oom_safe)
 
     if dry_run:
         print(f"  [DRY RUN] Would execute: {' '.join(cmd)}")
@@ -830,18 +834,67 @@ Examples:
 
         print_progress_summary(tracker)
 
-    # Check for failed runs and offer to retry
+    # Check for failed runs and retry automatically
     failed_runs = [
         (k, v) for k, v in tracker.state.runs.items()
         if v.get("status") in ("oom_failed", "error")
     ]
 
-    print("\n=== Training Matrix Complete ===")
+    if failed_runs and not args.dry_run:
+        print(f"\n{'='*60}")
+        print(f"Retrying {len(failed_runs)} failed runs with OOM-safe settings...")
+        print(f"{'='*60}")
+
+        for i, (run_key, run_data) in enumerate(failed_runs, 1):
+            # Parse run key
+            parts = run_key.rsplit("_", 2)
+            if len(parts) != 3:
+                continue
+            model, task, seed_str = parts
+            seed = int(seed_str.replace("seed", ""))
+
+            run = RunConfig(
+                model=model,
+                task=task,
+                seed=seed,
+                steps=args.steps,
+                out_dir=out_dir,
+                checkpoint_every=args.checkpoint_every,
+            )
+
+            print(f"\n[Retry {i}/{len(failed_runs)}] {run_key}")
+            print(f"  Previous failure: {run_data.get('status')} - {run_data.get('error_message', 'unknown')}")
+            print(f"  Using OOM-safe settings: 4-bit, grad_accum=4, grad_ckpt, lora_rank=8")
+
+            # Clear previous error state
+            tracker.state.runs[run_key]["status"] = "in_progress"
+            tracker.state.runs[run_key]["error_message"] = None
+            tracker.state.runs[run_key]["retry_count"] = tracker.state.runs[run_key].get("retry_count", 0) + 1
+            tracker.save()
+
+            success, message = run_single_training(
+                run, tracker, dry_run=False, verbose=args.verbose, oom_safe=True
+            )
+
+            if success:
+                print(f"  Retry SUCCESS: {message}")
+            else:
+                print(f"  Retry FAILED: {message}")
+
+    # Final summary
+    final_failed = sum(1 for v in tracker.state.runs.values() if v.get("status") in ("oom_failed", "error"))
+    final_completed = sum(1 for v in tracker.state.runs.values() if v.get("status") == "completed")
+
+    print(f"\n{'='*60}")
+    print(f"Training Matrix Complete")
+    print(f"{'='*60}")
+    print(f"Completed: {final_completed}/{len(tracker.state.runs)}")
+    print(f"Failed: {final_failed}")
     print(f"Results saved to: {out_dir}")
     print(f"Progress state: {tracker.state_file}")
 
-    if failed_runs:
-        print(f"\n{len(failed_runs)} runs failed. To retry with OOM-safe settings:")
+    if final_failed > 0:
+        print(f"\n{final_failed} runs still failed. To retry manually:")
         print(f"  python scripts/retry_failed_runs.py --input {out_dir}")
 
     print(f"\nTo aggregate results:")
