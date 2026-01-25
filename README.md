@@ -75,6 +75,65 @@ export WANDB_PROJECT=agentops-fw
 python scripts/wandb_bootstrap.py
 ```
 
+## P2 Training Matrix (13 Models × 6 Tasks × 3 Seeds)
+
+Full-scale training experiment across 13 open-weight models on 6 task types.
+
+### Quick Start
+```bash
+# 1. Expand T1 dataset (10 → 100 samples)
+python scripts/expand_t1_t2_samples.py --output-dir tasks/
+
+# 2. Dry run to preview (234 total runs)
+python scripts/run_p2_training_matrix.py --out-dir out/p2_training --dry-run
+
+# 3. Run full training matrix
+python scripts/run_p2_training_matrix.py --out-dir out/p2_training --steps 1000
+
+# 4. Resume after crash
+python scripts/run_p2_training_matrix.py --resume out/p2_training
+
+# 5. Aggregate results for paper
+python scripts/aggregate_p2_results.py --input out/p2_training --latex --csv
+```
+
+### Models (smallest → largest)
+| Model | Params | 4-bit | Grad Accum |
+|-------|--------|-------|------------|
+| Llama-3.2-1B | 1B | No | 1 |
+| Llama-3.2-3B | 3B | No | 1 |
+| Qwen2.5-3B | 3B | No | 1 |
+| Phi-3-mini | 3.8B | No | 1 |
+| Qwen3-4B | 4B | No | 1 |
+| Yi-1.5-6B | 6B | No | 2 |
+| Mistral-7B-v0.3 | 7B | Yes | 2 |
+| Falcon-Mamba-7B | 7B | Yes | 2 |
+| Ministral-8B | 8B | Yes | 2 |
+| Llama-3.1-8B | 8B | Yes | 2 |
+| Gemma-2-9B | 9B | Yes | 2 |
+| Gemma-3-12B | 12B | Yes | 4 |
+| GPT-OSS-20B | 20B | Yes | 4 |
+
+### Tasks
+- **T1**: Incident classification (100 samples)
+- **T2**: Grounded summarization (106 samples)
+- **T3**: Tool selection (500 samples)
+- **T4**: Function calling / BFCL (500 samples)
+- **T5**: SWE-bench patches (300 samples)
+- **Mixed**: Balanced T1-T5 (500 samples)
+
+### Output Structure
+```
+out/p2_training/
+├── progress_state.json          # Resume tracking
+├── llama-3.2-1b/
+│   ├── T1/seed_42/train_log.jsonl
+│   ├── T1/seed_123/...
+│   └── ...
+├── aggregated_results.json      # After aggregation
+└── latex_tables/table_training.tex
+```
+
 ## GitHub CI
 This repo includes GitHub Actions (Python 3.12) to lint (ruff/black) and run tests (pytest).
 

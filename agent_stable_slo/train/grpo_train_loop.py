@@ -361,6 +361,7 @@ def _run_validation(model, tok, val_ds, cfg, device, blocked):
         input_ids = enc["input_ids"].to(device)
         attn = enc["attention_mask"].to(device)
         with torch.no_grad():
+            use_cache = getattr(cfg, "use_cache", True)
             gen = model.generate(
                 input_ids=input_ids,
                 attention_mask=attn,
@@ -369,6 +370,7 @@ def _run_validation(model, tok, val_ds, cfg, device, blocked):
                 temperature=cfg.temperature,
                 top_p=cfg.top_p,
                 pad_token_id=tok.pad_token_id,
+                use_cache=use_cache,
             )
         gen_ids = gen[:, input_ids.shape[1] :]
         txt = tok.batch_decode(gen_ids, skip_special_tokens=True)[0].strip()
@@ -532,6 +534,8 @@ def train_loop(cfg: GRPOTrainConfig):
             for sample_idx in range(max(1, cfg.stability_samples)):
                 t0 = time.time()
                 with torch.no_grad():
+                    # Disable cache for models with DynamicCache issues (e.g., Phi-3)
+                    use_cache = getattr(cfg, "use_cache", True)
                     gen = model.generate(
                         input_ids=input_ids,
                         attention_mask=attention_mask,
@@ -540,6 +544,7 @@ def train_loop(cfg: GRPOTrainConfig):
                         temperature=cfg.temperature,
                         top_p=cfg.top_p,
                         pad_token_id=tok.pad_token_id,
+                        use_cache=use_cache,
                     )
                 lat_ms = (time.time() - t0) * 1000.0
 
@@ -817,6 +822,12 @@ def parse_args(argv: Optional[Sequence[str]] = None):
         help="Override 4-bit loading (default picks based on hardware).",
     )
     ap.add_argument(
+        "--gradient-checkpointing",
+        action="store_true",
+        default=cfg_defaults.get("gradient_checkpointing", False),
+        help="Enable gradient checkpointing to save memory (trades compute for memory).",
+    )
+    ap.add_argument(
         "--torch-dtype", type=str, default=cfg_defaults.get("torch_dtype", "float16")
     )
     ap.add_argument(
@@ -844,6 +855,12 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     ap.add_argument("--seed", type=int, default=cfg_defaults.get("seed", 17))
     ap.add_argument(
         "--repro", action="store_true", default=cfg_defaults.get("repro", False)
+    )
+    ap.add_argument(
+        "--no-use-cache",
+        action="store_true",
+        default=not cfg_defaults.get("use_cache", True),
+        help="Disable KV cache during generation (fixes Phi-3 DynamicCache issues)",
     )
     ap.add_argument(
         "--cache-dataset",
@@ -904,6 +921,11 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     )
     args = ap.parse_args(remaining)
     cfg_dict = vars(args)
+    # Convert --no-use-cache to use_cache
+    if cfg_dict.pop("no_use_cache", False):
+        cfg_dict["use_cache"] = False
+    else:
+        cfg_dict["use_cache"] = True
     # Drop loader-only fields not present in the pydantic model.
     for drop in ("config_file", "config_preset", "config_dir"):
         cfg_dict.pop(drop, None)
