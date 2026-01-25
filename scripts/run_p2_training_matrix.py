@@ -177,6 +177,11 @@ TASK_CONFIGS = {
         "description": "SWE-bench patches (300 samples)",
         "samples": 300,
     },
+    "T6": {
+        "file": "tasks/public_gsm8k.jsonl",
+        "description": "Math reasoning - GSM8K (200 samples)",
+        "samples": 200,
+    },
     "Mixed": {
         "file": "tasks/t1t5_balanced.jsonl",
         "description": "Balanced mix (500 samples)",

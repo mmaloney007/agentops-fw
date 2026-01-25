@@ -59,6 +59,7 @@ TASK_FILES = {
     "T3": "tasks/t3_tools.jsonl",
     "T4": "tasks/t4_bfcl.jsonl",
     "T5": "tasks/t5_swebench.jsonl",
+    "T6": "tasks/public_gsm8k.jsonl",
     "Mixed": "tasks/t1t5_balanced.jsonl",
 }
 
