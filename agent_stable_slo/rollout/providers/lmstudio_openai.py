@@ -158,13 +158,37 @@ def _normalize_tool_call(j: dict) -> dict:
     return j
 
 
+def _extract_logprobs(response) -> Optional[dict]:
+    """Extract logprobs data from OpenAI-compatible response."""
+    try:
+        choice = response.choices[0]
+        if not hasattr(choice, "logprobs") or not choice.logprobs:
+            return {"available": False}
+
+        content = getattr(choice.logprobs, "content", None)
+        if not content:
+            return {"available": False}
+
+        logprobs = [t.logprob for t in content if hasattr(t, "logprob")]
+
+        return {
+            "available": True,
+            "mean_logprob": sum(logprobs) / len(logprobs) if logprobs else None,
+            "finish_reason": choice.finish_reason,
+            "token_count": len(content),
+        }
+    except Exception:
+        return {"available": False}
+
+
 def generate_raw(
     prompt: str,
     schema: dict,
     mode: str = "structured",
     temperature: float = 0.0,
     max_tokens: Optional[int] = None,
-) -> Tuple[str, dict, float, float, int, int]:
+    request_logprobs: bool = False,
+) -> Tuple[str, dict, float, float, int, int, Optional[dict]]:
     base = os.getenv("OPENAI_API_BASE", "http://localhost:1234/v1")
     key = os.getenv("OPENAI_API_KEY", "lm-studio")
     model = os.getenv("LMSTUDIO_MODEL", "qwen/qwen3-4b-thinking-2507")
@@ -173,6 +197,13 @@ def generate_raw(
     max_new = max_tokens if max_tokens is not None else _max_tokens()
     t0 = time.time()
     r = None
+
+    # Build extra params for logprobs if requested
+    extra_params = {}
+    if request_logprobs:
+        extra_params["logprobs"] = True
+        extra_params["top_logprobs"] = 5
+
     try:
         if mode == "structured":
             r = client.chat.completions.create(
@@ -186,6 +217,7 @@ def generate_raw(
                 },
                 temperature=temperature,
                 max_tokens=max_new,
+                **extra_params,
             )
         else:
             r = client.chat.completions.create(
@@ -196,8 +228,12 @@ def generate_raw(
                 response_format={"type": "text"},
                 temperature=temperature,
                 max_tokens=max_new,
+                **extra_params,
             )
-    except Exception:
+    except Exception as e:
+        # If logprobs caused the error, retry without logprobs
+        if request_logprobs and "logprobs" in str(e).lower():
+            return generate_raw(prompt, schema, mode, temperature, max_tokens, False)
         try:
             # Fallback to text and best-effort parse
             r = client.chat.completions.create(
@@ -212,7 +248,7 @@ def generate_raw(
         except Exception:
             # Hard failure: return empty with large latencies to signal SLO violation
             lat_ms = (time.time() - t0) * 1000.0
-            return "", {}, float(lat_ms), float(lat_ms), -1, -1
+            return "", {}, float(lat_ms), float(lat_ms), -1, -1, None
     lat_ms = (time.time() - t0) * 1000.0
     ttft_ms = lat_ms  # non-streaming: treat first token latency as total latency
 
@@ -281,7 +317,11 @@ def generate_raw(
     tokens_out = _completion_tokens(r)
     tokens_in = _prompt_tokens(r)
     j = _normalize_tool_call(j)
-    return txt, j, lat_ms, ttft_ms, tokens_in, tokens_out
+
+    # Extract logprobs if requested
+    logprobs_data = _extract_logprobs(r) if request_logprobs else None
+
+    return txt, j, lat_ms, ttft_ms, tokens_in, tokens_out, logprobs_data
 
 
 def generate_json(
@@ -291,7 +331,7 @@ def generate_json(
     temperature: float = 0.0,
     max_tokens: Optional[int] = None,
 ) -> Tuple[dict, float, float, int]:
-    _, parsed, lat_ms, ttft_ms, _tokens_in, tokens_out = generate_raw(
+    _, parsed, lat_ms, ttft_ms, _tokens_in, tokens_out, _ = generate_raw(
         prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
     )
     return parsed, lat_ms, ttft_ms, tokens_out
