@@ -181,6 +181,9 @@ cython_debug/
 .cursorindexingignore
 /wandb
 /out
+# Exception: preserve P1 evaluation results
+!/out/p1_full_eval/
+!/out/p1_t6_math/
 /models
 !/models/.keep
 papers/.DS_Store

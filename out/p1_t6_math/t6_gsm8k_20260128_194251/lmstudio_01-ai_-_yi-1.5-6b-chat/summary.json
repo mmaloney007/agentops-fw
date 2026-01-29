@@ -1,0 +1,26 @@
+{
+  "json_valid": 0.985,
+  "t6_exact_match": 0.005,
+  "t6_numeric_match": 0.155,
+  "t6_success": 0.155,
+  "avg_latency_ms": 29170.0,
+  "avg_ttft_ms": 29170.0,
+  "count": 200,
+  "model": "01-ai_-_yi-1.5-6b-chat",
+  "provider": "lmstudio",
+  "decode_mode": "structured",
+  "tasks": [
+    "public_gsm8k.jsonl"
+  ],
+  "task_fingerprints": {
+    "public_gsm8k.jsonl": {
+      "tasks_path": "tasks/public_gsm8k.jsonl",
+      "sha256": "f3575836f4a69c096dcd0ae6b7b58c48a837ef9d4a36c2cf6ad901ed354b9fde",
+      "num_records": 200,
+      "schema_sha256": {
+        "tasks/schemas/qa_schema.json": "fc9297b36be48befad9967d81b2517dfeff27b578299e1fa30b27ef2ed7a7b3f"
+      }
+    }
+  },
+  "stability_runs": 1
+}
