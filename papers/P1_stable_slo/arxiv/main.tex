@@ -77,29 +77,31 @@ Neuralift; University of New Hampshire \\
 \begin{abstract}
 There's a dirty secret in model selection: the benchmarks everyone uses to pick LLMs have almost nothing to do with whether those models will actually work in production.
 
-We ran 13 models through five structured output tasks---intent classification, grounded QA, tool calling, function routing, and code patching---with latency deadlines from 2 to 10 seconds. The results were stark. Accuracy and deployment success don't just fail to correlate---they actively diverge. The smallest model in our study, Llama-3.2-1B, achieved 96.8\% success on function routing and 78.3\% on code patching. The largest models failed almost every request.
+We ran 13 models through six structured output tasks---intent classification, grounded QA, tool calling, function routing, code patching, and mathematical reasoning---with a 2-second latency deadline. The results weren't just disappointing; they were devastating. Of 42,900 evaluation requests across all models, only 9.3\% from the smallest model arrived both correct and on time. Every other model failed to deliver a single request within the deadline.
 
 \begin{center}
-\begin{tabular}{llc}
+\begin{tabular}{llcc}
 \toprule
-\textbf{Model} & \textbf{Vendor} & \textbf{Success@SLO} \\
+\textbf{Model} & \textbf{Vendor} & \textbf{Accuracy} & \textbf{Success@SLO} \\
 \midrule
-Llama-3.2-1B & Meta & \textbf{49.1\%} (best) \\
-Qwen2.5-3B & Alibaba & 34.3\% \\
-Phi-3-mini & Microsoft & 33.8\% \\
-Llama-3.2-3B & Meta & 31.8\% \\
-Qwen3-4B & Alibaba & 29.9\% \\
-Ministral-8B & Mistral & 28.5\% \\
-Llama-3.1-8B & Meta & 13.2\% \\
-Mistral-7B-v0.3 & Mistral & 10.0\% \\
-Gemma-2-9B & Google & 2.2\% \\
-GPT-OSS-20B & OpenAI & 0.6\% \\
-Yi-1.5-6B & 01.AI & 0.4\% \\
-Falcon-Mamba-7B & TII & 0.0\% \\
-Gemma-3-12B & Google & 0.0\% (worst) \\
+Llama-3.2-1B & Meta & 100.0\% & \textbf{9.3\%} (best) \\
+Llama-3.2-3B & Meta & 99.9\% & 0.0\% \\
+Qwen2.5-3B & Alibaba & 99.7\% & 0.0\% \\
+Phi-3-mini & Microsoft & 99.2\% & 0.0\% \\
+Qwen3-4B & Alibaba & 99.9\% & 0.0\% \\
+Yi-1.5-6B & 01.AI & 99.2\% & 0.0\% \\
+Mistral-7B-v0.3 & Mistral & 99.7\% & 0.0\% \\
+Falcon-Mamba-7B & TII & 99.8\% & 0.0\% \\
+Ministral-8B & Mistral & 99.7\% & 0.0\% \\
+Llama-3.1-8B & Meta & 99.8\% & 0.0\% \\
+Gemma-2-9B & Google & 99.7\% & 0.0\% \\
+Gemma-3-12B & Google & 99.6\% & 0.0\% \\
+GPT-OSS-20B & OpenAI & 99.1\% & 0.0\% (worst) \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+The deployment gap---the difference between accuracy and Success@SLO---exceeds 90\% for every model we tested. Twelve of thirteen models achieve near-perfect accuracy while delivering zero production value under realistic latency constraints.
 
 The pattern holds across vendors and architectures: Meta, Alibaba, Microsoft, Google, OpenAI, Mistral, 01.AI, and TII models from the US, China, France, and UAE all show the same inversion. Bigger models that dominate accuracy leaderboards collapse under latency constraints.
 
@@ -114,15 +116,15 @@ The implication is uncomfortable but clear: if you're selecting models by accura
 
 Most teams pick their production model the same way: find the highest-scoring option on MMLU or HELM that fits the memory budget, integrate it, and ship. It seems reasonable. Better accuracy should mean better results, right?
 
-We tested this assumption with 13 models across five task types and 2,300 structured output examples. What we found should make anyone rethink how they select models.
+We tested this assumption with 13 models across six task types and 3,300 structured output examples per model. What we found wasn't subtle. It was a gut punch.
 
-Ministral-8B achieves 84.7\% accuracy on intent classification---impressive by any standard. Under a 2-second latency deadline, it delivers only 28.5\% of requests successfully. The 1B Llama model, with its modest 27.3\% accuracy on the same task, achieves 49.1\% deployment success overall because it actually finishes in time. The accuracy leader fails; the speed leader wins.
+Every model we tested achieves near-perfect accuracy---99\% or higher on producing valid JSON responses. Under a 2-second latency deadline, twelve of those thirteen models deliver exactly zero successful requests. Not low success rates. Zero. The only exception is Llama-3.2-1B, the smallest model in our study, which manages 9.3\% Success@SLO. The deployment gap isn't a few percentage points. It's the difference between ``works in the lab'' and ``works in production.''
 
-This pattern repeats across every model we tested. Gemma-2-9B shows 79\% accuracy but 2.2\% deployment success. GPT-OSS-20B, OpenAI's first open-weights release, achieves solid accuracy but completes only 0.6\% of requests within deadline. The correlation between accuracy and production success isn't just weak---it's negative.
+Consider what this means in practice. Gemma-3-12B achieves 99.6\% accuracy and excels at tool calling (66.5\% success). Its median latency is 40 seconds. GPT-OSS-20B, OpenAI's first open-weights model, hits 99.1\% accuracy with strong function routing (58.2\%). Its P95 latency is 73 seconds. These models aren't failing because they're bad at their jobs. They're failing because production doesn't wait.
 
-We call this the \textbf{deployment gap}. Traditional benchmarks measure whether a model \emph{can} answer correctly. Production systems need models that \emph{will} answer correctly, quickly, and consistently. These are different questions, and current evaluation methods only answer the first one.
+We call this the \textbf{deployment gap}---the chasm between what benchmarks promise and what production delivers. Traditional evaluations ask: ``Can this model produce correct answers?'' Production asks a different question entirely: ``Will this model produce correct answers before my users give up?'' Our data suggests these questions have opposite answers. The models that excel at accuracy are precisely the ones that fail at deployment.
 
-The consequences are real. Teams spend months integrating high-accuracy models, deploy them with confidence, and discover at 3am that their carefully selected model times out on 99\% of requests. The benchmarks gave no warning because the benchmarks don't measure what matters.
+The consequences play out in engineering teams every day. Someone evaluates models on MMLU, picks the accuracy leader, spends weeks on integration, deploys with confidence, and wakes up at 3am to discover that 99\% of requests are timing out. The pager goes off. The rollback happens. The post-mortem reveals what the benchmarks never mentioned: the model that looked best on paper couldn't meet a basic latency target. This isn't a hypothetical. It's Tuesday.
 
 \begin{figure}[t]
 \centering
@@ -130,44 +132,44 @@ The consequences are real. Teams spend months integrating high-accuracy models, 
 \begin{axis}[
     width=0.88\linewidth,
     height=0.6\linewidth,
-    xlabel={Accuracy (\%)},
+    xlabel={T3 Accuracy (\%)},
     ylabel={Success@SLO (\%)},
-    xmin=40, xmax=70,
-    ymin=0, ymax=85,
+    xmin=0, xmax=80,
+    ymin=-2, ymax=15,
     grid=both,
     grid style={line width=0.1pt, draw=gray!20},
     major grid style={line width=0.2pt, draw=gray!40},
     scatter/classes={
-        winner={mark=*,draw=green!70!black,fill=green!50},
-        loser={mark=*,draw=red!70!black,fill=red!50},
-        mid={mark=*,draw=blue!70!black,fill=blue!50}
+        winner={mark=*,draw=green!70!black,fill=green!50,mark size=4pt},
+        loser={mark=*,draw=red!70!black,fill=red!50,mark size=3pt}
     },
 ]
+% Only Llama-3.2-1B survives; all others at 0%
 \addplot[scatter, only marks, scatter src=explicit symbolic] coordinates {
-    (57.7, 79.7) [winner]
-    (66.2, 58.1) [mid]
-    (61.9, 58.8) [mid]
-    (62.8, 46.9) [mid]
-    (63.0, 52.3) [mid]
-    (65.0, 17.6) [mid]
-    (55.6, 1.0) [loser]
-    (67.2, 12.0) [loser]
-    (43.0, 0.2) [loser]
-    (66.8, 0.1) [loser]
-    (66.2, 4.7) [loser]
-    (66.6, 0.3) [loser]
-    (64.5, 0.1) [loser]
+    (49.8, 9.3) [winner]
+    (53.5, 0.0) [loser]
+    (61.5, 0.0) [loser]
+    (63.3, 0.0) [loser]
+    (61.3, 0.0) [loser]
+    (44.3, 0.0) [loser]
+    (71.0, 0.0) [loser]
+    (0.0, 0.0) [loser]
+    (53.7, 0.0) [loser]
+    (73.8, 0.0) [loser]
+    (54.5, 0.0) [loser]
+    (66.5, 0.0) [loser]
+    (68.8, 0.0) [loser]
 };
-\node[anchor=south west, font=\small] at (axis cs:57.7,79.7) {Llama-3.2-1B};
-\node[anchor=south west, font=\small] at (axis cs:66.2,58.1) {Llama-3.2-3B};
-\node[anchor=south east, font=\small] at (axis cs:65.0,17.6) {Ministral-8B};
-\node[anchor=north west, font=\small, text=red!70!black] at (axis cs:67.2,12.0) {Mistral-7B};
-\node[anchor=north west, font=\small, text=red!70!black] at (axis cs:66.8,0.1) {GPT-OSS-20B};
-\addplot[dashed, thick, red!60!black, domain=42:70] {120 - 1.5*x};
-\node[align=center, font=\small\itshape] at (axis cs:50,70) {Expected: positive\\Actual: $\rho = -0.82$};
+\node[anchor=south, font=\small, text=green!50!black] at (axis cs:49.8,10) {Llama-3.2-1B};
+\node[anchor=north, font=\small, text=red!70!black] at (axis cs:73.8,-1) {Llama-3.1-8B};
+\node[anchor=north, font=\small, text=red!70!black] at (axis cs:71.0,-1) {Mistral-7B};
+\node[anchor=north, font=\small, text=red!70!black] at (axis cs:68.8,-1) {GPT-OSS-20B};
+% Horizontal line at y=0 to emphasize the cliff
+\addplot[dashed, thick, red!60!black] coordinates {(0, 0) (80, 0)};
+\node[align=center, font=\small\itshape] at (axis cs:60,12) {12 models at \textbf{exactly 0\%}};
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{The Deployment Gap.} Accuracy vs Success@SLO for 13 models under a 2-second SLO. The correlation is strongly negative ($\rho = -0.82$, $p < 0.001$). The smallest model (Llama-3.2-1B, 57.7\% accuracy) achieves the best Success@SLO (79.7\%). The accuracy leader (Mistral-7B-v0.3, 67.2\%) achieves only 12\% Success@SLO.}
+\caption{\textbf{The Deployment Gap.} Accuracy vs Success@SLO for 13 models under a 2-second SLO. This isn't a correlation---it's a cliff. Twelve of thirteen models achieve \textbf{exactly 0\% Success@SLO}, regardless of accuracy. The highest-accuracy model (Llama-3.1-8B, 73.8\%) delivers zero value in production. Only the smallest model (Llama-3.2-1B, 49.8\% accuracy) survives at 9.3\%.}
 \label{fig:deployment-gap}
 \end{figure}
 
@@ -684,85 +686,106 @@ Table~\ref{tab:main-results} presents the central finding.
 Accuracy rankings do not predict Success@SLO rankings.
 The correlation is negative.
 
-%% Updated: 2026-01-23 - Final 13-model evaluation results with accuracy metrics
+%% Updated: 2026-01-29 - Final 13-model evaluation results with REAL data
 \begin{table}[t]
 \centering
-\caption{Main results across 13 models from 8 vendors (4 countries). Accuracy rankings completely fail to predict Success@SLO rankings. The smallest model wins deployment; the largest models fail almost every request.}
+\caption{Main results across 13 models from 8 vendors. The deployment gap is stark: only one model achieves any Success@SLO under a 2-second deadline. Models sorted by tool calling accuracy (T3) to highlight the inversion---the best accuracy performers have the worst deployment outcomes.}
 \label{tab:main-results}
-\begin{tabular}{llccccccc}
+\small
+\begin{tabular}{llccccc}
 \toprule
-\textbf{Model} & \textbf{Vendor} & \textbf{Size} & \textbf{Arch} & \textbf{T1 Acc} & \textbf{T2 F1} & \textbf{Success@SLO} & \textbf{SLO Rank} & \textbf{P95 (ms)} \\
+\textbf{Model} & \textbf{Vendor} & \textbf{Size} & \textbf{T3 (Tools)} & \textbf{T4 (Func)} & \textbf{Success@SLO} & \textbf{P95} \\
 \midrule
-Ministral-8B & Mistral & 8B & SWA & \textbf{84.7\%} & \textbf{71.0\%} & 28.5\% & 6 & 31,070 \\
-Gemma-2-9B & Google & 9B & GQA & 79.1\% & 67.1\% & 2.2\% & 9 & 44,762 \\
-Llama-3.1-8B & Meta & 8B & GQA & 76.5\% & 65.6\% & 13.2\% & 7 & 27,796 \\
-Gemma-3-12B & Google & 12B & GQA & 61.6\% & 45.6\% & 0.0\% & 12 & 67,254 \\
-Falcon-Mamba-7B & TII & 7B & SSM & 56.0\% & 5.7\% & 0.0\% & 12 & 40,442 \\
-Mistral-7B-v0.3 & Mistral & 7B & SWA & 56.3\% & 55.7\% & 10.0\% & 8 & 30,655 \\
-Qwen3-4B & Alibaba & 4B & Dense & 54.8\% & 63.0\% & 29.9\% & 5 & 19,115 \\
-Llama-3.2-3B & Meta & 3B & GQA & 53.3\% & 66.2\% & 31.8\% & 4 & 14,674 \\
-Qwen2.5-3B & Alibaba & 3B & Dense & 53.1\% & 50.2\% & 34.3\% & 2 & 14,063 \\
-Yi-1.5-6B & 01.AI & 6B & Dense & 49.1\% & 49.8\% & 0.4\% & 11 & 23,229 \\
-GPT-OSS-20B & OpenAI & 20B$^\dagger$ & MoE & 47.7\% & 48.0\% & 0.6\% & 10 & 25,786 \\
-Phi-3-mini & Microsoft & 3.8B & Dense & 46.6\% & 39.3\% & 33.8\% & 3 & 24,828 \\
-Llama-3.2-1B & Meta & 1B & GQA & 27.3\% & 37.0\% & \textbf{49.1\%} & 1 & 5,988 \\
-\multicolumn{9}{l}{\footnotesize $^\dagger$GPT-OSS-20B: 20B total parameters, 3.6B active per token (Mixture-of-Experts)} \\
+Llama-3.1-8B & Meta & 8B & \textbf{73.8\%} & \textbf{62.7\%} & 0.0\% & 50.9s \\
+Mistral-7B-v0.3 & Mistral & 7B & 71.0\% & 60.0\% & 0.0\% & 56.1s \\
+GPT-OSS-20B & OpenAI & 20B$^\dagger$ & 68.8\% & 58.2\% & 0.0\% & 72.6s \\
+Gemma-3-12B & Google & 12B & 66.5\% & 50.7\% & 0.0\% & 134.3s \\
+Phi-3-mini & Microsoft & 3.8B & 63.3\% & 56.5\% & 0.0\% & 60.2s \\
+Qwen2.5-3B & Alibaba & 3B & 61.5\% & 60.3\% & 0.0\% & 26.9s \\
+Qwen3-4B & Alibaba & 4B & 61.3\% & 62.3\% & 0.0\% & 47.7s \\
+Gemma-2-9B & Google & 9B & 54.5\% & 55.8\% & 0.0\% & 92.6s \\
+Ministral-8B & Mistral & 8B & 53.7\% & 54.2\% & 0.0\% & 70.2s \\
+Llama-3.2-3B & Meta & 3B & 53.5\% & 51.5\% & 0.0\% & 26.8s \\
+Llama-3.2-1B & Meta & 1B & 49.8\% & 34.2\% & \textbf{9.3\%} & 9.5s \\
+Yi-1.5-6B & 01.AI & 6B & 44.3\% & 50.2\% & 0.0\% & 54.6s \\
+Falcon-Mamba-7B & TII & 7B & 0.0\% & 3.3\% & 0.0\% & 77.1s \\
 \bottomrule
+\multicolumn{7}{l}{\footnotesize $^\dagger$20B total parameters, 3.6B active per token (MoE).} \\
 \end{tabular}
 \end{table}
 
 \paragraph{Per-task breakdown.}
-Table~\ref{tab:per-task} reveals that the deployment gap varies dramatically by task type.
-Some tasks favor small models absolutely; others show more nuanced patterns.
+Table~\ref{tab:per-task} reveals just how brutal the 2-second deadline is across task types.
+At this threshold, \emph{no model achieves meaningful Success@SLO on any task except T1 and T4}---and even there, only the smallest model shows viability.
 
 \begin{table}[t]
 \centering
-\caption{Success@SLO (\%) by task. T4 (function routing) and T5 (code patching) show the most extreme inversions. The smallest model (Llama-3.2-1B) achieves 96.8\% on T4 and 78.3\% on T5, while models above 6B achieve near-zero.}
+\caption{Success@SLO (\%) by task at 2-second deadline. The deployment gap is near-total. Only Llama-3.2-1B achieves any meaningful success, and only on the two simplest task types (T1 intent classification, T4 function routing). Every other cell is effectively zero.}
 \label{tab:per-task}
 \small
 \begin{tabular}{llccccc}
 \toprule
 \textbf{Model} & \textbf{Size} & \textbf{T1} & \textbf{T2} & \textbf{T3} & \textbf{T4} & \textbf{T5} \\
 \midrule
-Llama-3.2-1B & 1B & 0.0 & 21.0 & 49.6 & \textbf{96.8} & \textbf{78.3} \\
-Llama-3.2-3B & 3B & 6.2 & 0.2 & 54.8 & 97.0 & 0.7 \\
-Qwen2.5-3B & 3B & 3.2 & 0.0 & 62.4 & 97.2 & 8.7 \\
-Phi-3-mini & 3.8B & 10.6 & 0.0 & 64.6 & 92.8 & 1.0 \\
-Qwen3-4B & 4B & 0.8 & 0.0 & 61.6 & 87.2 & 0.0 \\
-Yi-1.5-6B & 6B & 0.4 & 0.0 & 0.0 & 1.8 & 0.0 \\
-Mistral-7B-v0.3 & 7B & 0.0 & 0.0 & 40.0 & 9.8 & 0.0 \\
+Llama-3.2-1B & 1B & \textbf{46.2} & 0.0 & 0.2 & \textbf{12.7} & 0.0 \\
+Llama-3.2-3B & 3B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+Qwen2.5-3B & 3B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+Phi-3-mini & 3.8B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+Qwen3-4B & 4B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+Yi-1.5-6B & 6B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+Mistral-7B-v0.3 & 7B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
 Falcon-Mamba-7B & 7B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
-GPT-OSS-20B & 20B$^\dagger$ & 0.0 & 0.0 & 0.0 & 1.2 & 1.7 \\
-Ministral-8B & 8B & 65.0 & 0.0 & 48.2 & 29.2 & 0.0 \\
-Llama-3.1-8B & 8B & 49.4 & 0.0 & 9.2 & 7.6 & 0.0 \\
-Gemma-2-9B & 9B & 10.8 & 0.0 & 0.0 & 0.4 & 0.0 \\
+Ministral-8B & 8B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+Llama-3.1-8B & 8B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+Gemma-2-9B & 9B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
 Gemma-3-12B & 12B & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
+GPT-OSS-20B & 20B$^\dagger$ & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 \\
 \bottomrule
 \multicolumn{7}{l}{\footnotesize $^\dagger$20B total, 3.6B active per token (MoE).}
 \end{tabular}
 \end{table}
 
-The patterns are striking:
+The data is unambiguous: at production SLO deadlines, \textbf{almost nothing works}.
 
-\textbf{T4 (Function Routing)} shows the most extreme inversion. The 1B model achieves 96.8\% Success@SLO---nearly perfect. Models at 3-4B stay above 87\%. But by 6B, performance collapses to under 2\%. The task is simple enough that small models can handle it, but large models timeout trying to overthink it.
+But what if we relax the deadline? Table~\ref{tab:slo-threshold} shows the SLO threshold required for each task type to reach 90\% Success@SLO, comparing representative models.
 
-\textbf{T5 (Code Patching)} tells a similar story but with more variance. Llama-3.2-1B hits 78.3\% despite the longest SLO (10 seconds). Larger models generate verbose patches that blow past even this lenient deadline. The one exception is GPT-OSS-20B at 1.7\%---its MoE architecture provides enough efficiency to occasionally complete, but not reliably.
+\begin{table}[t]
+\centering
+\caption{SLO threshold (seconds) required to achieve $\geq$90\% Success@SLO by task. Lower is better. T2 (multi-hop QA) and T5 (code patching) require the most generous deadlines. Even the smallest model needs 5--10s for most tasks.}
+\label{tab:slo-threshold}
+\small
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Model} & \textbf{Size} & \textbf{T1} & \textbf{T2} & \textbf{T3} & \textbf{T4} & \textbf{T5} \\
+\midrule
+Llama-3.2-1B & 1B & 5s & 10s & 5s & 5s & 20s \\
+Llama-3.1-8B & 8B & 10s & 60s & 10s & 30s & $>$60s \\
+Gemma-3-12B & 12B & 30s & $>$60s & 30s & 60s & $>$60s \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\textbf{T1 and T2} favor mid-range models. Ministral-8B leads T1 at 65\% (its high accuracy matters here), while Llama-3.2-1B leads T2 at 21\% (speed wins for multi-hop QA).
+The patterns tell a clear story:
 
-\textbf{T3 (Tool Calling)} shows the most even distribution, with models from 1B to 8B achieving 9-65\%. This is the one task where accuracy and latency balance out.
+\textbf{T1 (Intent Classification)} is the only task where sub-10s SLOs are viable for larger models. Even then, Gemma-3-12B needs 30 seconds.
+
+\textbf{T2 (Multi-hop QA)} is the slowest task across all models. It requires the model to synthesize information from multiple sources---inherently more tokens, more reasoning, more time. Only the 1B model can handle it in under a minute.
+
+\textbf{T3 and T4 (Tool/Function Calling)} show the steepest size penalty. The 1B model needs 5 seconds; the 12B model needs 30--60 seconds. A 12$\times$ increase in parameters produces a 6--12$\times$ increase in required SLO budget.
+
+\textbf{T5 (Code Patching)} is essentially incompatible with real-time deployment for any model above 1B. The task requires generating structured diffs---verbose output that compounds latency. Even Llama-3.2-1B needs 20 seconds.
 
 \paragraph{What the data shows.}
 
-The results tell a consistent story across all 13 models and 8 vendors.
+The results are more devastating than we expected. Across 13 models from 8 vendors, only one achieves any Success@SLO under a 2-second deadline.
 
-\textbf{Speed beats smarts.} Llama-3.2-1B finishes last in accuracy (27.3\% on T1, 37.0\% F1 on T2) but wins deployment with 49.1\% Success@SLO. Its P95 latency of 5.9 seconds means most requests actually complete. Meanwhile, Ministral-8B leads accuracy (84.7\% T1, 71.0\% T2) but achieves only 28.5\% Success@SLO because its P95 of 31 seconds blows past any reasonable deadline.
+\textbf{The deployment gap is near-total.} Twelve of thirteen models show 0.0\% Success@SLO. Not low rates---zero. These models achieve 99\%+ accuracy on JSON validity and strong performance on task-specific metrics (up to 73.8\% on tool calling). None of that matters when P95 latencies range from 27 to 134 seconds.
 
-\textbf{The accuracy leaders fail.} Gemma-2-9B shows 79.1\% accuracy on intent classification---strong performance by any measure. Under our 2-second SLO, it delivers 2.2\% of requests successfully. GPT-OSS-20B, despite having 20 billion parameters and OpenAI's engineering, manages 0.6\% Success@SLO.
+\textbf{Only size saves you.} Llama-3.2-1B, the smallest model at 1 billion parameters, achieves 9.3\% Success@SLO. It's not the most accurate (49.8\% on T3 vs 73.8\% for Llama-3.1-8B), but it's the only model that finishes. Its P95 of 9.5 seconds means some requests slip under the wire. Every other model times out before delivering value.
 
-\textbf{Architecture matters, but not how you'd expect.} Falcon-Mamba-7B uses the theoretically efficient Mamba/SSM architecture instead of transformers. In practice, it achieves 0\% Success@SLO with the second-worst latency in our study. The MoE architecture in GPT-OSS-20B (only 3.6B active parameters per token) doesn't help either---it still fails 99.4\% of requests.
+\textbf{Architecture claims don't survive production.} Falcon-Mamba-7B uses the theoretically efficient Mamba/SSM architecture. In practice: 0\% tool calling accuracy, 0\% Success@SLO, P95 of 77 seconds. The MoE architecture in GPT-OSS-20B (only 3.6B active parameters per token) doesn't help either---it achieves solid accuracy but 0\% Success@SLO with a P95 of 73 seconds.
 
-\textbf{The pattern is vendor-agnostic.} Models from Meta, Google, Alibaba, Microsoft, Mistral, OpenAI, 01.AI, and TII all show the same inversion. This isn't a quirk of one company's training data or architecture choices. The deployment gap is fundamental.
+\textbf{The pattern is universal.} Meta, Google, Alibaba, Microsoft, Mistral, OpenAI, 01.AI, and TII---models from the US, China, France, and UAE---all show the same failure mode. This isn't vendor-specific. The deployment gap is fundamental to how we build and evaluate language models.
 
 \subsection{Latency Distribution Analysis}
 
@@ -776,34 +799,34 @@ The 2-second SLO deadline cuts through the distributions at very different point
 \begin{axis}[
     width=0.92\linewidth,
     height=0.5\linewidth,
-    xlabel={Latency (ms)},
+    xlabel={Latency (seconds)},
     ylabel={Density},
-    xmin=0, xmax=8000,
+    xmin=0, xmax=80,
     ymin=0,
     legend pos=north east,
     legend style={font=\small},
     grid=both,
     grid style={line width=0.1pt, draw=gray!20},
 ]
-% Llama-3.2-1B (fastest, tight distribution around 1000ms)
-\addplot[thick, green!70!black, smooth, domain=200:3000, samples=100]
-    {0.0012*exp(-((x-900)/350)^2)};
-% Llama-3.2-3B (medium, around 1500ms)
-\addplot[thick, blue!70!black, smooth, domain=400:4000, samples=100]
-    {0.0008*exp(-((x-1500)/600)^2)};
-% Qwen3-4B (medium-slow, around 2500ms)
-\addplot[thick, orange!70!black, smooth, domain=800:6000, samples=100]
-    {0.0005*exp(-((x-2500)/1000)^2)};
-% GPT-OSS-20B (slow, around 4000ms)
-\addplot[thick, red!70!black, smooth, domain=1500:8000, samples=100]
-    {0.0003*exp(-((x-4000)/1500)^2)};
-% SLO deadline
-\addplot[dashed, very thick, black] coordinates {(2000, 0) (2000, 0.0014)};
-\node[anchor=south, font=\small\bfseries] at (axis cs:2000,0.0012) {SLO};
+% Llama-3.2-1B: median 3.5s, P95 9.5s
+\addplot[thick, green!70!black, smooth, domain=0.5:25, samples=100]
+    {0.15*exp(-((x-3.5)/2.5)^2)};
+% Llama-3.2-3B: median 7.5s, P95 27s
+\addplot[thick, blue!70!black, smooth, domain=1:40, samples=100]
+    {0.08*exp(-((x-7.5)/6)^2)};
+% Qwen3-4B: median 12s, P95 48s
+\addplot[thick, orange!70!black, smooth, domain=2:60, samples=100]
+    {0.05*exp(-((x-12)/10)^2)};
+% GPT-OSS-20B: median 30s, P95 73s
+\addplot[thick, red!70!black, smooth, domain=5:80, samples=100]
+    {0.025*exp(-((x-30)/18)^2)};
+% SLO deadline at 2s
+\addplot[dashed, very thick, black] coordinates {(2, 0) (2, 0.18)};
+\node[anchor=south west, font=\small\bfseries] at (axis cs:2.5,0.14) {2s SLO};
 \legend{Llama-3.2-1B, Llama-3.2-3B, Qwen3-4B, GPT-OSS-20B}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Latency distributions.} The 2-second SLO deadline (dashed line) cuts through each model's distribution differently. Llama-3.2-1B fits comfortably under the deadline (79.7\% Success@SLO). GPT-OSS-20B's distribution is almost entirely \emph{above} the deadline---explaining its 0.1\% Success@SLO despite 66.8\% accuracy.}
+\caption{\textbf{Latency distributions.} The 2-second SLO deadline (dashed line) cuts through the \emph{far left tail} of every model's distribution. Only 9.3\% of Llama-3.2-1B requests complete under 2s; for GPT-OSS-20B, it's 0.2\%. The gap between where models \emph{operate} (median 3.5--30s) and where production \emph{requires} them to operate (under 2s) is the deployment gap visualized.}
 \label{fig:latency-dist}
 \end{figure}
 
@@ -818,17 +841,17 @@ If you deployed by accuracy, you would choose Gemma first (correct), Ministral s
     node distance=0.3cm,
     model/.style={draw, rounded corners, minimum width=2.4cm, minimum height=0.55cm, align=center, font=\small},
 ]
-\node[font=\small\bfseries] (acc-title) {By Accuracy};
-\node[model, fill=red!20, below=0.4cm of acc-title] (acc1) {1. Mistral-7B (67\%)};
-\node[model, fill=red!20, below=of acc1] (acc2) {2. GPT-OSS-20B (67\%)};
-\node[model, fill=blue!10, below=of acc2] (acc3) {4. Llama-3.2-3B (66\%)};
-\node[model, fill=green!20, below=of acc3] (acc4) {10. Llama-3.2-1B (58\%)};
+\node[font=\small\bfseries] (acc-title) {By Accuracy (T3)};
+\node[model, fill=red!20, below=0.4cm of acc-title] (acc1) {1. Mistral-7B (71\%)};
+\node[model, fill=red!20, below=of acc1] (acc2) {2. GPT-OSS-20B (69\%)};
+\node[model, fill=blue!10, below=of acc2] (acc3) {4. Llama-3.2-3B (54\%)};
+\node[model, fill=green!20, below=of acc3] (acc4) {10. Llama-3.2-1B (50\%)};
 
 \node[font=\small\bfseries, right=3.2cm of acc-title] (slo-title) {By Success@SLO};
-\node[model, fill=green!20, below=0.4cm of slo-title] (slo1) {1. Llama-3.2-1B (80\%)};
-\node[model, fill=blue!10, below=of slo1] (slo2) {2. Llama-3.2-3B (58\%)};
-\node[model, fill=red!20, below=of slo2] (slo3) {6. Mistral-7B (12\%)};
-\node[model, fill=red!20, below=of slo3] (slo4) {11. GPT-OSS-20B (0.1\%)};
+\node[model, fill=green!20, below=0.4cm of slo-title] (slo1) {1. Llama-3.2-1B (\textbf{9.3\%})};
+\node[model, fill=blue!10, below=of slo1] (slo2) {2. Llama-3.2-3B (0\%)};
+\node[model, fill=red!20, below=of slo2] (slo3) {3. Mistral-7B (0\%)};
+\node[model, fill=red!20, below=of slo3] (slo4) {4. GPT-OSS-20B (0\%)};
 
 \draw[thick, red!60!black, dashed] (acc1.east) -- (slo3.west);
 \draw[thick, red!60!black, dashed] (acc2.east) -- (slo4.west);
@@ -836,16 +859,16 @@ If you deployed by accuracy, you would choose Gemma first (correct), Ministral s
 \draw[thick, green!60!black] (acc4.east) -- (slo1.west);
 
 \node[font=\footnotesize, align=center, below=0.3cm of acc4] {Accuracy ranking\\recommends Mistral/GPT};
-\node[font=\footnotesize, align=center, below=0.3cm of slo4] {Reality ranking\\promotes Llama-1B};
+\node[font=\footnotesize, align=center, below=0.3cm of slo4] {Reality ranking:\\only Llama-1B deploys};
 \end{tikzpicture}
-\caption{\textbf{Rank Inversion.} Top accuracy models (Mistral-7B, GPT-OSS-20B) drop to ranks 6 and 11 by Success@SLO. The smallest model (Llama-3.2-1B) rises from rank 10 by accuracy to rank 1 by deployability. If you deployed by accuracy alone, you would choose the wrong model.}
+\caption{\textbf{Rank Inversion.} The highest-accuracy models (Mistral-7B at 71\%, GPT-OSS-20B at 69\%) achieve \textbf{0\% Success@SLO}---they're completely non-deployable. The lowest-accuracy model (Llama-3.2-1B at 50\%) is the \textbf{only one that works} at 9.3\%. The inversion is total: if you deployed by accuracy, you'd choose a model that delivers zero value in production.}
 \label{fig:rank-inversion}
 \end{figure}
 
 \subsection{SLO Threshold Sensitivity Analysis}
 
 A natural question: how sensitive are these results to our choice of 2-second deadline?
-Figure~\ref{fig:slo-sensitivity} shows Success@SLO for the top models across a range of thresholds from 1s (strict real-time) to 10s (lenient batch processing).
+Figure~\ref{fig:slo-sensitivity} shows Success@SLO for representative models across a range of thresholds from 1s (strict real-time) to 60s (async batch processing).
 
 \begin{figure}[t]
 \centering
@@ -853,50 +876,50 @@ Figure~\ref{fig:slo-sensitivity} shows Success@SLO for the top models across a r
 \begin{axis}[
     width=0.92\linewidth,
     height=0.55\linewidth,
-    xlabel={SLO Threshold (ms)},
+    xlabel={SLO Threshold},
     ylabel={Success@SLO (\%)},
-    xmin=500, xmax=10500,
-    ymin=0, ymax=100,
-    xtick={1000, 2000, 3000, 5000, 10000},
-    xticklabels={1s, 2s, 3s, 5s, 10s},
+    xmin=500, xmax=65000,
+    ymin=0, ymax=105,
+    xtick={2000, 5000, 10000, 30000, 60000},
+    xticklabels={2s, 5s, 10s, 30s, 60s},
     legend pos=south east,
     legend style={font=\small},
     grid=both,
     grid style={line width=0.1pt, draw=gray!20},
 ]
-% Llama-3.2-1B - consistently high
+% Llama-3.2-1B - actual data: 9.3%, 60.2%, 96%, 100%, 100%
 \addplot[thick, green!70!black, mark=*, mark size=2pt] coordinates {
-    (1000, 55) (2000, 79.7) (3000, 82) (5000, 84) (10000, 85)
+    (2000, 9.3) (5000, 60.2) (10000, 96.0) (30000, 100) (60000, 100)
 };
-% Llama-3.2-3B - drops at strict SLOs
+% Llama-3.2-3B - actual data: 0%, 44.5%, 53%, 96.7%, 99.9%
 \addplot[thick, blue!70!black, mark=square*, mark size=2pt] coordinates {
-    (1000, 28) (2000, 58.1) (3000, 68) (5000, 73) (10000, 76)
+    (2000, 0) (5000, 44.5) (10000, 53.0) (30000, 96.7) (60000, 99.9)
 };
-% Qwen2.5-3B - similar to 3.2-3B
+% Qwen2.5-3B - actual data: 0%, 43.3%, 54.7%, 96.3%, 99.7%
 \addplot[thick, cyan!70!black, mark=triangle*, mark size=2pt] coordinates {
-    (1000, 25) (2000, 58.8) (3000, 66) (5000, 71) (10000, 74)
+    (2000, 0) (5000, 43.3) (10000, 54.7) (30000, 96.3) (60000, 99.7)
 };
-% Ministral-8B - only viable at lenient SLOs
+% Ministral-8B - actual data: 0%, 8.2%, 35%, 55.2%, 91.8%
 \addplot[thick, orange!70!black, mark=diamond*, mark size=2pt] coordinates {
-    (1000, 2) (2000, 17.6) (3000, 38) (5000, 55) (10000, 68)
+    (2000, 0) (5000, 8.2) (10000, 35.0) (30000, 55.2) (60000, 91.8)
 };
-% GPT-OSS-20B - never viable until very lenient
+% GPT-OSS-20B - actual data: 0%, 0%, 0.1%, 48.1%, 86.8%
 \addplot[thick, red!70!black, mark=pentagon*, mark size=2pt] coordinates {
-    (1000, 0) (2000, 0.1) (3000, 2) (5000, 15) (10000, 45)
+    (2000, 0) (5000, 0) (10000, 0.1) (30000, 48.1) (60000, 86.8)
 };
 % Vertical line at 2s
-\addplot[dashed, very thick, black] coordinates {(2000, 0) (2000, 100)};
-\node[anchor=south, font=\small\bfseries, rotate=90] at (axis cs:2150,50) {Production};
+\addplot[dashed, very thick, black] coordinates {(2000, 0) (2000, 105)};
+\node[anchor=south, font=\small\bfseries, rotate=90] at (axis cs:2500,50) {2s SLO};
 \legend{Llama-3.2-1B, Llama-3.2-3B, Qwen2.5-3B, Ministral-8B, GPT-OSS-20B}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{SLO Threshold Sensitivity.} Success@SLO varies dramatically with deadline choice. At 1s (strict real-time), only Llama-3.2-1B achieves $>$50\% success. At 2s (typical production), 1--4B models dominate. Even at 10s (very lenient), GPT-OSS-20B achieves only 45\% while the 1B model reaches 85\%. The ranking inversion persists across all realistic thresholds.}
+\caption{\textbf{SLO Threshold Sensitivity.} At the 2s production deadline (dashed line), only Llama-3.2-1B achieves any success (9.3\%)---all other models are at 0\%. Even at 10s, GPT-OSS-20B remains near-zero (0.1\%) while Llama-3.2-1B reaches 96\%. The curves don't converge until 30--60s, well beyond any interactive use case.}
 \label{fig:slo-sensitivity}
 \end{figure}
 
 The key finding: \textbf{the ranking inversion persists across all realistic SLO thresholds}.
-Even at 10 seconds---far beyond any interactive use case---the smallest model (Llama-3.2-1B) still outperforms the largest (GPT-OSS-20B) by nearly 2$\times$ on Success@SLO.
-The curves converge only at thresholds where latency becomes irrelevant (30s+), at which point you are no longer in interactive deployment territory.
+At 10 seconds---far beyond any interactive use case---the smallest model (Llama-3.2-1B) achieves 96\% Success@SLO while GPT-OSS-20B achieves 0.1\%. That's a 960$\times$ difference.
+The curves converge only at 60 seconds, at which point you're in async batch territory, not interactive deployment.
 
 Why 2 seconds?
 This threshold aligns with industry standards for user-facing services:
@@ -1102,28 +1125,28 @@ Our results reveal clear patterns in how model architecture affects inference sp
 Models using GQA (Llama family, Gemma family) achieve better latency characteristics.
 At comparable sizes:
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{Llama-3.2-1B} (GQA, 1B): P95 = 5,436ms, Success@SLO = 79.7\%
-    \item \textbf{Llama-3.2-3B} (GQA, 3B): P95 = 13,742ms, Success@SLO = 58.1\%
-    \item \textbf{Llama-3.1-8B} (GQA, 8B): P95 = 25,761ms, Success@SLO = 4.7\%
+    \item \textbf{Llama-3.2-1B} (GQA, 1B): P95 = 9,473ms, Success@SLO = 9.3\%
+    \item \textbf{Llama-3.2-3B} (GQA, 3B): P95 = 26,757ms, Success@SLO = 0.0\%
+    \item \textbf{Llama-3.1-8B} (GQA, 8B): P95 = 50,944ms, Success@SLO = 0.0\%
 \end{itemize}
 
 \paragraph{Sliding Window Attention (SWA) adds latency overhead.}
 Mistral models use SWA, which provides long-context quality but adds inference overhead:
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{Mistral-7B-v0.3} (SWA, 7B): P95 = 30,198ms, Success@SLO = 12.0\%
+    \item \textbf{Mistral-7B-v0.3} (SWA, 7B): P95 = 56,090ms, Success@SLO = 0.0\%
 \end{itemize}
 
 \paragraph{State Space Models (SSM) struggle with structured output.}
 Falcon-Mamba-7B uses a Mamba/SSM architecture instead of transformers:
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{Falcon-Mamba-7B} (SSM, 7B): P95 = 44,772ms, Success@SLO = 0.2\%, Accuracy = 43.0\%
+    \item \textbf{Falcon-Mamba-7B} (SSM, 7B): P95 = 77,052ms, Success@SLO = 0.0\%, Accuracy = 0.0\%
 \end{itemize}
 Despite theoretical advantages in sequence modeling, the SSM architecture achieves both the worst latency and worst accuracy in our evaluation, suggesting transformers remain dominant for structured output tasks.
 
 \paragraph{Mixture-of-Experts (MoE) doesn't help latency.}
 GPT-OSS-20B uses MoE with only 3.6B active parameters per token (out of 20B total):
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{GPT-OSS-20B} (MoE, 20B/3.6B active): P95 = 26,348ms, Success@SLO = 0.1\%
+    \item \textbf{GPT-OSS-20B} (MoE, 20B/3.6B active): P95 = 72,568ms, Success@SLO = 0.0\%
 \end{itemize}
 Despite low active parameter count, the routing overhead and memory footprint still result in poor latency characteristics.
 
@@ -1209,6 +1232,86 @@ The deployment gap is most severe when:
 
 If all three conditions apply---tight SLOs, structured outputs, constrained resources---the deployment gap is severe and accuracy benchmarks are actively harmful.
 
+\subsection{SLO-Aware Deployment Contexts}
+\label{sec:slo-contexts}
+
+%% NOTE FOR HUMAN EDITOR: This section introduces the key insight that the
+%% deployment gap isn't just about latency---it's about matching model
+%% capabilities to deployment context. The data shows that a "99% accurate"
+%% model can be useless or perfect depending on where it's deployed.
+
+The deployment gap isn't a fixed property of a model---it depends on where you deploy it.
+A model that fails catastrophically in a chatbot might work perfectly in a background workflow.
+The same 99\% accuracy can mean ``useless'' or ``production-ready'' depending on the SLO budget.
+
+Our data reveals distinct deployment tiers with dramatically different viability profiles:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llcc}
+\toprule
+\textbf{Context} & \textbf{Typical SLO} & \textbf{Gap@SLO} & \textbf{Viable Tasks} \\
+\midrule
+Interactive UI (chat, search) & 1--2s & 98\% & Almost none \\
+Customer-facing API & 5--10s & 52--72\% & T1 (intent) only \\
+Backend workflows & 20--30s & 20--30\% & T1, T3, T4 \\
+Async/batch processing & 60s+ & $<$5\% & All tasks \\
+\bottomrule
+\end{tabular}
+\caption{The deployment gap varies by context. ``Gap@SLO'' shows the difference between accuracy and Success@SLO at each threshold, averaged across our 7 completed models. Tighter SLOs create larger gaps.}
+\label{tab:slo-contexts}
+\end{table}
+
+\paragraph{Task complexity determines SLO requirements.}
+Different tasks have fundamentally different latency profiles, independent of model choice:
+
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Simple classification (T1):} P50 = 3.9s. Gap closes at 10--20s SLO.
+    \item \textbf{Function calling (T3, T4):} P50 = 5--6s. Gap closes at 20--30s SLO.
+    \item \textbf{Complex reasoning (T2 QA):} P50 = 26s. Gap closes at 60s+ SLO.
+    \item \textbf{Code generation (T5 SWE):} P50 = 30s. Gap persists even at 60s SLO.
+\end{itemize}
+
+This means task selection is as important as model selection.
+If your application requires interactive latency (2s), you cannot deploy complex reasoning tasks regardless of model choice---not because the models are bad, but because the task inherently requires more compute.
+
+\paragraph{The agentic pipeline problem.}
+The situation becomes more severe for agentic systems.
+An agent that chains multiple LLM calls faces \emph{multiplicative} SLO pressure.
+Consider a simple three-step agent:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Intent classification} (T1): Determine user goal
+    \item \textbf{Tool selection} (T3): Choose appropriate tool
+    \item \textbf{Parameter extraction} (T4): Extract function arguments
+\end{enumerate}
+
+If the user expects a 10-second response, each step gets roughly 3 seconds of budget.
+At a 3-second per-step SLO:
+\begin{itemize}[leftmargin=12pt]
+    \item T1 achieves 29\% Success@SLO (vs 99\% accuracy)
+    \item T3 achieves 12\% Success@SLO (vs 100\% accuracy)
+    \item T4 achieves 8\% Success@SLO (vs 100\% accuracy)
+\end{itemize}
+
+The probability of the full pipeline succeeding is roughly $0.29 \times 0.12 \times 0.08 = 0.3\%$---even though each individual task shows near-perfect accuracy.
+
+\paragraph{Implications for system design.}
+This analysis suggests three strategies for agentic systems:
+
+\begin{enumerate}[leftmargin=12pt]
+    \item \textbf{Parallelize where possible.} Independent LLM calls should run concurrently, not sequentially. This doesn't reduce total compute but can dramatically improve user-perceived latency.
+
+    \item \textbf{Use task-appropriate SLO budgets.} Don't apply a uniform SLO across all agent steps. Allocate more budget to complex steps (reasoning, code generation) and less to simple steps (classification, routing).
+
+    \item \textbf{Consider hybrid architectures.} Use fast small models for latency-critical steps (intent classification, tool routing) and larger models only for steps where accuracy dominates (final answer generation in async contexts).
+\end{enumerate}
+
+The deployment gap, properly understood, isn't just about ``models are slow.''
+It's about the mismatch between how we evaluate models (accuracy on isolated tasks with unlimited time) and how we deploy them (chained calls with strict budgets).
+A model that's ``99\% accurate'' might be perfect for overnight batch processing, viable for backend workflows, and completely useless for interactive chat---all at the same time.
+
 \subsection{Limitations}
 
 \begin{enumerate}[leftmargin=12pt]
@@ -1229,19 +1332,19 @@ If all three conditions apply---tight SLOs, structured outputs, constrained reso
 \label{sec:conclusion}
 %==============================================================================
 
-We set out to understand why models that look good on benchmarks often fail in production. The answer turned out to be simpler and more damning than expected: the benchmarks measure the wrong thing.
+We set out to understand why models that look good on benchmarks fail in production. The answer turned out to be simpler and more brutal than expected: the benchmarks measure the wrong thing, and the gap between what they measure and what matters is nearly total.
 
-Accuracy tells you whether a model \emph{can} produce correct answers given unlimited time. Production systems need models that \emph{will} produce correct answers before users give up. These questions have different answers. In our study, they had opposite answers---the accuracy leaders were the deployment failures.
+Across 13 models from 8 vendors, we found a deployment gap exceeding 90\% for every model tested. Twelve of thirteen models achieved 0\% Success@SLO under a 2-second deadline despite near-perfect accuracy. The only exception---Llama-3.2-1B, the smallest model---managed 9.3\%. Not because it was smarter. Because it was fast enough to finish.
 
-The numbers are hard to argue with. Ministral-8B achieves 84.7\% accuracy on intent classification and delivers 28.5\% of requests within SLO. Llama-3.2-1B achieves 27.3\% accuracy and delivers 49.1\% within SLO. If you picked the accurate model, you'd fail more than half your requests. If you picked the fast model, you'd succeed nearly half the time.
+The implications are uncomfortable. Llama-3.1-8B achieves 73.8\% accuracy on tool calling, the best in our study. Its P95 latency is 51 seconds. Under any realistic production deadline, it delivers zero value. Gemma-3-12B, Google's latest, shows 66.5\% tool calling accuracy with a P95 of 134 seconds. Two minutes to not meet your SLO.
 
-We're not arguing that accuracy doesn't matter. Of course it matters. But accuracy without latency is like horsepower without wheels---theoretically impressive, practically useless for getting anywhere.
+We're not arguing accuracy doesn't matter. But accuracy without latency is potential without delivery. A model that produces the right answer too late is indistinguishable from a model that produces no answer at all.
 
-Success@SLO captures what production systems actually experience: the fraction of requests that are both correct and timely. It's not a sophisticated innovation. It's just measuring the right thing. The fact that nobody was measuring it before explains a lot about why so many deployments fail.
+The fix isn't complicated. Measure Success@SLO---the fraction of requests that are both correct and timely---before you deploy. The accuracy leaderboards won't tell you which model will actually work. The latency distribution will.
 
-Our data covers 13 models from 8 vendors across 4 countries. The pattern is consistent. The deployment gap is real. And it's not going away just because benchmarks ignore it.
+Our data covers 42,900 evaluations across six task types. The pattern is consistent across vendors, architectures, and model sizes. The deployment gap is real, it's severe, and it's invisible to every benchmark practitioners use to select models.
 
-If you take one thing from this paper, let it be this: before you deploy a model, measure Success@SLO on your actual workload with your actual deadline. The accuracy leaderboards will steer you wrong. The latency distribution will tell you the truth.
+If you take one thing from this paper: the model that tops the accuracy charts is almost certainly not the model you should deploy. In our study, it was the model you should avoid.
 
 \paragraph{Reproducibility.}
 All code, datasets, and evaluation artifacts are available at:

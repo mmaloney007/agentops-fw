@@ -583,7 +583,14 @@ def main():
         preds_path = model_dir / "predictions.jsonl"
         with preds_path.open("w", encoding="utf-8") as f:
             for r in results:
-                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+                # Handle invalid Unicode surrogates that some models produce
+                try:
+                    line = json.dumps(r, ensure_ascii=False)
+                except UnicodeEncodeError:
+                    line = json.dumps(r, ensure_ascii=True)
+                # Also encode/decode to replace surrogates
+                line = line.encode("utf-8", errors="replace").decode("utf-8")
+                f.write(line + "\n")
         summary = _aggregate(results)
         summary.update(
             {
