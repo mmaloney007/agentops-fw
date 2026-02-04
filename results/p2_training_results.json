@@ -1,0 +1,477 @@
+{
+  "report_generated": "2026-02-04T07:53:24.627656",
+  "training_config": {
+    "started": "2026-01-24T07:50:18.744327",
+    "hardware": "NVIDIA RTX 4090 24GB (CUDA 8.9)",
+    "quantization": "4-bit NF4 (BitsAndBytes)",
+    "steps": 1000,
+    "seeds": [
+      42,
+      123,
+      456
+    ],
+    "checkpoint_every": 100,
+    "lora_rank": 16,
+    "optimizer": "AdamW",
+    "training_method": "GRPO (Group Relative Policy Optimization)"
+  },
+  "completion": {
+    "total_planned": 234,
+    "total_completed": 185,
+    "total_failed": 49,
+    "completion_rate_pct": 79.1,
+    "models_with_all_runs": 9,
+    "models_partial": 2,
+    "models_no_runs": 2
+  },
+  "results_by_model": {
+    "gemma-2-9b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 87.7,
+      "std_last_50_valid_pct": 27.2,
+      "mean_avg_reward": 1.572,
+      "std_avg_reward": 0.654,
+      "learning_rate_pct": 72.2
+    },
+    "gemma-3-12b": {
+      "runs_completed": 8,
+      "runs_planned": 18,
+      "tasks_covered": 4,
+      "mean_last_50_valid_pct": 92.7,
+      "std_last_50_valid_pct": 12.7,
+      "mean_avg_reward": 1.801,
+      "std_avg_reward": 0.235,
+      "learning_rate_pct": 27.3
+    },
+    "llama-3.1-8b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 57.6,
+      "std_last_50_valid_pct": 47.1,
+      "mean_avg_reward": 1.152,
+      "std_avg_reward": 0.906,
+      "learning_rate_pct": 38.9
+    },
+    "llama-3.2-1b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 52.7,
+      "std_last_50_valid_pct": 49.1,
+      "mean_avg_reward": 1.091,
+      "std_avg_reward": 0.891,
+      "learning_rate_pct": 38.9
+    },
+    "llama-3.2-3b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 53.7,
+      "std_last_50_valid_pct": 49.9,
+      "mean_avg_reward": 1.113,
+      "std_avg_reward": 0.903,
+      "learning_rate_pct": 38.9
+    },
+    "ministral-8b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 73.0,
+      "std_last_50_valid_pct": 41.4,
+      "mean_avg_reward": 1.41,
+      "std_avg_reward": 0.818,
+      "learning_rate_pct": 44.4
+    },
+    "mistral-7b-v0.3": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 46.7,
+      "std_last_50_valid_pct": 49.7,
+      "mean_avg_reward": 1.005,
+      "std_avg_reward": 0.915,
+      "learning_rate_pct": 11.1
+    },
+    "phi-3-mini": {
+      "runs_completed": 15,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 45.7,
+      "std_last_50_valid_pct": 47.9,
+      "mean_avg_reward": 0.826,
+      "std_avg_reward": 0.896,
+      "learning_rate_pct": 50.0
+    },
+    "qwen2.5-3b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 73.8,
+      "std_last_50_valid_pct": 41.7,
+      "mean_avg_reward": 1.399,
+      "std_avg_reward": 0.804,
+      "learning_rate_pct": 44.4
+    },
+    "qwen3-4b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 89.7,
+      "std_last_50_valid_pct": 19.0,
+      "mean_avg_reward": 1.729,
+      "std_avg_reward": 0.465,
+      "learning_rate_pct": 66.7
+    },
+    "yi-1.5-6b": {
+      "runs_completed": 18,
+      "runs_planned": 18,
+      "tasks_covered": 6,
+      "mean_last_50_valid_pct": 49.3,
+      "std_last_50_valid_pct": 50.8,
+      "mean_avg_reward": 1.032,
+      "std_avg_reward": 0.878,
+      "learning_rate_pct": 44.4
+    }
+  },
+  "results_by_task": {
+    "Mixed": {
+      "num_runs": 33,
+      "mean_last_50_valid_pct": 52.1,
+      "mean_avg_reward": 1.117,
+      "learning_rate_pct": 54.5
+    },
+    "T1": {
+      "num_runs": 33,
+      "mean_last_50_valid_pct": 99.8,
+      "mean_avg_reward": 1.965,
+      "learning_rate_pct": 51.5
+    },
+    "T2": {
+      "num_runs": 30,
+      "mean_last_50_valid_pct": 85.7,
+      "mean_avg_reward": 1.645,
+      "learning_rate_pct": 86.7
+    },
+    "T3": {
+      "num_runs": 33,
+      "mean_last_50_valid_pct": 39.4,
+      "mean_avg_reward": 0.739,
+      "learning_rate_pct": 39.4
+    },
+    "T4": {
+      "num_runs": 32,
+      "mean_last_50_valid_pct": 99.8,
+      "mean_avg_reward": 1.975,
+      "learning_rate_pct": 15.6
+    },
+    "T5": {
+      "num_runs": 30,
+      "mean_last_50_valid_pct": 9.3,
+      "mean_avg_reward": 0.104,
+      "learning_rate_pct": 16.7
+    }
+  },
+  "failed_runs": {
+    "falcon-mamba-7b": [
+      {
+        "run": "falcon-mamba-7b_T1_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T1_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T1_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T2_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T2_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T2_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T3_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T3_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T3_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T4_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T4_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T4_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T5_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T5_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_T5_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_Mixed_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_Mixed_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "falcon-mamba-7b_Mixed_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      }
+    ],
+    "gemma-3-12b": [
+      {
+        "run": "gemma-3-12b_T2_seed42",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gemma-3-12b_T2_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gemma-3-12b_T2_seed456",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gemma-3-12b_T4_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gemma-3-12b_T5_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "gemma-3-12b_T5_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "gemma-3-12b_T5_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "gemma-3-12b_Mixed_seed42",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "gemma-3-12b_Mixed_seed123",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      },
+      {
+        "run": "gemma-3-12b_Mixed_seed456",
+        "status": "oom_failed",
+        "error": "OOM even with 4-bit + grad_accum=4"
+      }
+    ],
+    "gpt-oss-20b": [
+      {
+        "run": "gpt-oss-20b_T1_seed42",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T1_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T1_seed456",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T2_seed42",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T2_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T2_seed456",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T3_seed42",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T3_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T3_seed456",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T4_seed42",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T4_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T4_seed456",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T5_seed42",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T5_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_T5_seed456",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_Mixed_seed42",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_Mixed_seed123",
+        "status": "error",
+        "error": "error: 1"
+      },
+      {
+        "run": "gpt-oss-20b_Mixed_seed456",
+        "status": "error",
+        "error": "error: 1"
+      }
+    ],
+    "phi-3-mini": [
+      {
+        "run": "phi-3-mini_T5_seed42",
+        "status": "error",
+        "error": "timeout"
+      },
+      {
+        "run": "phi-3-mini_T5_seed123",
+        "status": "error",
+        "error": "timeout"
+      },
+      {
+        "run": "phi-3-mini_T5_seed456",
+        "status": "error",
+        "error": "timeout"
+      }
+    ]
+  },
+  "error_analysis": {
+    "falcon-mamba-7b": {
+      "failures": 18,
+      "root_cause": "CUDA OOM - Mamba/SSM architecture requires different memory patterns than transformers. 7B SSM model exceeds 24GB VRAM even with 4-bit quantization, gradient accumulation=4, gradient checkpointing, and LoRA rank=8.",
+      "attempted_fixes": [
+        "Custom LoRA targets (in_proj, x_proj, dt_proj) instead of q/k/v/o_proj",
+        "4-bit quantization with BitsAndBytes",
+        "Gradient accumulation = 4",
+        "Gradient checkpointing",
+        "Reduced LoRA rank = 8"
+      ],
+      "resolution": "Requires >24GB VRAM. Would need A100/H100 or M2 Max with unified memory."
+    },
+    "gpt-oss-20b": {
+      "failures": 18,
+      "root_cause": "Model ships with native Mxfp4 quantization which conflicts with BitsAndBytes 4-bit loading. ValueError: 'The model is quantized with Mxfp4Config but you are passing a BitsAndBytesConfig'",
+      "attempted_fixes": [
+        "Skip BitsAndBytes when native quantization detected",
+        "Load with native Mxfp4 config"
+      ],
+      "resolution": "20B MoE model with native quantization. Needs custom loading path without BitsAndBytes, plus likely >24GB VRAM."
+    },
+    "gemma-3-12b": {
+      "failures": 10,
+      "partial_success": "8/18 runs completed (T1, T3, and partial T4)",
+      "root_cause": "OOM on memory-intensive tasks (T5, Mixed with long prompts). T2/T4 failures are non-OOM errors.",
+      "attempted_fixes": [
+        "4-bit quantization",
+        "Gradient accumulation = 4",
+        "Max prompt length = 512",
+        "Gradient checkpointing"
+      ],
+      "resolution": "12B model barely fits on 4090. Simpler tasks (T1, T3) succeed; complex tasks with long contexts OOM."
+    },
+    "phi-3-mini": {
+      "failures": 3,
+      "partial_success": "15/18 runs completed (all except T5)",
+      "root_cause": "T5 (SWE-bench) runs timeout at 2-hour limit. DynamicCache incompatibility with --no-use-cache adds overhead.",
+      "attempted_fixes": [
+        "--no-use-cache flag to bypass DynamicCache bug",
+        "Increased timeout"
+      ],
+      "resolution": "Would complete with extended timeout (>4 hours per run). Low priority since 15/18 succeeded."
+    }
+  }
+}

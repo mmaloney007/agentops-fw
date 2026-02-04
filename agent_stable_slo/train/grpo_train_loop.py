@@ -151,7 +151,11 @@ def _load_dataset(tasks_path: str) -> List[Dict[str, Any]]:
 
 
 def _default_targets(model_name: str) -> List[str]:
-    if "qwen" in model_name.lower():
+    name_lower = model_name.lower()
+    if "mamba" in name_lower or "falcon-mamba" in name_lower:
+        # Mamba/SSM architecture - PEFT disallows out_proj and conv1d for Mamba
+        return ["in_proj", "x_proj", "dt_proj"]
+    if "qwen" in name_lower:
         return [
             "q_proj",
             "k_proj",
@@ -173,7 +177,10 @@ def _build_model_and_tok(cfg, hw_rec: Dict[str, Any]):
         load_in_4bit = False
 
     # Skip BitsAndBytes for models with native quantization (e.g., Mxfp4)
+    # gpt-oss-20b uses native Mxfp4 quantization
     use_native_quant = getattr(cfg, "use_native_quantization", False)
+    if "gpt-oss" in cfg.base_model.lower():
+        use_native_quant = True
     quant_cfg = None
     if load_in_4bit and not use_native_quant:
         quant_cfg = BitsAndBytesConfig(
@@ -445,7 +452,11 @@ def train_loop(cfg: GRPOTrainConfig):
         device = torch.device("mps")
     else:
         device = torch.device("cpu")
-    model.to(device)
+
+    # Skip model.to(device) when device_map="auto" was used - model is already placed
+    # This avoids "Cannot copy out of meta tensor" errors (e.g., yi-1.5-6b)
+    if not hasattr(model, "hf_device_map"):
+        model.to(device)
 
     trainable = [p for p in model.parameters() if p.requires_grad]
     opt = torch.optim.AdamW(
