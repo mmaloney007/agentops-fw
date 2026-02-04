@@ -1186,5 +1186,53 @@ The capacity threshold appears to vary by task complexity:
 
 ---
 
+---
+
+## Paper Alignment Notes (February 2026)
+
+### P1 SLO Sensitivity Analysis (Added Feb 1, 2026)
+
+Paper 1 now includes a sensitivity analysis across 2s, 5s, and 10s SLO thresholds. Key findings:
+
+| SLO Threshold | Spearman ρ | Models at 0% | Rank Inversions |
+|---------------|------------|--------------|-----------------|
+| 2s (production) | +0.09 | 12/13 | 12/13 |
+| 5s (relaxed) | +0.53 | 0/13 | 8/13 |
+| 10s (generous) | +0.67 | 0/13 | 10/13 |
+
+**Key insight**: At production-realistic deadlines (2s), accuracy has essentially **zero predictive power** for deployment success (ρ ≈ 0). Even at generous 10s deadlines, the majority of models change rank between accuracy and Success@SLO orderings.
+
+This analysis strengthens the paper's thesis by showing the deployment gap isn't an artifact of aggressive thresholds—it's fundamental.
+
+### Papers 2-6 Alignment Required
+
+All papers in the 6-paper arc should reference consistent SLO thresholds and findings:
+
+| Paper | Required Updates |
+|-------|------------------|
+| **P2** | Reference P1's sensitivity analysis; discuss training implications at different SLOs |
+| **P3** | AgentSLO-Bench should include multi-threshold leaderboards (2s/5s/10s) per P1 analysis |
+| **P4** | MLOps paper should discuss SLO tier selection based on P1's correlation findings |
+| **P5** | Case study should validate sensitivity findings in production |
+| **P6** | Standards proposal should include multi-threshold evaluation as best practice |
+
+### Specific P2 Updates Needed
+
+1. Add reference to P1's Table 6 (SLO correlation sensitivity)
+2. Discuss how training results change if targeting different SLO tiers
+3. Note that the 9B capacity threshold was measured at 2s SLO; may differ at looser thresholds
+4. Add future work: "Does capacity threshold vary with target SLO?"
+
+### Specific P3 Updates Needed (AgentSLO-Bench)
+
+1. Include three leaderboard tiers matching P1:
+   - **Interactive** (2s): For real-time chat/agents
+   - **Standard** (5s): For background processing
+   - **Batch** (10s): For async workflows
+2. Report correlation at each threshold
+3. Show rank changes between accuracy and Success@SLO at each tier
+
+---
+
 *Plan created: January 2025*
-*Last updated: January 24, 2026 - Discovered task-dependent thresholds (Qwen2.5-3B: 100% on T3, 20% on T1/T2). Updated RTX 4090 plan to investigate this finding.*
+*Last updated: February 2, 2026 - Added SLO sensitivity analysis to P1 (2s/5s/10s thresholds). Added "Industry Validation: Adaptive Compute" section citing OpenAI's GPT-5 adaptive inference as validation of deployment gap thesis. Added alignment notes for P2-P6.*

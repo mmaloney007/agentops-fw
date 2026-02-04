@@ -103,6 +103,8 @@ GPT-OSS-20B & OpenAI & 99.1\% & 0.0\% (worst) \\
 
 The deployment gap---the difference between accuracy and Success@SLO---exceeds 90\% for every model we tested. Twelve of thirteen models achieve near-perfect accuracy while delivering zero production value under realistic latency constraints.
 
+Sensitivity analysis across deadline thresholds (2s, 5s, 10s) reveals a striking pattern: at production-realistic deadlines, accuracy has essentially no predictive power for deployment success (Spearman $\rho = 0.09$ at 2s). Even at generous 10-second deadlines, 10 of 13 models change rank between accuracy and Success@SLO orderings. The deployment gap isn't an artifact of aggressive thresholds---it's fundamental.
+
 The pattern holds across vendors and architectures: Meta, Alibaba, Microsoft, Google, OpenAI, Mistral, 01.AI, and TII models from the US, China, France, and UAE all show the same inversion. Bigger models that dominate accuracy leaderboards collapse under latency constraints.
 
 We introduce \emph{Success@SLO}---the fraction of requests that are both correct AND arrive on time. This single metric captures what production systems actually experience. We also release SpecSLOEval, a framework for measuring structure, accuracy, faithfulness, stability, and latency across five task types through a unified evaluation harness.
@@ -921,6 +923,29 @@ The key finding: \textbf{the ranking inversion persists across all realistic SLO
 At 10 seconds---far beyond any interactive use case---the smallest model (Llama-3.2-1B) achieves 96\% Success@SLO while GPT-OSS-20B achieves 0.1\%. That's a 960$\times$ difference.
 The curves converge only at 60 seconds, at which point you're in async batch territory, not interactive deployment.
 
+Table~\ref{tab:slo-correlation} quantifies how the relationship between accuracy and Success@SLO changes across deadline thresholds.
+At our primary 2-second deadline, the Spearman correlation is essentially zero ($\rho = +0.09$)---accuracy tells you \emph{nothing} about deployment success.
+As deadlines loosen, correlation increases, but significant rank shuffling persists even at 10 seconds.
+
+\begin{table}[t]
+\centering
+\caption{Accuracy vs Success@SLO correlation across SLO thresholds. At tight deadlines (2s), accuracy has no predictive power ($\rho \approx 0$). Even at relaxed deadlines, 8--12 of 13 models change rank between accuracy and Success@SLO rankings.}
+\label{tab:slo-correlation}
+\begin{tabular}{lccc}
+\toprule
+\textbf{SLO Deadline} & \textbf{Spearman $\rho$} & \textbf{Models at 0\%} & \textbf{Rank Inversions} \\
+\midrule
+2s (production) & +0.09 & 12/13 & 12/13 \\
+5s (relaxed) & +0.53 & 0/13 & 8/13 \\
+10s (generous) & +0.67 & 0/13 & 10/13 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The pattern is clear: \textbf{at production-realistic deadlines, accuracy rankings are meaningless}.
+Even at generous 10-second deadlines, the majority of models change rank between accuracy and deployment metrics.
+This isn't a quirk of our 2-second threshold---it's a fundamental property of how latency interacts with accuracy in production settings.
+
 Why 2 seconds?
 This threshold aligns with industry standards for user-facing services:
 \begin{itemize}[leftmargin=12pt]
@@ -1220,6 +1245,25 @@ They advocate ``train large, deploy small''---use large models for training data
 We show \emph{why} this matters at the evaluation level: accuracy rankings are systematically misleading because they ignore latency.
 A model can top every accuracy benchmark while being operationally useless.
 Success@SLO makes NVIDIA's insight actionable by providing a metric that captures what production systems actually experience.
+
+\subsection{Industry Validation: Adaptive Compute}
+
+OpenAI's GPT-5 family~\citep{openai2025gpt5} provides striking validation of the deployment gap.
+Rather than shipping a single model optimized for accuracy, OpenAI implemented \emph{adaptive inference-time compute}---the model chooses how long to ``think'' based on query complexity.
+
+GPT-5's architecture includes: (1) an efficient model for quick responses, (2) a deeper reasoning model for harder problems, and (3) a real-time router that decides which to use.
+Users can also manually select thinking duration: Light, Standard, Extended, or Heavy presets.
+
+This design directly addresses the deployment gap we identify:
+\begin{itemize}[leftmargin=12pt]
+    \item \textbf{Quick/Instant mode} targets tight SLOs (our 2s tier)---fast answers, less reasoning
+    \item \textbf{Standard mode} balances latency and depth (our 5s tier)
+    \item \textbf{Extended/Heavy mode} allows thorough reasoning (our 10s tier)
+\end{itemize}
+
+The fact that a leading lab built SLO tiers directly into their product architecture validates our core claim: \textbf{accuracy alone is insufficient}.
+OpenAI's solution is essentially Success@SLO-aware inference---spending compute only when the SLO budget allows.
+Our multi-threshold analysis (Table~\ref{tab:slo-correlation}) provides the evaluation framework such systems need: measuring performance at each tier rather than assuming one accuracy number applies everywhere.
 
 \subsection{When Does This Matter?}
 

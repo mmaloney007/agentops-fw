@@ -1,4 +1,4 @@
-\begin{thebibliography}{18}
+\begin{thebibliography}{19}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -108,6 +108,12 @@ Sewon Min, Kalpesh Krishna, Xinxi Lyu, Hanlin Wang, Wen-tau Yih, Yejin Choi,
   \url{https://openai.com/index/introducing-structured-outputs-in-the-api/},
   2024.
 \newblock Accessed: 2025-12-22.
+
+\bibitem[{OpenAI}(2025)]{openai2025gpt5}
+{OpenAI}.
+\newblock Introducing gpt-5.
+\newblock \url{https://openai.com/index/introducing-gpt-5/}, 2025.
+\newblock Accessed: 2026-02-01.
 
 \bibitem[Yang et~al.(2018)Yang, Qi, Zhang, Bengio, Cohen, Salakhutdinov, and
   Manning]{yang2018hotpotqa}
