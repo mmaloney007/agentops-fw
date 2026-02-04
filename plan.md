@@ -142,25 +142,28 @@ This gives us: **4 countries, 8 vendors, 13 models** - includes OpenAI's first o
 
 **The paradox:** Ministral-8B has solid accuracy (66%) but fails 98.8% of production requests due to latency. Meanwhile, the least accurate model (Llama-3.2-3B, 54%) is 30x more deployable than Ministral. Accuracy ranking ≠ deployment ranking.
 
-### P2 Training Results (2026-01-21) - COMPLETE 13-MODEL STUDY
+### P2 Training Results (2026-02-04) - COMPLETE 1000-STEP, 6-TASK STUDY
 
-**Training Protocol:** GRPO + LoRA, 3 seeds (42, 123, 456) × 2 durations (250, 500 steps) = 6 runs per model
+**Training Protocol:** GRPO + LoRA + 4-bit NF4, 3 seeds (42, 123, 456) × 6 tasks × 1000 steps = 18 runs per model
+**Completion:** 185/234 runs (79.1%), 11 models trained, 2 OOM blocked
 
-| Model | Size | Last-50 (Best) | Last-50 (Avg 500-step) | Learning? | Status |
-|-------|------|----------------|------------------------|-----------|--------|
-| Llama-3.2-1B | 1B | 0% | 0% | ❌ No | ✅ Complete |
-| Llama-3.2-3B | 3B | 0% | 0% | ❌ No | ✅ Complete |
-| Qwen2.5-3B | 3B | **60%** | 20% | ⚠️ Partial | ✅ Complete |
-| Phi-3-mini | 3.8B | -- | -- | -- | ⏭️ SKIPPED |
-| Qwen3-4B | 4B | 4% | 1.3% | ❌ No | ✅ Complete |
-| Yi-1.5-6B | 6B | -- | -- | -- | 💥 OOM |
-| Mistral-7B-v0.3 | 7B | 30% | 10% | ⚠️ Partial | ✅ Complete |
-| Falcon-Mamba-7B | 7B | -- | -- | -- | ⏭️ SKIPPED |
-| Ministral-8B | 8B | 18% | 0% | ❌ No | ✅ Complete |
-| Llama-3.1-8B | 8B | 0% | 0% | ❌ No | ✅ Complete |
-| **Gemma-2-9B** | **9B** | **70%** | **53%** | ✅ **YES** | ✅ Complete |
-| GPT-OSS-20B | 20B | -- | -- | -- | 💥 FAILED |
-| **Gemma-3-12B** | **12B** | **80%** | **79%** | ✅ **YES** | ✅ Complete |
+| Model | Size | T1 | T2 | T3 | T4 | T5 | Mixed | Status |
+|-------|------|-----|-----|-----|-----|-----|-------|--------|
+| Llama-3.2-1B | 1B | 100 | 95 | 0 | 99 | 0 | 22 | ✅ 18/18 |
+| Llama-3.2-3B | 3B | 100 | 99 | 0 | 100 | 0 | 23 | ✅ 18/18 |
+| Qwen2.5-3B | 3B | 100 | 100 | 67 | 100 | 0 | 76 | ✅ 18/18 |
+| Phi-3-mini | 3.8B | 100 | 0 | 0 | 100 | 0 | 74 | ✅ 15/18 |
+| **Qwen3-4B** | **4B** | 100 | 99 | **100** | 100 | **49** | **90** | ✅ 18/18 |
+| Yi-1.5-6B | 6B | 98 | 99 | 0 | 99 | 0 | 0 | ✅ 18/18 |
+| Mistral-7B-v0.3 | 7B | 99 | 67 | 0 | 99 | 0 | 15 | ✅ 18/18 |
+| Falcon-Mamba-7B | 7B | -- | -- | -- | -- | -- | -- | 💥 OOM |
+| Ministral-8B | 8B | 100 | 98 | 67 | 100 | 0 | 73 | ✅ 18/18 |
+| Llama-3.1-8B | 8B | 100 | 100 | 0 | 100 | 0 | 45 | ✅ 18/18 |
+| **Gemma-2-9B** | **9B** | 100 | 100 | **100** | 100 | **44** | **82** | ✅ 18/18 |
+| GPT-OSS-20B | 20B | -- | -- | -- | -- | -- | -- | 💥 OOM |
+| **Gemma-3-12B** | **12B** | 100 | -- | **100** | 100 | -- | -- | ⚠️ 8/18 |
+
+*Values are Last-50 validity (%) at 1000 steps, mean across 3 seeds. Bold = top performers on hard tasks.*
 
 #### Key Findings:
 1. **Capacity Threshold Confirmed**: Clear transition between 8B (no learning) and 9B (sustained learning)
@@ -188,16 +191,42 @@ This gives us: **4 countries, 8 vendors, 13 models** - includes OpenAI's first o
 
 ## Research Program: 6-Paper Arc
 
+> **Detailed outlines for P3-P6**: See [`papers/future_papers_outline.md`](papers/future_papers_outline.md)
+> **Earlier conceptual outline**: See [`archive/papers/Outline.md`](archive/papers/Outline.md)
+
 | Paper | Title | Core Claim | Status |
 |-------|-------|------------|--------|
 | **P1** | The Deployment Gap: Why Benchmark Accuracy Fails to Predict Production Readiness | Introduces the paradox, defines Success@SLO | ✅ **COMPLETE** - Final PDF |
-| **P2** | Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap | Shows training behavior, extends NVIDIA | ✅ **COMPLETE** - Final PDF |
-| **P3** | AgentSLO-Bench: Ranking Models by What Actually Matters for Deployment | Operationalizes the paradox as community benchmark | 🆕 To write |
-| **P4** | Continuous Deployment Under Contract: MLOps for SLO-Aware Agents | Engineering implications | 🆕 To write |
-| **P5** | Closing the Gap: A Case Study in Production Agent Deployment | Real-world validation | 🆕 To write |
-| **P6** | Toward a Standard for Production-Ready Agent Evaluation | Industry adoption proposal | 🆕 To write |
+| **P2** | Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap | Shows training behavior, extends NVIDIA | ✅ **COMPLETE** - 1000-step results, T1-T6, updating |
+| **P3** | AgentSLO-Bench: A Deployment-First Benchmark for Production Agent Evaluation | Community benchmark ranking by Success@SLO | 🆕 To write (Feb-Mar 2026) |
+| **P4** | Training Dynamics and Reward Decomposition in Schema-Aware RL | Ablations, forgetting, learn-then-forget mechanism | 🆕 To write (Mar-Apr 2026) |
+| **P5** | Closing the Gap: Production Deployment of SLO-Aware Agents | Real-world validation and operational outcomes | 🆕 To write (Apr-Jun 2026) |
+| **P6** | Toward a Standard for Production-Ready Agent Evaluation | criteria.yaml as portable standard, Bronze/Silver/Gold tiers | 🆕 To write (Jun-Aug 2026) |
 
 **The spine:** Every paper either documents the deployment gap, explains it, measures it, or addresses it.
+
+### Paper Dependency Graph
+
+```
+P1 (Evaluation)  ──> P2 (Training)  ──> P4 (Dynamics)
+      │                    │                   │
+      v                    v                   v
+P3 (Benchmark)      P5 (Case Study)    P6 (Standard)
+```
+
+### P3-P4 Roadmap (Next Papers)
+
+**P3 (AgentSLO-Bench)** builds directly on P1's 13-model evaluation results. The benchmark ships as a pip-installable CLI that evaluates any OpenAI-compatible endpoint against 5 task families under 3 SLO tiers (Interactive 2s, Standard 5s, Batch 30s). The public leaderboard shows accuracy rank vs. deployment rank side by side, making the deployment gap visible. Key deliverable: the first benchmark where the headline metric is Success@SLO, not accuracy.
+
+**P4 (Training Dynamics)** digs into the *why* behind P2's capacity threshold. Using the 185+ completed training runs (step-by-step logs), P4 answers four questions: (1) Which reward components drive learning vs. cause interference? (2) How does multi-task training degrade single-task performance? (3) Can we predict learning outcome from the first 50 steps? (4) Is the 9B threshold about representational bandwidth or optimization dynamics? The forgetting analysis (Mixed at 52.1% vs T1 at 99.8%) and task-dependent thresholds (T3/T4 learnable at 3B, T2 requires 9B+) are previewed in P2 and fully developed in P4.
+
+### New Training Data for P4
+
+The following additional training runs support P4:
+- **T6 (GSM8K math reasoning)**: 11 models x 3 seeds = 33 runs (in progress, Feb 2026)
+- **Reward ablations**: 6 components x 3 seeds x 2 model sizes = 36 runs (planned)
+- **Extended 2000-step runs**: 6-12 runs for convergence verification (planned)
+- **Phi-3-mini T5 completion**: 3 runs without timeout (in progress)
 
 ---
 
@@ -652,6 +681,26 @@ out/expanded_eval_20260115/     # Expanded evaluation (to run)
 ---
 
 ## Progress Log
+
+- **2026-02-04**: 📝 **P2 PAPER MAJOR REVISION + P3-P6 OUTLINES**
+  - ✅ P2 paper updated from 500-step/3-task to 1000-step/6-task results
+  - ✅ Added forgetting analysis section (Mixed vs single-task, Table 5)
+  - ✅ Added task-dependent capacity thresholds section (Table 6)
+  - ✅ Added preview section for P4 (reward decomposition, training curve taxonomy)
+  - ✅ Updated abstract, conclusion, threats to validity for nuanced threshold claim
+  - ✅ Paper compiles clean at 24 pages
+  - ✅ Created `papers/future_papers_outline.md` with detailed P3-P6 outlines (3-5 paragraphs each)
+  - ✅ Updated plan.md with P3/P4 roadmap, dependency graph, timeline
+  - ✅ Generated training curves: `results/curves/` (validity, reward, forgetting, threshold, task difficulty)
+  - ✅ pgfplots-ready data files for LaTeX integration in `results/curves/pgfplots/`
+  - 🔄 T6 (GSM8K) training in progress: llama-3.2-1b seed 42 running
+  - 🔄 Phi-3-mini T5 re-run in progress (no timeout)
+  - **Key insight**: Capacity threshold is task-dependent, not a single 9B boundary
+    - T1/T4: All models learn (even 1B)
+    - T3: 4B+ threshold (Qwen3-4B, Gemma-2-9B)
+    - T5: 9B+ threshold
+    - Mixed: Reveals catastrophic forgetting in smaller models
+  - **Next**: Integrate training curve figures into P2 paper, start P3 benchmark work
 
 - **2026-01-24**: 🔬 **TASK-DEPENDENT THRESHOLD DISCOVERY**
   - ✅ Quick test completed: Qwen2.5-3B on T3 (tools), 500 steps, seed 42

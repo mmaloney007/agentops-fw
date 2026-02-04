@@ -1,0 +1,899 @@
+{
+  "threshold": 0.5,
+  "window": 50,
+  "tasks": {
+    "T1": {
+      "llama-3.2-1b": {
+        "size_b": 1.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 75.0,
+        "std_steps": 1.4142135623730951,
+        "min_steps": 74,
+        "max_steps": 77,
+        "per_seed": {
+          "42": 74,
+          "123": 74,
+          "456": 77
+        }
+      },
+      "llama-3.2-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 1.6666666666666667,
+        "std_steps": 0.9428090415820634,
+        "min_steps": 1,
+        "max_steps": 3,
+        "per_seed": {
+          "42": 1,
+          "123": 1,
+          "456": 3
+        }
+      },
+      "qwen2.5-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "phi-3-mini": {
+        "size_b": 3.8,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "qwen3-4b": {
+        "size_b": 4.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "yi-1.5-6b": {
+        "size_b": 6.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.3333333333333333,
+        "std_steps": 0.4714045207910317,
+        "min_steps": 0,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 0,
+          "123": 1,
+          "456": 0
+        }
+      },
+      "mistral-7b-v0.3": {
+        "size_b": 7.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "ministral-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "llama-3.1-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.6666666666666666,
+        "std_steps": 0.4714045207910317,
+        "min_steps": 0,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 0,
+          "123": 1,
+          "456": 1
+        }
+      },
+      "gemma-2-9b": {
+        "size_b": 9.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.6666666666666666,
+        "std_steps": 0.4714045207910317,
+        "min_steps": 0,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 0,
+          "123": 1,
+          "456": 1
+        }
+      },
+      "gemma-3-12b": {
+        "size_b": 12.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      }
+    },
+    "T2": {
+      "llama-3.2-1b": {
+        "size_b": 1.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 2.0,
+        "std_steps": 2.160246899469287,
+        "min_steps": 0,
+        "max_steps": 5,
+        "per_seed": {
+          "42": 0,
+          "123": 5,
+          "456": 1
+        }
+      },
+      "llama-3.2-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 18.0,
+        "std_steps": 22.642143596988927,
+        "min_steps": 1,
+        "max_steps": 50,
+        "per_seed": {
+          "42": 1,
+          "123": 50,
+          "456": 3
+        }
+      },
+      "qwen2.5-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "phi-3-mini": {
+        "size_b": 3.8,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "qwen3-4b": {
+        "size_b": 4.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 5.0,
+        "std_steps": 5.656854249492381,
+        "min_steps": 1,
+        "max_steps": 13,
+        "per_seed": {
+          "42": 13,
+          "123": 1,
+          "456": 1
+        }
+      },
+      "yi-1.5-6b": {
+        "size_b": 6.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 32.333333333333336,
+        "std_steps": 27.047283700134393,
+        "min_steps": 1,
+        "max_steps": 67,
+        "per_seed": {
+          "42": 1,
+          "123": 29,
+          "456": 67
+        }
+      },
+      "mistral-7b-v0.3": {
+        "size_b": 7.0,
+        "seeds_reached": 2,
+        "seeds_total": 3,
+        "mean_steps": 50.5,
+        "std_steps": 50.5,
+        "min_steps": 0,
+        "max_steps": 101,
+        "per_seed": {
+          "42": 101,
+          "123": 0,
+          "456": null
+        }
+      },
+      "ministral-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "llama-3.1-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 1.3333333333333333,
+        "std_steps": 1.247219128924647,
+        "min_steps": 0,
+        "max_steps": 3,
+        "per_seed": {
+          "42": 3,
+          "123": 1,
+          "456": 0
+        }
+      },
+      "gemma-2-9b": {
+        "size_b": 9.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 1.3333333333333333,
+        "std_steps": 1.247219128924647,
+        "min_steps": 0,
+        "max_steps": 3,
+        "per_seed": {
+          "42": 1,
+          "123": 3,
+          "456": 0
+        }
+      }
+    },
+    "T3": {
+      "llama-3.2-1b": {
+        "size_b": 1.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "llama-3.2-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "qwen2.5-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "phi-3-mini": {
+        "size_b": 3.8,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "qwen3-4b": {
+        "size_b": 4.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 3.3333333333333335,
+        "std_steps": 4.0276819911981905,
+        "min_steps": 0,
+        "max_steps": 9,
+        "per_seed": {
+          "42": 1,
+          "123": 0,
+          "456": 9
+        }
+      },
+      "yi-1.5-6b": {
+        "size_b": 6.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "mistral-7b-v0.3": {
+        "size_b": 7.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "ministral-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 21.0,
+        "std_steps": 29.698484809834994,
+        "min_steps": 0,
+        "max_steps": 63,
+        "per_seed": {
+          "42": 63,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "llama-3.1-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "gemma-2-9b": {
+        "size_b": 9.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 61.0,
+        "std_steps": 43.45879274285777,
+        "min_steps": 0,
+        "max_steps": 98,
+        "per_seed": {
+          "42": 0,
+          "123": 98,
+          "456": 85
+        }
+      },
+      "gemma-3-12b": {
+        "size_b": 12.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 124.0,
+        "std_steps": 9.41629792788369,
+        "min_steps": 115,
+        "max_steps": 137,
+        "per_seed": {
+          "42": 120,
+          "123": 115,
+          "456": 137
+        }
+      }
+    },
+    "T4": {
+      "llama-3.2-1b": {
+        "size_b": 1.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "llama-3.2-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "qwen2.5-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "phi-3-mini": {
+        "size_b": 3.8,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "qwen3-4b": {
+        "size_b": 4.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "yi-1.5-6b": {
+        "size_b": 6.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "mistral-7b-v0.3": {
+        "size_b": 7.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "ministral-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "llama-3.1-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "gemma-2-9b": {
+        "size_b": 9.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "gemma-3-12b": {
+        "size_b": 12.0,
+        "seeds_reached": 2,
+        "seeds_total": 2,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "456": 0
+        }
+      }
+    },
+    "T5": {
+      "llama-3.2-1b": {
+        "size_b": 1.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "llama-3.2-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "qwen2.5-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "phi-3-mini": {
+        "size_b": 3.8,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "qwen3-4b": {
+        "size_b": 4.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "yi-1.5-6b": {
+        "size_b": 6.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "mistral-7b-v0.3": {
+        "size_b": 7.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "ministral-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "llama-3.1-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 0,
+        "seeds_total": 3,
+        "mean_steps": null,
+        "std_steps": null,
+        "min_steps": null,
+        "max_steps": null,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": null
+        }
+      },
+      "gemma-2-9b": {
+        "size_b": 9.0,
+        "seeds_reached": 1,
+        "seeds_total": 3,
+        "mean_steps": 667.0,
+        "std_steps": 0.0,
+        "min_steps": 667,
+        "max_steps": 667,
+        "per_seed": {
+          "42": null,
+          "123": null,
+          "456": 667
+        }
+      }
+    },
+    "Mixed": {
+      "llama-3.2-1b": {
+        "size_b": 1.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 48.0,
+        "std_steps": 67.17638473948018,
+        "min_steps": 0,
+        "max_steps": 143,
+        "per_seed": {
+          "42": 1,
+          "123": 143,
+          "456": 0
+        }
+      },
+      "llama-3.2-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 1.0,
+        "std_steps": 0.0,
+        "min_steps": 1,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 1,
+          "123": 1,
+          "456": 1
+        }
+      },
+      "qwen2.5-3b": {
+        "size_b": 3.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "phi-3-mini": {
+        "size_b": 3.8,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 2.3333333333333335,
+        "std_steps": 1.8856180831641267,
+        "min_steps": 1,
+        "max_steps": 5,
+        "per_seed": {
+          "42": 5,
+          "123": 1,
+          "456": 1
+        }
+      },
+      "qwen3-4b": {
+        "size_b": 4.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.3333333333333333,
+        "std_steps": 0.4714045207910317,
+        "min_steps": 0,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 1
+        }
+      },
+      "yi-1.5-6b": {
+        "size_b": 6.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.3333333333333333,
+        "std_steps": 0.4714045207910317,
+        "min_steps": 0,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 1
+        }
+      },
+      "mistral-7b-v0.3": {
+        "size_b": 7.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 1.0,
+        "std_steps": 0.0,
+        "min_steps": 1,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 1,
+          "123": 1,
+          "456": 1
+        }
+      },
+      "ministral-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.0,
+        "std_steps": 0.0,
+        "min_steps": 0,
+        "max_steps": 0,
+        "per_seed": {
+          "42": 0,
+          "123": 0,
+          "456": 0
+        }
+      },
+      "llama-3.1-8b": {
+        "size_b": 8.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 0.6666666666666666,
+        "std_steps": 0.4714045207910317,
+        "min_steps": 0,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 1,
+          "123": 1,
+          "456": 0
+        }
+      },
+      "gemma-2-9b": {
+        "size_b": 9.0,
+        "seeds_reached": 3,
+        "seeds_total": 3,
+        "mean_steps": 1.0,
+        "std_steps": 0.0,
+        "min_steps": 1,
+        "max_steps": 1,
+        "per_seed": {
+          "42": 1,
+          "123": 1,
+          "456": 1
+        }
+      }
+    }
+  }
+}

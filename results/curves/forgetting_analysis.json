@@ -1,0 +1,164 @@
+{
+  "models": [
+    {
+      "model": "llama-3.2-1b",
+      "size_b": 1.0,
+      "mixed_validity": 0.22,
+      "mixed_std": 0.3111269837220809,
+      "single_avg_validity": 0.588,
+      "single_std": 0.4805441360235984,
+      "interference_delta": -0.368,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.9533333333333333,
+        "T3": 0.0,
+        "T4": 0.9866666666666667,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "llama-3.2-3b",
+      "size_b": 3.0,
+      "mixed_validity": 0.22666666666666668,
+      "mixed_std": 0.3205550741379016,
+      "single_avg_validity": 0.5986666666666667,
+      "single_std": 0.48883353221953,
+      "interference_delta": -0.372,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.9933333333333333,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "qwen2.5-3b",
+      "size_b": 3.0,
+      "mixed_validity": 0.7599999999999999,
+      "mixed_std": 0.07118052168020872,
+      "single_avg_validity": 0.7333333333333333,
+      "single_std": 0.4422166387140533,
+      "interference_delta": 0.0267,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 0.6666666666666666,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "phi-3-mini",
+      "size_b": 3.8,
+      "mixed_validity": 0.7399999999999999,
+      "mixed_std": 0.07118052168020872,
+      "single_avg_validity": 0.4,
+      "single_std": 0.48989794855663565,
+      "interference_delta": 0.34,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.0,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "qwen3-4b",
+      "size_b": 4.0,
+      "mixed_validity": 0.9,
+      "mixed_std": 0.016329931618554536,
+      "single_avg_validity": 0.8960000000000001,
+      "single_std": 0.2016201048176165,
+      "interference_delta": 0.004,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.9866666666666667,
+        "T3": 1.0,
+        "T4": 1.0,
+        "T5": 0.49333333333333335
+      }
+    },
+    {
+      "model": "yi-1.5-6b",
+      "size_b": 6.0,
+      "mixed_validity": 0.0,
+      "mixed_std": 0.0,
+      "single_avg_validity": 0.5920000000000001,
+      "single_std": 0.4835314536477091,
+      "interference_delta": -0.592,
+      "per_task_single": {
+        "T1": 0.98,
+        "T2": 0.9866666666666667,
+        "T3": 0.0,
+        "T4": 0.9933333333333333,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "mistral-7b-v0.3",
+      "size_b": 7.0,
+      "mixed_validity": 0.14666666666666667,
+      "mixed_std": 0.20741798914805393,
+      "single_avg_validity": 0.5306666666666667,
+      "single_std": 0.4964335023164958,
+      "interference_delta": -0.384,
+      "per_task_single": {
+        "T1": 0.9933333333333333,
+        "T2": 0.6666666666666666,
+        "T3": 0.0,
+        "T4": 0.9933333333333333,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "ministral-8b",
+      "size_b": 8.0,
+      "mixed_validity": 0.7333333333333334,
+      "mixed_std": 0.047140452079103216,
+      "single_avg_validity": 0.7293333333333333,
+      "single_std": 0.44005252211778334,
+      "interference_delta": 0.004,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.98,
+        "T3": 0.6666666666666666,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "llama-3.1-8b",
+      "size_b": 8.0,
+      "mixed_validity": 0.4533333333333333,
+      "mixed_std": 0.19955506062794354,
+      "single_avg_validity": 0.6,
+      "single_std": 0.48989794855663565,
+      "interference_delta": -0.1467,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "gemma-2-9b",
+      "size_b": 9.0,
+      "mixed_validity": 0.82,
+      "mixed_std": 0.0,
+      "single_avg_validity": 0.888,
+      "single_std": 0.2884256114379119,
+      "interference_delta": -0.068,
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 1.0,
+        "T4": 1.0,
+        "T5": 0.44
+      }
+    }
+  ]
+}
