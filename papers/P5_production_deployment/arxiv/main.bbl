@@ -1,0 +1,150 @@
+\begin{thebibliography}{22}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Agrawal et~al.(2024)]{agrawal2024sarathi}
+Amey Agrawal et~al.
+\newblock Sarathi-serve: High-throughput and memory-efficient {LLM} serving
+  with partitioned attention, 2024.
+
+\bibitem[{Akamai Technologies}(2017)]{akamai2017performance}
+{Akamai Technologies}.
+\newblock The state of online retail performance: Spring 2017.
+\newblock
+  \url{https://www.akamai.com/us/en/about/news/press/2017-press/akamai-releases-spring-2017-state-of-online-retail-performance-report.jsp},
+  2017.
+\newblock Report showing that 2-second delays increase bounce rates by 103\%.
+
+\bibitem[Amershi et~al.(2019)Amershi, Begel, Bird, DeLine, Gall, Kamar,
+  Nagappan, Nushi, and Zimmermann]{amershimultiversion2019}
+Saleema Amershi, Andrew Begel, Christian Bird, Robert DeLine, Harald Gall, Erin
+  Kamar, Nachiappan Nagappan, Besmira Nushi, and Thomas Zimmermann.
+\newblock Software engineering for machine learning: A case study.
+\newblock \emph{Proceedings of the 41st International Conference on Software
+  Engineering: Software Engineering in Practice}, pages 291--300, 2019.
+
+\bibitem[Breck et~al.(2017)Breck, Cai, Nielsen, Salib, and
+  Sculley]{breck2017ml}
+Eric Breck, Shanqing Cai, Eric Nielsen, Michael Salib, and D.~Sculley.
+\newblock The {ML} test score: A rubric for {ML} production readiness and
+  technical debt reduction.
+\newblock In \emph{Proceedings of the IEEE International Conference on Big
+  Data}, pages 1123--1132, 2017.
+
+\bibitem[Chiang et~al.(2024)]{chiang2024chatbot}
+Wei-Lin Chiang et~al.
+\newblock Chatbot arena: An open platform for evaluating {LLMs} by human
+  preference, 2024.
+
+\bibitem[Dao et~al.(2023)]{dao2023flashattention2}
+Tri Dao et~al.
+\newblock {FlashAttention-2}: Faster attention with better parallelism and work
+  partitioning, 2023.
+
+\bibitem[Dean and Barroso(2013)]{dean2013tail}
+Jeffrey Dean and Luiz~Andr{\'e} Barroso.
+\newblock The tail at scale.
+\newblock \emph{Communications of the ACM}, 56\penalty0 (2):\penalty0 74--80,
+  2013.
+\newblock \doi{10.1145/2408776.2408794}.
+
+\bibitem[Ethayarajh and Jurafsky(2020)]{ethayarajh2020utility}
+Kawin Ethayarajh and Dan Jurafsky.
+\newblock Utility is in the eye of the user: A critique of {NLP} leaderboards.
+\newblock In \emph{Proceedings of the 2020 Conference on Empirical Methods in
+  Natural Language Processing (EMNLP)}, pages 4846--4853, 2020.
+
+\bibitem[{Evidently AI}(2024)]{evidentlyai}
+{Evidently AI}.
+\newblock Evidently {AI}: Open-source {ML} monitoring.
+\newblock \url{https://www.evidentlyai.com/}, 2024.
+\newblock Open-source toolkit for ML model monitoring and data drift detection.
+
+\bibitem[Geng et~al.(2025)Geng, Cooper, Moskal, Jenkins, Berman, Ranchin, West,
+  Horvitz, and Nori]{geng2025jsonschemabench}
+Saibo Geng, Hudson Cooper, Micha{\l} Moskal, Samuel Jenkins, Julian Berman,
+  Nathan Ranchin, Robert West, Eric Horvitz, and Harsha Nori.
+\newblock {JSONSchemaBench}: A rigorous benchmark of structured outputs for
+  language models, 2025.
+
+\bibitem[Hendrycks et~al.(2021)Hendrycks, Burns, Basart, Zou, Mazeika, Song,
+  and Steinhardt]{hendrycks2021mmlu}
+Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas Mazeika, Dawn
+  Song, and Jacob Steinhardt.
+\newblock Measuring massive multitask language understanding, 2021.
+
+\bibitem[Klaise et~al.(2020)Klaise, Van~Looveren, Vacanti, and
+  Coca]{klaise2020monitoring}
+Janis Klaise, Arnaud Van~Looveren, Giovanni Vacanti, and Alexandru Coca.
+\newblock Monitoring machine learning models in production, 2020.
+
+\bibitem[Kreuzberger et~al.(2023)Kreuzberger, K{\"u}hl, and
+  Hirschl]{kreuzberger2023mlops}
+Dominik Kreuzberger, Niklas K{\"u}hl, and Sebastian Hirschl.
+\newblock {MLOps}: A taxonomy and a methodology.
+\newblock \emph{IEEE Access}, 11:\penalty0 9919--9936, 2023.
+\newblock \doi{10.1109/ACCESS.2023.3239757}.
+
+\bibitem[Kwon et~al.(2023)]{kwon2023vllm}
+Woosuk Kwon et~al.
+\newblock Efficient memory management for large language model serving with
+  {PagedAttention}, 2023.
+
+\bibitem[Liang et~al.(2023)]{liang2023helm}
+Percy Liang et~al.
+\newblock {HELM}: Holistic evaluation of language models, 2023.
+
+\bibitem[Maloney(2025)]{maloney2025deploymentgap}
+Michael Maloney.
+\newblock The deployment gap: Why benchmark accuracy fails to predict
+  production readiness.
+\newblock \emph{arXiv preprint}, 2025.
+\newblock Paper~I of this series. Spearman $\rho = 0.09$ between accuracy and
+  Success@SLO across 13 models.
+
+\bibitem[{NVIDIA}(2025)]{nvidia2025slm}
+{NVIDIA}.
+\newblock Small language models are the future of agentic ai, 2025.
+\newblock Demonstrates 10--30$\times$ cost reduction for SLMs in agentic
+  systems.
+
+\bibitem[Paleyes et~al.(2022)Paleyes, Urma, and
+  Lawrence]{paleyes2022challenges}
+Andrei Paleyes, Raoul-Gabriel Urma, and Neil~D. Lawrence.
+\newblock Challenges in deploying machine learning: A survey of case studies.
+\newblock \emph{ACM Computing Surveys}, 55\penalty0 (6):\penalty0 1--29, 2022.
+\newblock \doi{10.1145/3533378}.
+
+\bibitem[Reddi et~al.(2020)]{reddi2020mlperf}
+Vijay~Janapa Reddi et~al.
+\newblock {MLPerf} inference benchmark.
+\newblock In \emph{Proceedings of the ACM/IEEE International Symposium on
+  Computer Architecture}, 2020.
+
+\bibitem[Sculley et~al.(2015)Sculley, Holt, Golovin, Davydov, Phillips, Ebner,
+  Chaudhary, Young, Crespo, and Dennison]{sculley2015debt}
+D.~Sculley, Gary Holt, Daniel Golovin, Eugene Davydov, Todd Phillips, Dietmar
+  Ebner, Vinay Chaudhary, Michael Young, Jean-Fran{\c{c}}ois Crespo, and Dan
+  Dennison.
+\newblock Hidden technical debt in machine learning systems.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~28, 2015.
+
+\bibitem[Shankar et~al.(2022)Shankar, Garcia, Hellerstein, and
+  Parameswaran]{shankar2022operationalizing}
+Shreya Shankar, Rolando Garcia, Joseph~M. Hellerstein, and Aditya~G.
+  Parameswaran.
+\newblock Operationalizing machine learning: An interview study.
+\newblock In \emph{Proceedings of the 2022 CHI Conference on Human Factors in
+  Computing Systems}, 2022.
+\newblock \doi{10.1145/3491102.3501832}.
+
+\bibitem[Zheng et~al.(2023)]{zheng2023sglang}
+Zhiqiang Zheng et~al.
+\newblock {SGLang}: Efficient execution of structured language model programs,
+  2023.
+
+\end{thebibliography}

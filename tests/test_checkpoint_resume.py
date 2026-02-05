@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("torch")
+
 from agent_stable_slo.train.grpo_train_loop import GRPOTrainConfig, train_loop
 
 

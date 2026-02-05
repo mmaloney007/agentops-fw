@@ -1,0 +1,399 @@
+% Paper VI: Toward a Standard for Production-Ready Agent Evaluation
+% Bibliography
+% Clean version: entries cited in main.tex
+
+% =============================================================================
+% Self-citations (Papers I--V of this series)
+% =============================================================================
+
+@article{maloney2025deploymentgap,
+  title={The Deployment Gap: Why Benchmark Accuracy Fails to Predict Production Readiness},
+  author={Maloney, Michael},
+  year={2025},
+  note={Paper~I of this series. Documents $\rho = 0.09$ between accuracy and Success@SLO across 13 models.}
+}
+
+@article{maloney2025capacity,
+  title={Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap},
+  author={Maloney, Michael},
+  year={2025},
+  note={Paper~II of this series. Task-dependent capacity thresholds via GRPO training on 11 models.}
+}
+
+@article{maloney2025agentslobench,
+  title={{AgentSLO-Bench}: An {SLO}-Aware Benchmark for {LLM} Agent Deployment},
+  author={Maloney, Michael},
+  year={2025},
+  note={Paper~III of this series. Reusable benchmark with 3 SLO tiers across 7 task schemas.}
+}
+
+@article{maloney2025dynamics,
+  title={Training Dynamics of Schema-Aware Reinforcement Learning for {LLM} Agents: Reward Decomposition, Forgetting, and Early Prediction},
+  author={Maloney, Michael},
+  year={2025},
+  note={Paper~IV of this series. Mechanistic analysis of 185 GRPO training runs.}
+}
+
+@article{maloney2025fieldreport,
+  title={From Benchmark to Production: A Field Report on {SLO}-Aware Agent Deployment},
+  author={Maloney, Michael},
+  year={2025},
+  note={Paper~V of this series. Production deployment field report.}
+}
+
+% =============================================================================
+% Standards and specifications
+% =============================================================================
+
+@inproceedings{reddi2020mlperf,
+  title={{MLPerf} Inference Benchmark},
+  author={Reddi, Vijay Janapa and Cheng, Christine and Kanter, David and Mattson, Peter and Schmuelling, Guenther and Wu, Carole-Jean and Anderson, Brian and Breeskin, Maximilian and Droge, Mark and Ensafi, Alexander and others},
+  booktitle={Proceedings of the ACM/IEEE 47th Annual International Symposium on Computer Architecture},
+  pages={446--459},
+  year={2020},
+  doi={10.1109/ISCA45697.2020.00045}
+}
+
+@article{mattson2020mlperf,
+  title={{MLPerf} Training Benchmark},
+  author={Mattson, Peter and Cheng, Christine and Diamos, Gregory and Coleman, Cody and Micikevicius, Paulius and Patterson, David and Tang, Hanlin and Wei, Gu-Yeon and Bailis, Peter and Bittorf, Victor and others},
+  journal={Proceedings of Machine Learning and Systems},
+  volume={2},
+  pages={336--349},
+  year={2020}
+}
+
+@article{mitchell2019modelcards,
+  title={Model Cards for Model Reporting},
+  author={Mitchell, Margaret and Wu, Simone and Zaldivar, Andrew and Barnes, Parker and Vasserman, Lucy and Hutchinson, Ben and Spitzer, Elena and Raji, Inioluwa Deborah and Gebru, Timnit},
+  journal={Proceedings of the Conference on Fairness, Accountability, and Transparency},
+  pages={220--229},
+  year={2019},
+  doi={10.1145/3287560.3287596}
+}
+
+@article{gebru2021datasheets,
+  title={Datasheets for Datasets},
+  author={Gebru, Timnit and Morgenstern, Jamie and Vecchione, Briana and Vaughan, Jennifer Wortman and Wallach, Hanna and {Daum{\'e} III}, Hal and Crawford, Kate},
+  journal={Communications of the ACM},
+  volume={64},
+  number={12},
+  pages={86--92},
+  year={2021},
+  doi={10.1145/3458723}
+}
+
+@misc{nist2023airmf,
+  title={Artificial Intelligence Risk Management Framework ({AI RMF} 1.0)},
+  author={{National Institute of Standards and Technology}},
+  year={2023},
+  howpublished={\url{https://doi.org/10.6028/NIST.AI.100-1}},
+  note={NIST AI 100-1}
+}
+
+@misc{euaiact2024,
+  title={Regulation ({EU}) 2024/1689 laying down harmonised rules on artificial intelligence (Artificial Intelligence Act)},
+  author={{European Parliament and Council of the European Union}},
+  year={2024},
+  howpublished={\url{https://eur-lex.europa.eu/eli/reg/2024/1689/oj}},
+  note={EU AI Act}
+}
+
+% =============================================================================
+% Evaluation frameworks and benchmarks
+% =============================================================================
+
+@article{liang2023helm,
+  title={Holistic Evaluation of Language Models},
+  author={Liang, Percy and Bommasani, Rishi and Lee, Tony and Tsipras, Dimitris and Soylu, Dilara and Yasunaga, Michihiro and Zhang, Yian and Narayanan, Deepak and Wu, Yuhuai and Kumar, Ananya and others},
+  journal={arXiv preprint arXiv:2211.09110},
+  year={2022},
+  eprint={2211.09110},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@article{hendrycks2021mmlu,
+  title={Measuring Massive Multitask Language Understanding},
+  author={Hendrycks, Dan and Burns, Collin and Basart, Steven and Zou, Andy and Mazeika, Mantas and Song, Dawn and Steinhardt, Jacob},
+  journal={arXiv preprint arXiv:2009.03300},
+  year={2021}
+}
+
+@misc{geng2025jsonschemabench,
+  title={{JSONSchemaBench}: A Rigorous Benchmark of Structured Outputs for Language Models},
+  author={Geng, Saibo and Cooper, Hudson and Moskal, Micha{\l} and Jenkins, Samuel and Berman, Julian and Ranchin, Nathan and West, Robert and Horvitz, Eric and Nori, Harsha},
+  year={2025},
+  eprint={2501.10868},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@misc{chiang2024chatbot,
+  title={Chatbot Arena: An Open Platform for Evaluating {LLMs} by Human Preference},
+  author={Chiang, Wei-Lin and others},
+  year={2024},
+  eprint={2403.04132},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@misc{berkeley2024bfcl,
+  title={Berkeley Function Calling Leaderboard},
+  author={{Gorilla Team, UC Berkeley}},
+  year={2024},
+  howpublished={\url{https://gorilla.cs.berkeley.edu/leaderboard.html}},
+  note={Comprehensive function calling benchmark}
+}
+
+@misc{princeton2024swe,
+  title={{SWE-bench}: Can Language Models Resolve Real-World {GitHub} Issues?},
+  author={Jimenez, Carlos E. and Yang, John and Wettig, Alexander and Yao, Shunyu and Pei, Kexin and Press, Ofir and Narasimhan, Karthik},
+  year={2024},
+  eprint={2310.06770},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@article{es2023ragas,
+  title={{RAGAS}: Automated Evaluation of Retrieval Augmented Generation},
+  author={Es, Shahul and James, Jithin and Espinosa-Anke, Luis and Schockaert, Steven},
+  journal={arXiv preprint arXiv:2309.15217},
+  year={2023},
+  eprint={2309.15217},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@misc{gao2023lmeval,
+  title={A Framework for Few-Shot Language Model Evaluation},
+  author={Gao, Leo and Tow, Jonathan and Abbasi, Baber and Biderman, Stella and Black, Sid and DiPofi, Anthony and Foster, Charles and Golding, Laurence and Hsu, Jeffrey and Le Noac'h, Alain and others},
+  year={2023},
+  howpublished={\url{https://github.com/EleutherAI/lm-evaluation-harness}},
+  note={EleutherAI LM Evaluation Harness}
+}
+
+@misc{opencompass2023,
+  title={{OpenCompass}: A Universal Evaluation Platform for Foundation Models},
+  author={{Shanghai AI Laboratory}},
+  year={2023},
+  howpublished={\url{https://github.com/open-compass/opencompass}},
+  note={Multi-dimensional LLM evaluation platform}
+}
+
+@misc{ukaisi2024inspect,
+  title={{Inspect}: A Framework for Large Language Model Evaluations},
+  author={{UK AI Safety Institute}},
+  year={2024},
+  howpublished={\url{https://github.com/UKGovernmentBEIS/inspect_ai}},
+  note={Open-source LLM evaluation framework developed by UK AISI}
+}
+
+@misc{srivastava2023bigbench,
+  title={Beyond the Imitation Game: Quantifying and Extrapolating the Capabilities of Language Models},
+  author={Srivastava, Aarohi and Rastogi, Abhinav and Rao, Abhishek and Shoeb, Abu Awal Md and Abid, Abubakar and Fisch, Adam and Brown, Adam R. and Santoro, Adam and Gupta, Aditya and Garriga-Alonso, Adria and others},
+  year={2023},
+  eprint={2206.04615},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@misc{khattab2023dspy,
+  title={{DSPy}: Compiling Declarative Language Model Calls into Self-Improving Pipelines},
+  author={Khattab, Omar and Singhvi, Arnav and Maheshwari, Paridhi and Zhang, Zhiyuan and Santhanam, Keshav and Vardhamanan, Sri and Haq, Saiful and Sharma, Ashutosh and Joshi, Thomas T. and Mober, Hanna and others},
+  year={2023},
+  eprint={2310.03714},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@misc{microsoft2023semantickernel,
+  title={{Semantic Kernel}: Integration of {AI} with Conventional Programming},
+  author={{Microsoft}},
+  year={2023},
+  howpublished={\url{https://github.com/microsoft/semantic-kernel}},
+  note={Lightweight SDK for integrating LLMs into applications}
+}
+
+@misc{llamaindex2023,
+  title={{LlamaIndex}: A Data Framework for {LLM} Applications},
+  author={Liu, Jerry and others},
+  year={2023},
+  howpublished={\url{https://github.com/run-llama/llama_index}},
+  note={Data framework for context-augmented LLM applications}
+}
+
+@misc{iso42001,
+  title={{ISO/IEC} 42001:2023 Information Technology---Artificial Intelligence---Management System},
+  author={{International Organization for Standardization}},
+  year={2023},
+  howpublished={\url{https://www.iso.org/standard/81230.html}},
+  note={First international management system standard for AI}
+}
+
+% =============================================================================
+% Serving and infrastructure
+% =============================================================================
+
+@article{dean2013tail,
+  title={The Tail at Scale},
+  author={Dean, Jeffrey and Barroso, Luiz Andr{\'e}},
+  journal={Communications of the ACM},
+  volume={56},
+  number={2},
+  pages={74--80},
+  year={2013},
+  doi={10.1145/2408776.2408794}
+}
+
+@misc{kwon2023vllm,
+  title={Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
+  author={Kwon, Woosuk and others},
+  year={2023},
+  eprint={2309.06180},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+@misc{nvidia2025slm,
+  title={Small Language Models are the Future of Agentic {AI}},
+  author={{NVIDIA}},
+  year={2025},
+  eprint={2506.02153},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  note={Demonstrates 10--30$\times$ cost reduction for SLMs in agentic systems}
+}
+
+@misc{akamai2017performance,
+  title={The State of Online Retail Performance: Spring 2017},
+  author={{Akamai Technologies}},
+  year={2017},
+  howpublished={\url{https://www.akamai.com/}},
+  note={2-second delays increase bounce rates by 103\%}
+}
+
+% =============================================================================
+% Agent frameworks
+% =============================================================================
+
+@misc{langchain2023,
+  title={{LangChain}: Building applications with {LLMs} through composability},
+  author={Chase, Harrison and others},
+  year={2023},
+  howpublished={\url{https://github.com/langchain-ai/langchain}}
+}
+
+@misc{crewai2024,
+  title={{CrewAI}: Framework for orchestrating role-playing autonomous {AI} agents},
+  author={Moura, Jo{\~a}o and contributors},
+  year={2024},
+  howpublished={\url{https://github.com/crewAIInc/crewAI}}
+}
+
+@misc{autogen2023,
+  title={{AutoGen}: Enabling Next-Gen {LLM} Applications via Multi-Agent Conversation},
+  author={Wu, Qingyun and Bansal, Gagan and Zhang, Jieyu and Wu, Yiran and Li, Beibin and Zhu, Erkang and Jiang, Li and Zhang, Xiaoyun and Zhang, Shaokun and Liu, Jiale and others},
+  year={2023},
+  eprint={2308.08155},
+  archivePrefix={arXiv},
+  primaryClass={cs.AI}
+}
+
+% =============================================================================
+% Training methods referenced
+% =============================================================================
+
+@article{grpo,
+  title={{DeepSeekMath}: Pushing the Limits of Mathematical Reasoning in Open Language Models},
+  author={Shao, Zhihong and Wang, Peiyi and Zhu, Qihao and Xu, Runxin and Song, Junxiao and Zhang, Mingchuan and Li, Y.K. and Wu, Y. and Guo, Daya},
+  year={2024},
+  eprint={2402.03300},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  note={Introduces GRPO (Group Relative Policy Optimization)}
+}
+
+@article{schulman2017ppo,
+  title={Proximal Policy Optimization Algorithms},
+  author={Schulman, John and Wolski, Filip and Dhariwal, Prafulla and Radford, Alec and Klimov, Oleg},
+  journal={arXiv preprint arXiv:1707.06347},
+  year={2017}
+}
+
+@article{rafailov2023dpo,
+  title={Direct Preference Optimization: Your Language Model is Secretly a Reward Model},
+  author={Rafailov, Rafael and Sharma, Archit and Mitchell, Eric and Ermon, Stefano and Manning, Christopher D. and Finn, Chelsea},
+  journal={arXiv preprint arXiv:2305.18290},
+  year={2023}
+}
+
+@article{ouyang2022rlhf,
+  title={Training language models to follow instructions with human feedback},
+  author={Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo and Wainwright, Carroll L. and Mishkin, Pamela and Zhang, Chong and Agarwal, Sandhini and Slama, Katarina and Ray, Alex and others},
+  journal={arXiv preprint arXiv:2203.02155},
+  year={2022},
+  note={InstructGPT / RLHF}
+}
+
+% =============================================================================
+% Safety and fairness
+% =============================================================================
+
+@misc{bommasani2021foundation,
+  title={On the Opportunities and Risks of Foundation Models},
+  author={Bommasani, Rishi and Hudson, Drew A. and Adeli, Ehsan and Altman, Russ and Arber, Simran and von Arx, Sydney and Bernstein, Michael S. and Bohg, Jeannette and Bosselut, Antoine and Brunskill, Emma and others},
+  year={2021},
+  eprint={2108.07258},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+@misc{weidinger2022taxonomy,
+  title={Taxonomy of Risks Posed by Language Models},
+  author={Weidinger, Laura and Uesato, Jonathan and Rauh, Maribeth and Griffin, Conor and Huang, Po-Sen and Mellor, John and Glaese, Amelia and Cheng, Myra and Balle, Borja and Kasirzadeh, Atoosa and others},
+  year={2022},
+  eprint={2112.04359},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+% =============================================================================
+% Specification and schema standards
+% =============================================================================
+
+@misc{openapi2021,
+  title={{OpenAPI} Specification v3.1.0},
+  author={{OpenAPI Initiative}},
+  year={2021},
+  howpublished={\url{https://spec.openapis.org/oas/v3.1.0}},
+  note={Industry standard for describing HTTP APIs}
+}
+
+@misc{jsonschema2020,
+  title={{JSON Schema}: A Media Type for Describing {JSON} Documents (Draft 2020-12)},
+  author={Wright, Austin and Andrews, Henry and Hutton, Ben and Dennis, Greg},
+  year={2022},
+  howpublished={\url{https://json-schema.org/specification}},
+  note={IETF Internet-Draft}
+}
+
+% =============================================================================
+% Experiment tracking and MLOps
+% =============================================================================
+
+@misc{wandb2020,
+  title={Experiment Tracking with {Weights \& Biases}},
+  author={Biewald, Lukas},
+  year={2020},
+  howpublished={\url{https://www.wandb.com}},
+  note={Experiment tracking platform}
+}
+
+@misc{weave2024,
+  title={{Weave}: Lightweight toolkit for tracking {LLM} applications},
+  author={{Weights \& Biases}},
+  year={2024},
+  howpublished={\url{https://github.com/wandb/weave}},
+  note={LLM application tracking toolkit}
+}

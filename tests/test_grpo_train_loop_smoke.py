@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+pytest.importorskip("torch")
+
 from agent_stable_slo.train.grpo_train_loop import GRPOTrainConfig, train_loop
 from agent_stable_slo.utils.data import cache_dataset, fingerprint_tasks
 from agent_stable_slo.train import grpo_train_loop as grpo_module

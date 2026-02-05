@@ -90,7 +90,8 @@ def main():
             # try manifest
             manifest_path = run_dir / "manifest.json"
             if manifest_path.exists():
-                manifest = json.load(open(manifest_path, "r", encoding="utf-8"))
+                with open(manifest_path, "r", encoding="utf-8") as mf:
+                    manifest = json.load(mf)
                 tasks_path = manifest.get("config", {}).get("tasks") or manifest.get(
                     "tasks"
                 )
@@ -105,7 +106,8 @@ def main():
         base_model = None
         manifest_path = run_dir / "manifest.json"
         if manifest_path.exists():
-            manifest = json.load(open(manifest_path, "r", encoding="utf-8"))
+            with open(manifest_path, "r", encoding="utf-8") as mf:
+                manifest = json.load(mf)
             base_model = manifest.get("config", {}).get("base_model") or manifest.get(
                 "base_model"
             )

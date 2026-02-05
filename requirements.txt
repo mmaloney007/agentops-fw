@@ -1,3 +1,18 @@
+# Core
 jsonschema>=4.21.1
+
+# Training (GRPO + LoRA on single GPU)
+torch>=2.1
+transformers>=4.40
+peft>=0.10
+datasets>=2.18
+numpy>=1.26
+
+# Evaluation (LM Studio / vLLM inference)
+openai>=1.12
 pandas>=2.2
+
+# Logging & experiment tracking
 wandb>=0.17.0
+weave>=0.51
+wandb-workspaces>=0.1.0

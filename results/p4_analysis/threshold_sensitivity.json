@@ -1,0 +1,481 @@
+{
+  "default_thresholds": {
+    "sustained": 0.6,
+    "transient": 0.3,
+    "forgetting_robust": -0.05,
+    "forgetting_catastrophic": -0.3
+  },
+  "n_single_task_curves": 53,
+  "default_distribution": {
+    "sustained": 36,
+    "transient": 2,
+    "flat": 15
+  },
+  "sustained_sweep": [
+    {
+      "sustained_threshold": 0.4,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 37,
+        "transient": 1,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.45,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 37,
+        "transient": 1,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.5,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.55,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.65,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.7,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.75,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.8,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "total": 53
+    }
+  ],
+  "transient_sweep": [
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.1,
+      "distribution": {
+        "sustained": 36,
+        "transient": 3,
+        "flat": 14
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.15,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.2,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.25,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.35,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.4,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.45,
+      "distribution": {
+        "sustained": 36,
+        "flat": 16,
+        "transient": 1
+      },
+      "total": 53
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.5,
+      "distribution": {
+        "sustained": 36,
+        "flat": 16,
+        "transient": 1
+      },
+      "total": 53
+    }
+  ],
+  "joint_sweep": [
+    {
+      "sustained_threshold": 0.5,
+      "transient_threshold": 0.2,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.5,
+      "transient_threshold": 0.25,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.5,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.5,
+      "transient_threshold": 0.35,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.5,
+      "transient_threshold": 0.4,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.55,
+      "transient_threshold": 0.2,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.55,
+      "transient_threshold": 0.25,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.55,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.55,
+      "transient_threshold": 0.35,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.55,
+      "transient_threshold": 0.4,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.2,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.25,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.35,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.6,
+      "transient_threshold": 0.4,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.65,
+      "transient_threshold": 0.2,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.65,
+      "transient_threshold": 0.25,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.65,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.65,
+      "transient_threshold": 0.35,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.65,
+      "transient_threshold": 0.4,
+      "distribution": {
+        "sustained": 36,
+        "transient": 2,
+        "flat": 15
+      },
+      "changes_from_default": 0,
+      "pct_stable": 100.0
+    },
+    {
+      "sustained_threshold": 0.7,
+      "transient_threshold": 0.2,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "changes_from_default": 3,
+      "pct_stable": 94.3
+    },
+    {
+      "sustained_threshold": 0.7,
+      "transient_threshold": 0.25,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "changes_from_default": 3,
+      "pct_stable": 94.3
+    },
+    {
+      "sustained_threshold": 0.7,
+      "transient_threshold": 0.3,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "changes_from_default": 3,
+      "pct_stable": 94.3
+    },
+    {
+      "sustained_threshold": 0.7,
+      "transient_threshold": 0.35,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "changes_from_default": 3,
+      "pct_stable": 94.3
+    },
+    {
+      "sustained_threshold": 0.7,
+      "transient_threshold": 0.4,
+      "distribution": {
+        "sustained": 33,
+        "transient": 5,
+        "flat": 15
+      },
+      "changes_from_default": 3,
+      "pct_stable": 94.3
+    }
+  ],
+  "forgetting_sweep": "no_data",
+  "robustness_summary": {
+    "curves_stable_at_pm10_sustained": 50,
+    "pct_stable_at_pm10_sustained": 94.3,
+    "total_curves": 53
+  }
+}

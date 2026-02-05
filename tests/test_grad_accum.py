@@ -1,4 +1,6 @@
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
 
 from agent_stable_slo.utils.dist import rank_world, seed_with_rank
 

@@ -1,0 +1,4 @@
+size_range sustained transient flat
+"large (8B+)" 16 2 3
+"medium (4-7B)" 14 3 7
+"small (<=3B)" 11 2 5

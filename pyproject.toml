@@ -11,12 +11,31 @@ authors = [{name="Mike Maloney", email="mikey.maloney@gmail.com"}]
 license = {text = "MIT"}
 requires-python = ">=3.12"
 dependencies = ["jsonschema>=4.21.1"]
+keywords = ["llm", "agents", "slo", "structured-output", "reinforcement-learning", "grpo", "benchmark"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/agentops-ai/agentops-fw"
+Repository = "https://github.com/agentops-ai/agentops-fw"
+Issues = "https://github.com/agentops-ai/agentops-fw/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4", "ruff>=0.6.8", "black>=24.10.0", "wandb>=0.17.0", "pandas>=2.2"]
+train = ["torch>=2.1", "transformers>=4.40", "peft>=0.10", "datasets>=2.18", "numpy>=1.26"]
+eval = ["openai>=1.12", "numpy>=1.26", "pandas>=2.2"]
+logging = ["wandb>=0.17.0", "weave>=0.51", "wandb-workspaces>=0.1.0"]
+dev = ["pytest>=7.4", "ruff>=0.6.8", "black>=24.10.0"]
+all = ["agentops-fw[train,eval,logging,dev]"]
 
 [project.scripts]
 agentops = "agentops_fw.cli:main"
+agentslo-bench = "agent_stable_slo.bench.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["agent_stable_slo*", "agentops_fw*"]

@@ -200,7 +200,7 @@ def test_training_step(
                     import psutil
                     mem = psutil.virtual_memory()
                     results['memory_usage'].append(mem.used / (1024**3))
-                except:
+                except Exception:
                     pass
             elif device == 'cuda':
                 results['memory_usage'].append(torch.cuda.memory_allocated() / (1024**3))

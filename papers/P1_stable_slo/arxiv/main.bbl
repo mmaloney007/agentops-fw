@@ -39,12 +39,12 @@ Jeffrey Dean and Luiz~Andr{\'e} Barroso.
 Shahul Es et~al.
 \newblock Ragas: Automated evaluation of retrieval augmented generation, 2023.
 
-\bibitem[Geng et~al.(2025)Geng, Antoniak, Wang, Han, Haddow, and
-  Birch]{geng2025jsonschemabench}
-Saibo Geng, Maria Antoniak, Haoyu Wang, Qian Han, Barry Haddow, and Alexandra
-  Birch.
-\newblock Jsonschemabench: A comprehensive benchmark for structured json
-  generation, 2025.
+\bibitem[Geng et~al.(2025)Geng, Cooper, Moskal, Jenkins, Berman, Ranchin, West,
+  Horvitz, and Nori]{geng2025jsonschemabench}
+Saibo Geng, Hudson Cooper, Micha{\l} Moskal, Samuel Jenkins, Julian Berman,
+  Nathan Ranchin, Robert West, Eric Horvitz, and Harsha Nori.
+\newblock {JSONSchemaBench}: A rigorous benchmark of structured outputs for
+  language models, 2025.
 
 \bibitem[{Gorilla Team, UC Berkeley}(2024)]{berkeley2024bfcl}
 {Gorilla Team, UC Berkeley}.
@@ -107,7 +107,7 @@ Sewon Min, Kalpesh Krishna, Xinxi Lyu, Hanlin Wang, Wen-tau Yih, Yejin Choi,
 \newblock
   \url{https://openai.com/index/introducing-structured-outputs-in-the-api/},
   2024.
-\newblock Accessed: 2025-12-22.
+\newblock Accessed: 2025-01-18.
 
 \bibitem[{OpenAI}(2025)]{openai2025gpt5}
 {OpenAI}.

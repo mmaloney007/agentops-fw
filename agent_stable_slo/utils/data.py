@@ -94,5 +94,6 @@ def cache_dataset(tasks_path: str, cache_dir: str) -> Tuple[str, DatasetFingerpr
 
 
 def load_jsonl_dataset(path: str) -> Dataset:
-    rows = [json.loads(x) for x in open(path, "r", encoding="utf-8") if x.strip()]
+    with open(path, "r", encoding="utf-8") as f:
+        rows = [json.loads(x) for x in f if x.strip()]
     return Dataset.from_list(rows)

@@ -1,0 +1,95 @@
+\begin{thebibliography}{15}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[{Akamai Technologies}(2017)]{akamai2017performance}
+{Akamai Technologies}.
+\newblock Akamai online retail performance report: Milliseconds are critical,
+  2017.
+\newblock 53\% of mobile users abandon pages taking longer than 3 seconds.
+
+\bibitem[Chiang et~al.(2024)]{chiang2024chatbot}
+Wei-Lin Chiang et~al.
+\newblock Chatbot arena: An open platform for evaluating {LLMs} by human
+  preference, 2024.
+
+\bibitem[Dean and Barroso(2013)]{dean2013tail}
+Jeffrey Dean and Luiz~Andr{\'e} Barroso.
+\newblock The tail at scale.
+\newblock \emph{Communications of the ACM}, 56\penalty0 (2):\penalty0 74--80,
+  2013.
+\newblock \doi{10.1145/2408776.2408794}.
+
+\bibitem[Geng et~al.(2025)Geng, Cooper, Moskal, Jenkins, Berman, Ranchin, West,
+  Horvitz, and Nori]{geng2025jsonschemabench}
+Saibo Geng, Hudson Cooper, Micha{\l} Moskal, Samuel Jenkins, Julian Berman,
+  Nathan Ranchin, Robert West, Eric Horvitz, and Harsha Nori.
+\newblock {JSONSchemaBench}: A rigorous benchmark of structured outputs for
+  language models, 2025.
+
+\bibitem[Gerganov and contributors(2024)]{llamaCppGrammar}
+Georgi Gerganov and contributors.
+\newblock llama.cpp grammar-based sampling, 2024.
+\newblock \url{https://github.com/ggerganov/llama.cpp}.
+
+\bibitem[Hendrycks et~al.(2021)Hendrycks, Burns, Basart, Zou, Mazeika, Song,
+  and Steinhardt]{hendrycks2021mmlu}
+Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas Mazeika, Dawn
+  Song, and Jacob Steinhardt.
+\newblock Measuring massive multitask language understanding, 2021.
+
+\bibitem[Larson et~al.(2019)]{larson2019clinc}
+Stefan Larson et~al.
+\newblock An evaluation dataset for intent classification and out-of-scope
+  prediction.
+\newblock In \emph{Proceedings of EMNLP-IJCNLP}, 2019.
+
+\bibitem[Liang et~al.(2023)]{liang2023helm}
+Percy Liang et~al.
+\newblock {HELM}: Holistic evaluation of language models, 2023.
+
+\bibitem[Maloney(2025{\natexlab{a}})]{maloney2025capacity}
+Michael Maloney.
+\newblock Capacity thresholds in schema-aware training: Why small models can't
+  close the deployment gap.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{a}}.
+\newblock Paper~II of this series.
+
+\bibitem[Maloney(2025{\natexlab{b}})]{maloney2025deploymentgap}
+Michael Maloney.
+\newblock The deployment gap: Why benchmark accuracy fails to predict
+  production readiness.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{b}}.
+\newblock Paper~I of this series. Documents the disconnect between accuracy and
+  SLO compliance across 13 models.
+
+\bibitem[{NVIDIA}(2025)]{nvidia2025slm}
+{NVIDIA}.
+\newblock Small language models for enterprise inference, 2025.
+\newblock NVIDIA Technical Blog. Recommends latency-aware model selection for
+  SLM deployment.
+
+\bibitem[Patil et~al.(2023)Patil, Zhang, Wang, and Gonzalez]{patil2023gorilla}
+Shishir~G. Patil, Tianjun Zhang, Xin Wang, and Joseph~E. Gonzalez.
+\newblock Gorilla: Large language model connected with massive {APIs}, 2023.
+
+\bibitem[Reddi et~al.(2020)]{reddi2020mlperf}
+Vijay~Janapa Reddi et~al.
+\newblock {MLPerf} inference benchmark.
+\newblock In \emph{Proceedings of the ACM/IEEE International Symposium on
+  Computer Architecture}, 2020.
+
+\bibitem[Willard and Louf(2023)]{willard2023outlines}
+Brandon~T. Willard and R{\'e}mi Louf.
+\newblock Efficient guided generation for large language models, 2023.
+
+\bibitem[Yang et~al.(2018)]{yang2018hotpotqa}
+Zhilin Yang et~al.
+\newblock {HotpotQA}: A dataset for diverse, explainable multi-hop question
+  answering.
+\newblock In \emph{Proceedings of EMNLP}, 2018.
+
+\end{thebibliography}

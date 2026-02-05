@@ -1,0 +1,14 @@
+# Accuracy_rank S_at_SLO_rank Accuracy S_at_SLO Size_B Size_Range Model
+12.0 10.5 66.4 0.0 7.0 medium falcon-mamba-7b
+1.0 10.5 82.2 0.0 9.0 large gemma-2-9b
+10.0 10.5 72.4 0.0 12.0 large gemma-3-12b
+7.0 10.5 75.8 0.0 20.0 large gpt-oss-20b
+3.0 7.0 80.7 4.0 8.0 large llama-3.1-8b
+13.0 1.0 63.5 47.4 1.0 small llama-3.2-1b
+6.0 3.0 77.0 40.8 3.0 small llama-3.2-3b
+2.0 6.0 81.8 7.2 8.0 large ministral-8b
+5.0 10.5 78.3 0.0 7.0 medium mistral-7b
+11.0 4.0 70.9 25.6 3.8 medium phi-3-mini
+9.0 2.0 75.0 42.6 3.0 small qwen2.5-3b
+4.0 5.0 80.2 14.1 4.0 medium qwen3-4b
+8.0 10.5 75.5 0.0 6.0 medium yi-1.5-6b

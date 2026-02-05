@@ -1,0 +1,236 @@
+{
+  "matrix": [
+    {
+      "model": "llama-3.2-1b",
+      "size_b": 1.0,
+      "mixed_validity": 0.22,
+      "single_avg_validity": 0.588,
+      "interference_delta": -0.368,
+      "profile": "catastrophic",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.9533,
+        "T3": 0.0,
+        "T4": 0.9867,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 0.9533,
+        "T3": 0.0,
+        "T4": 0.9867,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "llama-3.2-3b",
+      "size_b": 3.0,
+      "mixed_validity": 0.2267,
+      "single_avg_validity": 0.5987,
+      "interference_delta": -0.372,
+      "profile": "catastrophic",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.9933,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 0.9933,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "qwen2.5-3b",
+      "size_b": 3.0,
+      "mixed_validity": 0.76,
+      "single_avg_validity": 0.7333,
+      "interference_delta": 0.0267,
+      "profile": "robust",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 0.6667,
+        "T4": 1.0,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 0.6667,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "phi-3-mini",
+      "size_b": 3.8,
+      "mixed_validity": 0.74,
+      "single_avg_validity": 0.4,
+      "interference_delta": 0.34,
+      "profile": "robust",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.0,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 0.0,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "qwen3-4b",
+      "size_b": 4.0,
+      "mixed_validity": 0.9,
+      "single_avg_validity": 0.896,
+      "interference_delta": 0.004,
+      "profile": "robust",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.9867,
+        "T3": 1.0,
+        "T4": 1.0,
+        "T5": 0.4933
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 0.9867,
+        "T3": 1.0,
+        "T4": 1.0,
+        "T5": 0.4933
+      }
+    },
+    {
+      "model": "yi-1.5-6b",
+      "size_b": 6.0,
+      "mixed_validity": 0.0,
+      "single_avg_validity": 0.592,
+      "interference_delta": -0.592,
+      "profile": "catastrophic",
+      "per_task_single": {
+        "T1": 0.98,
+        "T2": 0.9867,
+        "T3": 0.0,
+        "T4": 0.9933,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 0.98,
+        "T2": 0.9867,
+        "T3": 0.0,
+        "T4": 0.9933,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "mistral-7b-v0.3",
+      "size_b": 7.0,
+      "mixed_validity": 0.1467,
+      "single_avg_validity": 0.5307,
+      "interference_delta": -0.384,
+      "profile": "catastrophic",
+      "per_task_single": {
+        "T1": 0.9933,
+        "T2": 0.6667,
+        "T3": 0.0,
+        "T4": 0.9933,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 0.9933,
+        "T2": 0.6667,
+        "T3": 0.0,
+        "T4": 0.9933,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "ministral-8b",
+      "size_b": 8.0,
+      "mixed_validity": 0.7333,
+      "single_avg_validity": 0.7293,
+      "interference_delta": 0.004,
+      "profile": "robust",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 0.98,
+        "T3": 0.6667,
+        "T4": 1.0,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 0.98,
+        "T3": 0.6667,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "llama-3.1-8b",
+      "size_b": 8.0,
+      "mixed_validity": 0.4533,
+      "single_avg_validity": 0.6,
+      "interference_delta": -0.1467,
+      "profile": "selective",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 0.0,
+        "T4": 1.0,
+        "T5": 0.0
+      }
+    },
+    {
+      "model": "gemma-2-9b",
+      "size_b": 9.0,
+      "mixed_validity": 0.82,
+      "single_avg_validity": 0.888,
+      "interference_delta": -0.068,
+      "profile": "selective",
+      "per_task_single": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 1.0,
+        "T4": 1.0,
+        "T5": 0.44
+      },
+      "task_deltas": {
+        "T1": 1.0,
+        "T2": 1.0,
+        "T3": 1.0,
+        "T4": 1.0,
+        "T5": 0.44
+      }
+    }
+  ],
+  "summary": {
+    "n_models": 10,
+    "robust": 4,
+    "selective": 2,
+    "catastrophic": 4,
+    "worst_forgetter": "yi-1.5-6b",
+    "best_retainer": "qwen3-4b"
+  },
+  "thresholds": {
+    "robust": -0.05,
+    "selective": -0.3
+  }
+}
