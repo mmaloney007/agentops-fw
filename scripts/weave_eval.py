@@ -58,9 +58,9 @@ def find_prediction_files(pred_dir: Path) -> dict[str, Path]:
 
 def evaluate_model(model_name: str, predictions_path: Path) -> dict:
     """Evaluate a single model's predictions through Weave."""
-    print(f"  Loading predictions from {predictions_path}")
+    print(f"  Loading predictions from {predictions_path}", flush=True)
     dataset = create_dataset_from_predictions(predictions_path, name=model_name)
-    print(f"  Created dataset with {len(dataset.rows)} rows")
+    print(f"  Created dataset with {len(dataset.rows)} rows", flush=True)
 
     scorers = [
         SLOScorer(tier_ms=TIERS["interactive_2s"]),
@@ -70,14 +70,14 @@ def evaluate_model(model_name: str, predictions_path: Path) -> dict:
         AccuracyScorer(),
     ]
 
-    print(f"  Running evaluation with {len(scorers)} scorers...")
+    print(f"  Running evaluation with {len(scorers)} scorers...", flush=True)
     results = run_retroactive_eval(
         dataset=dataset,
         scorers=scorers,
         model_name=model_name,
     )
 
-    print(f"  Done: {model_name}")
+    print(f"  Done: {model_name}", flush=True)
     return results
 
 
@@ -106,21 +106,21 @@ def main() -> None:
     args = parser.parse_args()
 
     # Initialize Weave
-    print(f"Initializing Weave project: {args.project}")
+    print(f"Initializing Weave project: {args.project}", flush=True)
     if not init_weave(args.project):
-        print("ERROR: Failed to initialize Weave. Check:")
-        print("  - weave is installed: pip install 'weave>=0.51'")
-        print("  - WANDB_API_KEY is set in environment")
+        print("ERROR: Failed to initialize Weave. Check:", flush=True)
+        print("  - weave is installed: pip install 'weave>=0.51'", flush=True)
+        print("  - WANDB_API_KEY is set in environment", flush=True)
         sys.exit(1)
 
     # Find predictions
     pred_files = find_prediction_files(args.pred_dir)
     if not pred_files:
-        print(f"No prediction files found in {args.pred_dir}")
-        print("Expected structure: {pred_dir}/<run_dir>/<model>/predictions.jsonl")
+        print(f"No prediction files found in {args.pred_dir}", flush=True)
+        print("Expected structure: {pred_dir}/<run_dir>/<model>/predictions.jsonl", flush=True)
         sys.exit(1)
 
-    print(f"Found {len(pred_files)} model(s): {', '.join(sorted(pred_files.keys()))}")
+    print(f"Found {len(pred_files)} model(s): {', '.join(sorted(pred_files.keys()))}", flush=True)
 
     # Select models
     if args.model:
@@ -142,19 +142,25 @@ def main() -> None:
 
     # Evaluate
     all_results = {}
-    for name, path in sorted(target.items()):
-        print(f"\nEvaluating: {name}")
+    for i, (name, path) in enumerate(sorted(target.items()), 1):
+        print(f"\n[{i}/{len(target)}] Evaluating: {name}", flush=True)
         try:
             results = evaluate_model(name, path)
             all_results[name] = results
+            print(f"  [{i}/{len(target)}] SUCCESS: {name}", flush=True)
         except Exception as e:
-            print(f"  ERROR: {e}")
+            print(f"  [{i}/{len(target)}] ERROR ({name}): {e}", flush=True)
             continue
 
     # Summary
-    print(f"\n{'=' * 60}")
-    print(f"Completed {len(all_results)}/{len(target)} model evaluations")
-    print(f"View results at: https://wandb.ai/weave/{args.project}")
+    print(f"\n{'=' * 60}", flush=True)
+    print(f"Completed {len(all_results)}/{len(target)} model evaluations", flush=True)
+    for name in sorted(all_results.keys()):
+        print(f"  OK: {name}", flush=True)
+    failed = set(target.keys()) - set(all_results.keys())
+    for name in sorted(failed):
+        print(f"  FAIL: {name}", flush=True)
+    print(f"View results at: https://wandb.ai/weave/{args.project}", flush=True)
 
 
 if __name__ == "__main__":

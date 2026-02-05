@@ -60,13 +60,14 @@ if _weave_available():
         @weave.op()
         def score(self, output: Any) -> dict:
             # output is the full prediction row from passthrough_model
+            # Return floats (1.0/0.0) instead of bools for numpy aggregation compatibility
             if isinstance(output, dict):
-                on_time = output.get("latency_ms", float("inf")) <= self.tier_ms
-                correct = output.get("task_correct", False)
-                json_valid = output.get("json_valid", False)
+                on_time = float(output.get("latency_ms", float("inf")) <= self.tier_ms)
+                correct = float(bool(output.get("task_correct", False)))
+                json_valid = float(bool(output.get("json_valid", False)))
             else:
-                on_time, correct, json_valid = False, False, False
-            success = on_time and correct and json_valid
+                on_time, correct, json_valid = 0.0, 0.0, 0.0
+            success = float(on_time and correct and json_valid)
             return {
                 "success_at_slo": success,
                 "on_time": on_time,
@@ -80,8 +81,8 @@ if _weave_available():
         @weave.op()
         def score(self, output: Any) -> dict:
             if isinstance(output, dict):
-                return {"json_valid": output.get("json_valid", False)}
-            return {"json_valid": False}
+                return {"json_valid": float(bool(output.get("json_valid", False)))}
+            return {"json_valid": 0.0}
 
     class AccuracyScorer(weave.Scorer):
         """Task-specific accuracy (field accuracy, function match, etc.)."""
@@ -89,8 +90,8 @@ if _weave_available():
         @weave.op()
         def score(self, output: Any) -> dict:
             if isinstance(output, dict):
-                return {"task_correct": output.get("task_correct", False)}
-            return {"task_correct": False}
+                return {"task_correct": float(bool(output.get("task_correct", False)))}
+            return {"task_correct": 0.0}
 
 else:
     # Stub classes when weave is not installed
@@ -208,14 +209,17 @@ def run_retroactive_eval(
     import asyncio
     import weave
 
+    # Fields the scorers actually read
+    _SCORER_KEYS = {"latency_ms", "task_correct", "json_valid"}
+
     @weave.op()
     def passthrough_model(row: dict) -> dict:
         """Identity model — predictions are already computed.
 
-        Receives the full prediction row (wrapped in 'row' column by dataset)
-        and returns it directly for scorers to process.
+        Returns only the fields scorers need. Filtering prevents Weave's
+        numpy aggregation from choking on mixed-type non-scorer fields.
         """
-        return row
+        return {k: row[k] for k in _SCORER_KEYS if k in row}
 
     evaluation = weave.Evaluation(
         dataset=dataset,
@@ -228,10 +232,11 @@ def run_retroactive_eval(
         results = loop.run_until_complete(evaluation.evaluate(passthrough_model))
     except Exception as e:
         # Weave 0.52 has a numpy aggregation bug with large datasets
-        # Return partial results if available
+        # where dtype resolution fails on string scorer outputs.
+        # Individual rows are scored; only the summary aggregation fails.
         error_msg = str(e)
-        if "ufunc 'add'" in error_msg:
-            print(f"  Note: Weave aggregation completed but summary failed (numpy bug). Check Weave UI for results.")
+        if "add.reduce" in error_msg or "ufunc 'add'" in error_msg or "resolved dtypes" in error_msg or "inhomogeneous shape" in error_msg:
+            print(f"  Note: Rows scored but summary aggregation failed (numpy dtype bug). Check Weave UI for per-row results.", flush=True)
             results = {"error": "aggregation_failed", "message": error_msg}
         else:
             raise
