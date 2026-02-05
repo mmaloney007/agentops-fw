@@ -4,6 +4,10 @@ Usage:
     agentslo-bench baseline     Print built-in 13-model P1 results
     agentslo-bench leaderboard  Generate rankings from result files
     agentslo-bench run          Evaluate an endpoint against benchmark tasks
+
+Examples:
+    agentslo-bench run --model lmstudio:qwen2.5-3b-instruct --tier interactive
+    agentslo-bench run --endpoint http://localhost:1234/v1 --model my-model --tier batch
 """
 from __future__ import annotations
 
@@ -205,11 +209,30 @@ def _run_live_eval(
     return results
 
 
+def _resolve_model_endpoint(args: argparse.Namespace) -> None:
+    """Expand 'lmstudio:model-name' into endpoint + model fields in-place."""
+    if args.model.startswith("lmstudio:"):
+        model_name = args.model[len("lmstudio:"):]
+        args.endpoint = "http://localhost:1234/v1"
+        args.model = model_name
+
+
+def _get_display_tiers(tier_arg: str) -> list:
+    """Return the list of SLOTier objects to display based on --tier value."""
+    if tier_arg == "all":
+        return list(TIERS)
+    return [TIER_MAP[tier_arg]]
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     """Run live evaluation against an LM Studio or OpenAI-compatible endpoint."""
+    _resolve_model_endpoint(args)
+    display_tiers = _get_display_tiers(args.tier)
+
     print(f"AgentSLO-Bench Live Evaluation")
     print(f"  Endpoint: {args.endpoint}")
     print(f"  Model: {args.model}")
+    print(f"  Tier: {args.tier}")
     print(f"  Tasks: {args.tasks}")
     print(f"  Samples per task: {args.samples}")
     print()
@@ -234,18 +257,18 @@ def cmd_run(args: argparse.Namespace) -> None:
             task_results=task_results,
         ))
 
-        # Print per-tier results
-        for tier in TIERS:
+        # Print per-tier results (filtered by --tier)
+        for tier in display_tiers:
             tr = tier_results[tier.name]
             print(f"  {tier.name.title():12} ({tier.deadline_ms/1000:.0f}s): "
                   f"S@SLO={tr.success_at_slo_pct:.1f}% "
                   f"(Acc={tr.accuracy_pct:.1f}%, OnTime={tr.on_time_pct:.1f}%)")
         print()
 
-    # Summary
+    # Summary (filtered by --tier)
     if all_results:
         print("=== Summary ===")
-        for tier in TIERS:
+        for tier in display_tiers:
             total_count = 0
             total_slo = 0
             for br in all_results:
@@ -280,9 +303,13 @@ def main() -> None:
     # run
     p_run = sub.add_parser("run", help="Evaluate an endpoint against benchmark tasks")
     p_run.add_argument("--endpoint", default="http://localhost:1234/v1",
-                       help="OpenAI-compatible API endpoint")
+                       help="OpenAI-compatible API endpoint (overridden by lmstudio: prefix in --model)")
     p_run.add_argument("--model", default="local-model",
-                       help="Model name to use in API calls")
+                       help="Model name for API calls. Use 'lmstudio:model-name' to auto-set "
+                            "endpoint to http://localhost:1234/v1 and extract model name")
+    p_run.add_argument("--tier", choices=["interactive", "standard", "batch", "all"],
+                       default="all",
+                       help="SLO tier to evaluate (default: all)")
     p_run.add_argument("--tasks", nargs="+", default=["T1", "T2", "T3"],
                        help="Task IDs to evaluate (T1, T2, T3, T4, T5)")
     p_run.add_argument("--samples", type=int, default=10,

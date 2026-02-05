@@ -26,11 +26,9 @@ def init_weave(project: str) -> bool:
     """Initialize Weave for a project.
 
     Returns True if weave is available and initialized, False otherwise.
-    Requires WANDB_API_KEY in the environment (Weave uses W&B auth).
+    Accepts auth via WANDB_API_KEY env var or ~/.netrc (wandb login).
     """
     if not _weave_available():
-        return False
-    if not os.getenv("WANDB_API_KEY"):
         return False
     try:
         import weave
