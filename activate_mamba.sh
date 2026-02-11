@@ -1,6 +1,5 @@
-
 #!/usr/bin/env bash
-# Usage: source scripts/activate_mamba.sh [base|agent-slo]
+# Usage: source ./activate_mamba.sh [base|agent-slo]
 # Default is "agent-slo" if it exists, otherwise "base".
 set -e
 

@@ -16,11 +16,10 @@ Usage:
 """
 
 import argparse
-import json
 import sys
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -88,7 +87,7 @@ def test_model_loading(model_id: str, device: str) -> Tuple[bool, dict]:
     results = {}
 
     try:
-        print(f"        Loading tokenizer...")
+        print("        Loading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
@@ -112,7 +111,7 @@ def test_model_loading(model_id: str, device: str) -> Tuple[bool, dict]:
         results['load_time'] = time.time() - start
 
         # Attach LoRA
-        print(f"        Attaching LoRA adapter...")
+        print("        Attaching LoRA adapter...")
         lora_config = LoraConfig(
             r=16,
             lora_alpha=32,
@@ -283,7 +282,7 @@ def main():
     mem_gb = env_results.get('memory_gb')
     mem_str = f"{mem_gb:.1f}GB available" if mem_gb else "unknown"
     print_status(
-        f"Memory >= 32GB",
+        "Memory >= 32GB",
         env_results.get('memory_ok', True),
         mem_str
     )
@@ -388,7 +387,7 @@ def main():
     total_examples = 500
     epochs_for_500_steps = 500 / total_examples
 
-    print(f"\n  With balanced T1-T5 dataset (100 examples/task = 500 total):")
+    print("\n  With balanced T1-T5 dataset (100 examples/task = 500 total):")
     print(f"  - 500 steps = {epochs_for_500_steps:.1f} epochs over dataset")
     print(f"  - For 3 epochs coverage: {total_examples * 3} steps recommended")
     print()
@@ -400,7 +399,7 @@ def main():
     gemma_1500 = gemma_step * 1500 / 3600
     gemma_full = gemma_1500 * 3  # 3 seeds
 
-    print(f"  Gemma-3-12B (largest model) estimates:")
+    print("  Gemma-3-12B (largest model) estimates:")
     print(f"    - 500 steps × 1 seed:  {gemma_500:.1f}h")
     print(f"    - 1500 steps × 1 seed: {gemma_1500:.1f}h")
     print(f"    - 1500 steps × 3 seeds: {gemma_full:.1f}h ({gemma_full/24:.1f} days)")

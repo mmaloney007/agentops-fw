@@ -233,7 +233,7 @@ def run_retroactive_eval(
         # Return partial results if available
         error_msg = str(e)
         if "ufunc 'add'" in error_msg:
-            print(f"  Note: Weave aggregation completed but summary failed (numpy bug). Check Weave UI for results.")
+            print("  Note: Weave aggregation completed but summary failed (numpy bug). Check Weave UI for results.")
             results = {"error": "aggregation_failed", "message": error_msg}
         else:
             raise

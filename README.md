@@ -27,9 +27,22 @@ Papers are in `papers/P1_stable_slo/arxiv/` and `papers/P2_reward_stability/arxi
 ## Quick Start
 
 ```bash
-# Setup
-python -m venv .venv && source .venv/activate
-pip install -r requirements.txt
+# Preferred setup (mamba/micromamba)
+micromamba create -f environment.yml -y
+source ./activate_mamba.sh agent-slo
+
+# Install torch for your platform
+# macOS (CPU/MPS):
+pip install torch==2.4.1
+# Ubuntu + CUDA 12.1:
+# pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio
+
+# Install dev tooling (ruff/pytest/black)
+pip install -r requirements-dev.txt
+
+# Alternative setup (venv + pip)
+# python -m venv .venv && source .venv/bin/activate
+# pip install -r requirements.txt -r requirements-dev.txt
 
 # Run evaluation (requires LM Studio with model loaded)
 python scripts/run_p1_comprehensive.py

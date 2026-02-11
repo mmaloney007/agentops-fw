@@ -47,7 +47,7 @@ def analyze():
         task_deltas = {}
         for task in tasks:
             single = per_task.get(task, 0.0)
-            mixed = m["mixed_validity"]
+            m["mixed_validity"]
             # Task-specific interference: how much does mixed hurt this task?
             task_deltas[task] = round(single, 4)
 

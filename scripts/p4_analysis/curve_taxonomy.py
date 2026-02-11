@@ -9,7 +9,6 @@ Output: results/p4_analysis/curve_taxonomy.json
         results/curves/pgfplots/p4_curves.dat
 """
 import json
-import math
 from pathlib import Path
 from collections import defaultdict
 

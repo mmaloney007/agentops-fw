@@ -10,6 +10,7 @@ enabling side-by-side comparison via the Weave UI with:
 Usage:
     python scripts/reports/weave_model_comparison.py [--project agentslo-bench] [--all]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -20,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-from agent_stable_slo.logging.weave_integration import (
+from agent_stable_slo.logging.weave_integration import (  # noqa: E402
     AccuracyScorer,
     JSONValidityScorer,
     SLOScorer,
@@ -59,8 +60,6 @@ def create_comparison(project: str, pred_dir: Path) -> None:
     if not _weave_available():
         print("ERROR: weave not installed. pip install 'weave>=0.51'")
         sys.exit(1)
-
-    import weave
 
     print(f"Initializing Weave project: {project}")
     if not init_weave(project):
@@ -121,9 +120,10 @@ def _run_with_predictions(pred_files: dict[str, Path]) -> None:
         )
 
         import asyncio
+
         loop = asyncio.new_event_loop()
         try:
-            results = loop.run_until_complete(evaluation.evaluate(passthrough))
+            loop.run_until_complete(evaluation.evaluate(passthrough))
             print(f"  Evaluation complete: {model_name}")
         except Exception as e:
             print(f"  ERROR evaluating {model_name}: {e}")
@@ -143,17 +143,19 @@ def _run_from_summary(tier_data: dict) -> None:
     rows = []
     for model_name, info in sorted(models.items()):
         agg = info["aggregate"]
-        rows.append({
-            "model": model_name,
-            "accuracy": round(agg["accuracy"] * 100, 1),
-            "s_at_slo_2s": round(agg.get("s_at_slo_interactive", 0) * 100, 1),
-            "s_at_slo_5s": round(agg.get("s_at_slo_standard", 0) * 100, 1),
-            "s_at_slo_30s": round(agg.get("s_at_slo_batch", 0) * 100, 1),
-            "avg_latency_ms": round(agg["avg_latency_ms"]),
-            "p95_latency_ms": round(agg["p95_latency_ms"]),
-        })
+        rows.append(
+            {
+                "model": model_name,
+                "accuracy": round(agg["accuracy"] * 100, 1),
+                "s_at_slo_2s": round(agg.get("s_at_slo_interactive", 0) * 100, 1),
+                "s_at_slo_5s": round(agg.get("s_at_slo_standard", 0) * 100, 1),
+                "s_at_slo_30s": round(agg.get("s_at_slo_batch", 0) * 100, 1),
+                "avg_latency_ms": round(agg["avg_latency_ms"]),
+                "p95_latency_ms": round(agg["p95_latency_ms"]),
+            }
+        )
 
-    dataset = weave.Dataset(name="agentslo-bench-13models", rows=rows)
+    weave.Dataset(name="agentslo-bench-13models", rows=rows)
     print(f"Created summary dataset with {len(rows)} models")
 
 

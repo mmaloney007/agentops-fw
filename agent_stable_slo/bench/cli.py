@@ -9,18 +9,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import sys
 import time
 from pathlib import Path
 
-from .slo_tiers import TIERS, TIER_MAP
+from .slo_tiers import TIERS
 from .leaderboard import load_p1_baseline, generate_leaderboard, format_markdown, format_latex
 from .benchmark_runner import (
     compute_from_p1_data,
     save_results,
     TaskResult,
-    TierResult,
     BenchmarkResult,
     compute_tier_results,
 )
@@ -77,7 +74,7 @@ def _load_task_samples(task_id: str, limit: int = 10) -> list[dict]:
         "T1": root / "tasks" / "clinc_en.jsonl",
         "T2": root / "tasks" / "hotpot_dev.jsonl",
         "T3": root / "tasks" / "fc_tasks.jsonl",
-        "T4": root / "tasks" / "fc_tasks.jsonl",
+        "T4": root / "tasks" / "t4_bfcl.jsonl",
         "T5": root / "tasks" / "public_humaneval.jsonl",
     }
     task_file = task_files.get(task_id)
@@ -133,6 +130,56 @@ def _extract_json(content: str) -> dict:
     return {}
 
 
+def _extract_gold_function_name(gold: dict) -> str | None:
+    """Extract expected function/tool name from heterogeneous gold formats."""
+    if not isinstance(gold, dict) or not gold:
+        return None
+    if "function_name" in gold:
+        return str(gold.get("function_name"))
+    if "name" in gold:
+        return str(gold.get("name"))
+    if len(gold) == 1:
+        return str(next(iter(gold.keys())))
+    return None
+
+
+def _compute_task_correct(
+    task_id: str,
+    gold: dict,
+    output: dict,
+    json_valid: bool,
+) -> bool:
+    """Task-aware correctness check for live benchmark runs.
+
+    Conservative by design: if no comparable gold signal is available, returns False.
+    """
+    if not json_valid or not isinstance(output, dict):
+        return False
+    if not isinstance(gold, dict) or not gold:
+        return False
+
+    if task_id == "T1":
+        expected_intent = gold.get("intent")
+        return expected_intent is not None and str(output.get("intent")) == str(
+            expected_intent
+        )
+
+    if task_id in {"T3", "T4"}:
+        gold_name = _extract_gold_function_name(gold)
+        if not gold_name:
+            return False
+        pred_name = output.get("function_name", output.get("name", output.get("tool")))
+        return str(pred_name) == str(gold_name)
+
+    if task_id == "T2" and "answer" in gold:
+        return str(output.get("answer", "")).strip() == str(gold.get("answer")).strip()
+
+    comparable = [k for k, v in gold.items() if isinstance(v, (str, int, float, bool))]
+    if comparable:
+        return all(str(output.get(k, "")) == str(gold.get(k, "")) for k in comparable)
+    return False
+
+
 def _run_live_eval(
     endpoint: str,
     model: str,
@@ -169,19 +216,7 @@ def _run_live_eval(
 
             # Check correctness based on gold
             gold = sample.get("gold", sample.get("label", {}))
-            if isinstance(gold, dict) and isinstance(output, dict):
-                # Check if key fields match
-                if "intent" in gold:
-                    task_correct = json_valid and output.get("intent") == gold.get("intent")
-                elif "function_name" in gold or "name" in gold:
-                    gold_name = gold.get("function_name", gold.get("name", ""))
-                    pred_name = output.get("function_name", output.get("name", ""))
-                    task_correct = json_valid and pred_name == gold_name
-                else:
-                    # Generic: check if output has expected keys
-                    task_correct = json_valid and len(output) > 0
-            else:
-                task_correct = json_valid
+            task_correct = _compute_task_correct(task_id, gold, output, json_valid)
 
         except Exception as e:
             latency_ms = (time.time() - t0) * 1000
@@ -207,7 +242,7 @@ def _run_live_eval(
 
 def cmd_run(args: argparse.Namespace) -> None:
     """Run live evaluation against an LM Studio or OpenAI-compatible endpoint."""
-    print(f"AgentSLO-Bench Live Evaluation")
+    print("AgentSLO-Bench Live Evaluation")
     print(f"  Endpoint: {args.endpoint}")
     print(f"  Model: {args.model}")
     print(f"  Tasks: {args.tasks}")
@@ -271,7 +306,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command")
 
     # baseline
-    p_base = sub.add_parser("baseline", help="Print built-in 13-model P1 baseline results")
+    sub.add_parser("baseline", help="Print built-in 13-model P1 baseline results")
 
     # leaderboard
     p_lead = sub.add_parser("leaderboard", help="Generate leaderboard rankings")

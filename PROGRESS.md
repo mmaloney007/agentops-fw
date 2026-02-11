@@ -1,6 +1,6 @@
 # PROGRESS.md - Checkpoint Tracker
 
-**Last Updated**: 2026-02-04 20:00
+**Last Updated**: 2026-02-05 23:00
 
 ## P1 Evaluation Results (13 Models × 5 Task Types)
 
@@ -118,6 +118,91 @@ Implemented 6 critique recommendations:
 **6. Code updates**
 - `benchmark_runner.py`: added `compute_from_predictions()` for per-request S@SLO
 - `leaderboard.py`: added `bootstrap_spearman()` with 10K resamples, 95% CI, p-value
+
+---
+
+## P4 Revision for ICML (2026-02-05)
+
+### Problem Statement
+P4 first draft made causal claims from observational analysis. RQ4 proposed mechanisms with zero ablation evidence. Sections 9.3-9.4 described untested experiments as main-text contributions. Early predictor (RQ3+) validated only by LOO-CV on 63 points.
+
+### Completed Edits (tex changes)
+
+**1. RQ4 reframed as hypothesis, not finding**
+- Abstract: "reveals" → "proposes" + added observational caveat
+- Intro: "provides a mechanistic answer" → "proposes a mechanistic hypothesis grounded in observational evidence"
+- Section 8 title: "The Capacity Threshold Mechanism" → "Toward a Mechanistic Explanation"
+- All three mechanism subsections: "Mechanism N" → "Proposed Mechanism N" + added testable predictions
+- Compound threshold: marked as hypothesis, added "descriptive" caveat
+- Conclusion: rewritten to distinguish established patterns from proposed mechanisms
+
+**2. New Section 8.5: Required Ablation Experiments**
+- Added `\label{sec:ablation-plan}` section specifying three ablations:
+  - A1: λ sweep (0, 0.05, 0.1, 0.2) on 3 models × 3 seeds = 36 runs
+  - A2: Held-out family validation for early predictor
+  - A3: Expanded model families to test architecture-level clustering
+- Each ablation has explicit prediction (what confirms/rejects the mechanism)
+- References released scripts
+
+**3. Causal language tightened throughout**
+- "This explains the transient pattern" → "This is consistent with..."
+- "architecture determines" → "architecture appears to determine"
+- "phase transition" → "sharp bimodal separation" (3 instances)
+- "Qwen models are the first choice" → "strong candidates" + sample size caveat
+- T5 latency-brevity claim: added alternative explanations and pointer to ablation
+
+**4. Sections 9.3-9.4 collapsed**
+- Curriculum implications: 25 lines → 6 lines (hypothesis + future work pointer)
+- Reward weight sensitivity: 20 lines → 6 lines (conjecture + ablation pointer)
+
+**5. Table 1 fixes**
+- Caption: clarified R_r includes decomposition error from post-hoc approximation
+- Cost penalty formula: fixed /100 → /1000 to match actual code (`slo_reward.py`)
+
+### New Scripts Created
+
+**λ Ablation experiment:**
+- `scripts/p4_ablation/run_lambda_ablation.py` — orchestrates 36 training runs
+- `scripts/p4_ablation/README.md` — experiment design, predictions, interpretation guide
+- Supports: `--dry-run`, `--resume`, `--save-matrix`
+- Estimated compute: ~30 GPU-hours on RTX 4090
+
+**Held-out family validation:**
+- `scripts/p4_analysis/held_out_family_validation.py` — family-based cross-validation
+- Implements LOO-CV + LOFO-CV with pure Python logistic regression
+- Output: `results/p4_analysis/held_out_validation.json`
+
+### Remaining Before Submission
+
+**Tier 1 (blocking — requires GPU time):**
+- [ ] Run λ ablation: `python scripts/p4_ablation/run_lambda_ablation.py`
+  - 36 runs, ~30 GPU-hours
+  - Need LM Studio + RTX 4090
+  - Results go to `out/p4_ablation/`
+  - After runs complete: update Section 8 with actual results, convert "proposed" → "validated"
+
+**Tier 1 (blocking — zero compute):**
+- [ ] Run held-out validation: `python scripts/p4_analysis/held_out_family_validation.py`
+  - Uses existing data only
+  - Update Section 7 (RQ3+) with LOFO results
+  - If LOFO accuracy holds: strengthen claims. If collapses: add family-specific caveat.
+
+**Tier 2 (should do):**
+- [ ] Verify Table 1 R_r values against actual `results/p4_analysis/reward_decomposition.json`
+  - Check whether R_r > 1.0 is decomposition error or data issue
+  - If decomposition error: values are fine with the new caption caveat
+  - If data issue: recompute from p2_all_runs.csv
+
+**Tier 2 (should do):**
+- [ ] Recompile P4 PDF and verify no broken refs
+- [ ] Add λ ablation results to paper once runs complete
+
+**Tier 3 (nice to have):**
+- [ ] Expand model families (Ablation A3) — requires downloading new models
+- [ ] Per-step reward instrumentation — requires GRPO loop changes
+
+### Config Discrepancy Flag
+⚠️ `configs/grpo/4090_qwen3.yaml` has `lam_latency: 0.0` but paper states all training used λ=0.1. Verify which config was actually used for the P2 training runs. Check `out/p2_*/manifest.json` for the actual λ values. If λ=0.0 was used, the reward decomposition table needs recalculating.
 
 ---
 

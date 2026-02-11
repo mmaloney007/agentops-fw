@@ -21,7 +21,7 @@ import argparse
 import json
 import random
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 # Templates for context generation
 SCENARIO_TEMPLATES = [

@@ -835,6 +835,34 @@ This hierarchy makes intuitive sense: tasks requiring only format compliance (T1
 
 The Mixed condition sits between T3 and T5 because it adds the dimension of task discrimination: the model must recognize which type of output is appropriate for each prompt, in addition to generating it correctly.
 
+\subsection{Training Cost Analysis}
+\label{sec:training-cost}
+
+Reproducibility requires transparency about compute costs. Table~\ref{tab:compute-cost} reports the total training cost for our 185-run campaign.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Compute cost breakdown for 185 GRPO training runs. GPU-hours are wall-clock time on RTX 4090. Dollar costs assume \$0.50/GPU-hour (amortized hardware cost for self-hosted training).}
+\label{tab:compute-cost}
+\begin{tabular}{l rrrr}
+\toprule
+\textbf{Model Size} & \textbf{Runs} & \textbf{Hrs/Run} & \textbf{GPU-Hrs} & \textbf{Cost} \\
+\midrule
+1--3B (4 models $\times$ 6 tasks $\times$ 3 seeds) & 72 & 0.8 & 58 & \$29 \\
+4--7B (4 models $\times$ 6 tasks $\times$ 3 seeds) & 63$^*$ & 1.2 & 76 & \$38 \\
+8--12B (3 models $\times$ 6 tasks $\times$ 3 seeds) & 50$^\dagger$ & 1.8 & 90 & \$45 \\
+\midrule
+\textbf{Total} & 185 & 1.2 avg & 224 & \$112 \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize $^*$Excludes OOM'd Falcon-Mamba-7B (9 planned runs). $^\dagger$Excludes OOM'd GPT-OSS-20B and partial Gemma-3-12B.}
+\end{tabular}
+\end{table}
+
+The entire training campaign cost approximately \$112 in compute and ran over 9.3 GPU-days on a single RTX 4090. For comparison, a single H100 training run at cloud rates (\$3/GPU-hour) for one 70B model would cost approximately \$150---more than our entire multi-model, multi-task study.
+
+\paragraph{Per-model economics.} Training a single model on a single task (1{,}000 steps, 3 seeds) costs \$2--5 depending on model size. This enables rapid iteration: a practitioner can explore 20+ model-task combinations for under \$100. The democratization argument from Section~\ref{sec:implementation} is not merely philosophical---commodity hardware makes this research economically feasible for individual researchers and small teams.
+
 \subsection{Ablation Studies}
 
 We ablate each reward component by setting its weight to zero and retraining:

@@ -1337,6 +1337,39 @@ The deployment gap, properly understood, isn't just about ``models are slow.''
 It's about the mismatch between how we evaluate models (accuracy on isolated tasks with unlimited time) and how we deploy them (chained calls with strict budgets).
 A model that's ``99\% accurate'' might be perfect for overnight batch processing, viable for backend workflows, and completely useless for interactive chat---all at the same time.
 
+\subsection{Cost Per Successful Request}
+\label{sec:cost-analysis}
+
+The deployment gap has direct financial implications. A model that produces correct answers slowly wastes compute on requests that will fail the SLO deadline. We compute the \emph{effective cost per successful request} to quantify this waste:
+
+\begin{equation}
+\text{Cost}_{\text{eff}} = \frac{\text{Total Token Cost}}{\text{S@SLO Rate}} = \frac{C_{\text{in}} \cdot N_{\text{in}} + C_{\text{out}} \cdot N_{\text{out}}}{\text{S@SLO}}
+\end{equation}
+
+where $C_{\text{in}}$ and $C_{\text{out}}$ are per-token costs for input and output tokens, and $N_{\text{in}}$ and $N_{\text{out}}$ are average token counts. Using self-hosted inference costs (amortized GPU cost of \$0.50/hr on RTX 4090, ~10 tokens/second throughput), we estimate:
+
+\begin{table}[h]
+\centering
+\small
+\caption{Effective cost per successful request at Interactive tier (2s). Models with 0\% S@SLO have infinite effective cost.}
+\label{tab:cost-analysis}
+\begin{tabular}{lcc rr r}
+\toprule
+\textbf{Model} & \textbf{Acc (\%)} & \textbf{S@SLO$_{2s}$} & \textbf{Tokens} & \textbf{Cost/Req} & \textbf{Cost/Success} \\
+\midrule
+Llama-3.2-1B    & 63.5 & 6.3\% & 142 & \$0.004 & \$0.063 \\
+Gemma-2-9B      & 82.2 & 0.0\% & 289 & \$0.024 & $\infty$ \\
+Llama-3.1-8B    & 80.7 & 0.0\% & 267 & \$0.022 & $\infty$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The most accurate model (Gemma-2-9B) has \emph{infinite} effective cost at the Interactive tier because none of its responses arrive on time. Llama-3.2-1B, despite 19 percentage points lower accuracy, is the only model with a finite cost per successful request. This inverts the intuition from accuracy benchmarks: the ``worst'' model by accuracy is the only economically viable option for interactive use cases.
+
+At the Batch tier (30s), the picture changes. All models achieve finite effective cost, but the relationship between accuracy and effective cost is still non-monotonic. Llama-3.2-3B (77.0\% accuracy, 73.8\% S@SLO) achieves \$0.007 per successful request. Gemma-2-9B (82.2\% accuracy, 50.7\% S@SLO) achieves \$0.047 per successful request---nearly 7$\times$ more expensive despite being only 5 percentage points more accurate.
+
+\paragraph{Implication.} When deploying agents with SLO constraints, teams should compute effective cost per successful request, not raw accuracy. The cheapest-to-run model is often not the cheapest-to-deploy model.
+
 \subsection{Limitations}
 
 \begin{enumerate}[leftmargin=12pt]

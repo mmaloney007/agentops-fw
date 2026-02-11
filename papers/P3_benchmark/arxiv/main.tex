@@ -812,7 +812,45 @@ The practical recommendation is clear: evaluate at \emph{your} deployment tier, 
 The choice of SLO deadline is not arbitrary, but one might ask whether the near-zero correlations are artifacts of specific deadline choices. To test this, we computed Spearman $\rho$ at deadlines varying from 1s to 60s in 1-second increments. The correlation never exceeds $|\rho| \leq 0.17$ (the Interactive-tier value from Table~\ref{tab:spearman}) for any deadline below 10s, and even at 60s---a deadline so generous that it accommodates the p95 latency of all but two models---$\rho$ reaches only $+0.08$. The near-zero correlation is not an artifact of aggressive thresholds; it persists across the entire practical range.
 
 % =============================================================================
-% 6. DISCUSSION
+% 6. COMPARISON WITH EXISTING BENCHMARKS
+% =============================================================================
+\section{Comparison with Existing Benchmarks}
+
+AgentSLO-Bench occupies a distinct position in the agent evaluation landscape. Table~\ref{tab:benchmark-comparison} contrasts it with related benchmarks.
+
+\begin{table}[h]
+\centering
+\caption{Comparison of agent benchmarks. AgentSLO-Bench uniquely combines SLO constraints, per-request latency, and tiered evaluation.}
+\label{tab:benchmark-comparison}
+\small
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Benchmark} & \textbf{Latency?} & \textbf{SLO Tiers?} & \textbf{Per-Request?} & \textbf{Struct. Output?} & \textbf{Self-Hosted?} \\
+\midrule
+SWE-Bench~\cite{jimenez2024swebench} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
+GAIA~\cite{mialon2024gaia} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
+WebArena~\cite{zhou2024webarena} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
+BFCL~\cite{berkeley2024bfcl} & \ding{55} & \ding{55} & \ding{55} & \ding{51} & \ding{51} \\
+\midrule
+\textbf{AgentSLO-Bench} & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{51} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Key differentiators.}
+SWE-Bench, GAIA, and WebArena evaluate agent \emph{capability}---can the agent solve the task?---without measuring operational viability. BFCL adds structured function calling but ignores latency. AgentSLO-Bench is the first benchmark to measure deployment success under realistic operational constraints.
+
+The comparison is complementary, not competitive. A model that scores well on SWE-Bench but fails AgentSLO-Bench at the Standard tier (5s) is capable but not deployable for interactive use. Teams should evaluate on both: capability benchmarks to filter candidates, AgentSLO-Bench to rank deployability.
+
+\paragraph{Availability.}
+The benchmark toolkit, prompts, and baseline results are available at:
+\begin{center}
+\url{https://github.com/mmaloney007/agentops-fw}
+\end{center}
+A HuggingFace dataset card with the 3{,}300 prompts is forthcoming.
+
+% =============================================================================
+% 7. DISCUSSION
 % =============================================================================
 \section{Discussion}
 

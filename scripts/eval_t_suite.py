@@ -19,7 +19,7 @@ import statistics
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from jsonschema import Draft202012Validator, ValidationError
 

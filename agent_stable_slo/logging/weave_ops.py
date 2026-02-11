@@ -18,7 +18,6 @@ so existing code doesn't need modification.
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from functools import wraps
