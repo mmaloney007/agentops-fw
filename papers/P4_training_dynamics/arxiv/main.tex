@@ -48,7 +48,7 @@
 \title{Training Dynamics of Schema-Aware Reinforcement Learning\\for LLM Agents: Reward Decomposition, Forgetting, and\\Early Prediction}
 
 \author{
-Michael Maloney \\
+V. Michael Maloney \\
 Neuralift; University of New Hampshire \\
 \texttt{mike@neuralift.ai}
 }
@@ -57,6 +57,9 @@ Neuralift; University of New Hampshire \\
 
 \begin{document}
 \maketitle
+\begin{center}
+\textit{Preprint. Work in progress.}
+\end{center}
 
 % =============================================================================
 % ABSTRACT
@@ -395,7 +398,7 @@ Table~\ref{tab:forgetting} reveals that forgetting is \emph{not} a simple functi
 Yi-1.5-6B (6B) shows the worst forgetting ($\delta = -0.59$), collapsing from 59\% average single-task validity to 0\% mixed validity. Yet Qwen2.5-3B (3B)---half the size---shows \emph{positive} interference ($\delta = +0.03$), meaning multi-task training actually helps.
 
 \paragraph{Architecture families matter.}
-The Llama family (1B, 3B, 8B) consistently shows negative interference ($\delta \in [-0.37, -0.15]$), with severity decreasing as size increases. The Qwen family (3B, 4B) shows robust or positive interference. This suggests that the pre-training data mixture and tokenizer design affect multi-task RL trainability as much as raw parameter count.
+The Llama family (1B, 3B, 8B) consistently shows negative interference ($\delta \in [-0.37, -0.15]$), with severity decreasing as size increases. The Qwen family (3B, 4B) shows robust or positive interference. The pre-training data mixture and tokenizer design likely affect multi-task RL trainability as much as raw parameter count.
 
 \paragraph{T3 and T5 are fragile tasks.}
 Seven of ten models achieve 0\% single-task validity on either T3 (tool calling) or T5 (code patching). These tasks require nested JSON structures that smaller models cannot consistently produce. When combined with other tasks in mixed training, these fragile capabilities are the first to collapse.
@@ -450,7 +453,7 @@ Figure~\ref{fig:forgetting-heatmap} presents the forgetting matrix as a heatmap,
 \label{fig:forgetting-heatmap}
 \end{figure}
 
-The heatmap reveals a striking pattern: forgetting does not correlate with model size. Yi-1.5-6B (6B parameters) shows the largest gap between single-task and mixed-task performance, while Qwen2.5-3B (3B parameters, half the size) actually \emph{improves} under multi-task training. The catastrophic models (1B-L, 3B-L, 6B, 7B) share a common trait: they achieve high single-task validity on T1 and T4 ($>$98\%) but 0\% on T3 and T5. When forced to train on all tasks simultaneously, the gradient signal from the hard tasks (T3, T5) overwhelms the learned representations for the easy tasks, destroying everything. The robust models (3B-Q, 4B, 8B-M) share a different trait: they achieve non-zero single-task validity on T3 ($\geq$67\%), suggesting that T3 capability serves as a ``structural anchor'' that stabilizes multi-task training.
+The heatmap reveals a clear pattern: forgetting does not correlate with model size. Yi-1.5-6B (6B parameters) shows the largest gap between single-task and mixed-task performance, while Qwen2.5-3B (3B parameters, half the size) actually \emph{improves} under multi-task training. The catastrophic models (1B-L, 3B-L, 6B, 7B) share a common trait: they achieve high single-task validity on T1 and T4 ($>$98\%) but 0\% on T3 and T5. When forced to train on all tasks simultaneously, the gradient signal from the hard tasks (T3, T5) overwhelms the learned representations for the easy tasks, destroying everything. The robust models (3B-Q, 4B, 8B-M) share a different trait: they achieve non-zero single-task validity on T3 ($\geq$67\%), suggesting that T3 capability serves as a ``structural anchor'' that stabilizes multi-task training.
 
 \subsection{Model Family Comparison}
 
@@ -466,7 +469,7 @@ Both Qwen models show robust forgetting profiles ($\delta = +0.03, 0.00$). More 
 Mistral-7B ($\delta = -0.38$, catastrophic) and Ministral-8B ($\delta = 0.00$, robust) share a vendor but exhibit opposite forgetting behaviors. The 8B Ministral learns T3; the 7B Mistral does not. Under mixed training, Ministral-8B achieves 73\% validity while Mistral-7B collapses to 15\%. This is not simply a size effect---the 1B difference between 7B and 8B is insufficient to explain a 58-percentage-point gap in mixed validity. Instead, Ministral-8B's architecture changes (likely attention mechanism modifications and updated training data between the Mistral and Ministral generations) create a qualitatively different interference profile. For practitioners, this is a cautionary tale: model name similarity does not imply training-dynamics similarity.
 
 \paragraph{Google family (9B, 12B): diminishing returns.}
-Gemma-2-9B ($\delta = -0.07$, selective) and Gemma-3-12B (completed only 8 of 18 runs due to OOM) both show strong single-task capability. Gemma-2-9B is one of only four models to learn T3 and one of only two to achieve transient T5. But its selective forgetting profile means multi-task training costs it approximately 7 percentage points compared to single-task averages. The 12B Gemma-3 could not complete T2, T5, or Mixed training on our 24GB GPU---even 12B models push the boundaries of commodity hardware for GRPO training with LoRA. This suggests that the Gemma family's deployment ceiling on single-GPU hardware is approximately 9B.
+Gemma-2-9B ($\delta = -0.07$, selective) and Gemma-3-12B (completed only 8 of 18 runs due to OOM) both show strong single-task capability. Gemma-2-9B is one of only four models to learn T3 and one of only two to achieve transient T5. But its selective forgetting profile means multi-task training costs it approximately 7 percentage points compared to single-task averages. The 12B Gemma-3 could not complete T2, T5, or Mixed training on our 24GB GPU---even 12B models push the boundaries of commodity hardware for GRPO training with LoRA. The Gemma family's deployment ceiling on single-GPU hardware is approximately 9B.
 
 \paragraph{Cross-family synthesis.}
 The family comparison reveals a pattern invisible in the aggregate: \emph{training-time behavior clusters by vendor, not by size}. A model's forgetting profile is better predicted by knowing its family than its parameter count. Table~\ref{tab:family-summary} summarizes the family-level patterns.
@@ -607,7 +610,7 @@ The four curves reveal qualitatively different learning dynamics:
 
 \paragraph{Transient curves} show the same initial rise as sustained curves but lack the capacity to maintain the plateau under continued gradient updates. Llama-3.2-1B on Mixed peaks at $\sim$61\% around step 600---briefly crossing the sustained threshold---but declines to 17\% by step 930. The peak is real (it reproduces across seeds), but the model cannot sustain multi-task validity. This ``learn-then-forget'' pattern suggests that the model's capacity is insufficient to maintain all task capabilities simultaneously under the multi-task gradient.
 
-\paragraph{Flat curves} hover near 0\% validity throughout all 1{,}000 training steps. Llama-3.2-1B on T3 (tool calling) never produces valid JSON for the tool-calling schema---not even once across any seed. This is not a training failure; it is a fundamental capacity limitation. The model lacks the representation capacity to learn the nested JSON structures required by T3, and no amount of additional training steps would change this.
+\paragraph{Flat curves} hover near 0\% validity throughout all 1{,}000 training steps. Llama-3.2-1B on T3 (tool calling) never produces valid JSON for the tool-calling schema---not even once across any seed. This is not a training failure; it is a hard capacity limitation. The model lacks the representation capacity to learn the nested JSON structures required by T3, and no amount of additional training steps would change this.
 
 \subsection{All-Model Mixed Training Outcomes}
 
@@ -643,7 +646,7 @@ The four representative curves in Figure~\ref{fig:curve-shapes} illustrate the t
 \node[font=\footnotesize] at (5.0,-0.3) {\textcolor{robust}{\rule{8pt}{8pt}} Robust};
 \node[font=\footnotesize] at (7.8,-0.3) {\textcolor{selective}{\rule{8pt}{8pt}} Selective};
 \end{tikzpicture}
-\caption{\textbf{Final Mixed validity for all 10 models, colored by forgetting profile.} The bimodal distribution is stark: models either achieve $>$60\% final validity (robust/selective profiles) or collapse to $<$20\% (catastrophic). Yi-1.5-6B (6B) at 0\% and Qwen3-4B (4B) at 86\% represent the extremes---a 2$\times$ size difference producing an infinite capability ratio. The gap between catastrophic and non-catastrophic models is not gradual; it is a sharp bimodal separation.}
+\caption{\textbf{Final Mixed validity for all 10 models, colored by forgetting profile.} The bimodal distribution is categorical: models either achieve $>$60\% final validity (robust/selective profiles) or collapse to $<$20\% (catastrophic). Yi-1.5-6B (6B) at 0\% and Qwen3-4B (4B) at 86\% represent the extremes---a 2$\times$ size difference producing an infinite capability ratio. The gap between catastrophic and non-catastrophic models is not gradual; it is a sharp bimodal separation.}
 \label{fig:all-mixed}
 \end{figure}
 
@@ -676,7 +679,7 @@ Gemma-2-9B       & Google    & 9B   & \textcolor{sustained}{\ding{51}} & \textco
 \end{tabular}
 \end{table}
 
-The learning matrix reveals a cascade of thresholds. \textbf{Tier 1 tasks} (T1, T4)---flat schemas requiring simple key-value output---are universally learnable. Every model achieves sustained validity regardless of size. These tasks set a floor: if a model cannot learn T1, there is a fundamental problem with the training setup, not the model.
+The learning matrix reveals a cascade of thresholds. \textbf{Tier 1 tasks} (T1, T4)---flat schemas requiring simple key-value output---are universally learnable. Every model achieves sustained validity regardless of size. These tasks set a floor: if a model cannot learn T1, there is a problem with the training setup, not the model.
 
 \textbf{Tier 2 tasks} (T2, T3)---nested schemas with arrays and sub-objects---split the field. T3 (tool calling) is the sharpest discriminator: exactly 4 of 10 models learn it (Qwen2.5-3B, Qwen3-4B, Ministral-8B, Gemma-2-9B). The common trait is not size but \emph{pre-training exposure to structured tool-use formats}. T2 (grounded QA) is learnable by 8 of 10 models individually, but collapses for the catastrophic models under mixed training.
 
@@ -712,7 +715,7 @@ This stability arises because most curves either converge to $\geq$95\% validity
 
 \subsection{Seed Variance}
 
-A notable finding is that some model-task combinations show extreme seed variance. Gemma-2-9B on T5 (code patching) is the most striking: seed 42 achieves 34\% last-50 validity, seed 456 achieves 98\%, and seed 123 achieves only 0.7\%. This suggests that T5 lies precisely at Gemma-2-9B's capacity boundary---with favorable initialization the model crosses the threshold, but with unfavorable initialization it does not. This finding has practical implications: single-seed evaluations of training effectiveness can be deeply misleading for models near capacity boundaries.
+Some model-task combinations show extreme seed variance. Gemma-2-9B on T5 (code patching) is the clearest case: seed 42 achieves 34\% last-50 validity, seed 456 achieves 98\%, and seed 123 achieves only 0.7\%. T5 appears to lie precisely at Gemma-2-9B's capacity boundary---with favorable initialization the model crosses the threshold, but with unfavorable initialization it does not. This finding has practical implications: single-seed evaluations of training effectiveness can be deeply misleading for models near capacity boundaries.
 
 % =============================================================================
 % 7. EARLY PREDICTION (RQ3+)

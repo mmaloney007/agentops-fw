@@ -46,7 +46,7 @@
 \title{Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap}
 
 \author{
-Michael Maloney \\
+V. Michael Maloney \\
 Neuralift; University of New Hampshire \\
 \texttt{mike@neuralift.ai}
 }
@@ -55,11 +55,14 @@ Neuralift; University of New Hampshire \\
 
 \begin{document}
 \maketitle
+\begin{center}
+\textit{Preprint. Work in progress.}
+\end{center}
 
 \begin{abstract}
 Paper~I showed that accuracy benchmarks fail to predict deployment success. This paper asks the obvious follow-up: can we train models to close that gap?
 
-We ran 1{,}000 steps of GRPO training on 11 models (1B--12B) from 7 vendors across 6 task types, with 2 additional models blocked by single-GPU VRAM constraints, using a composite reward that penalizes exactly what production systems care about: broken JSON, wrong answers, hallucinations, and slow responses. The results reveal something unexpected: the capacity threshold for learning structured output is \emph{task-dependent}. Simple tasks (intent classification, function routing) can be learned by models as small as 1B. Complex tasks (tool calling, code patching) require progressively larger models. Multi-task training introduces catastrophic forgetting, with smaller models losing capabilities faster.
+We ran 1{,}000 steps of GRPO training on 11 models (1B--12B) from 7 vendors across 6 task types, with 2 additional models blocked by single-GPU VRAM constraints, using a composite reward that penalizes exactly what production systems care about: broken JSON, wrong answers, hallucinations, and slow responses. The capacity threshold for learning structured output turns out to be \emph{task-dependent}. Simple tasks (intent classification, function routing) can be learned by models as small as 1B. Complex tasks (tool calling, code patching) require progressively larger models. Multi-task training introduces catastrophic forgetting, with smaller models losing capabilities faster.
 
 \begin{center}
 \small
@@ -84,9 +87,9 @@ Llama-3.1-8B & 8B & Meta & 100 & 100 & 0 & 100 & 0 & 45 \\
 \end{tabular}
 \end{center}
 
-The story is more nuanced than a single threshold. T1 (intent) and T4 (function routing) are universally learnable---even 1B models achieve near-perfect validity. T3 (tool calling) and T5 (code patching) are hard: only Qwen3-4B and 9B+ models sustain learning. Most revealing is the Mixed condition: multi-task training causes catastrophic forgetting in smaller models (Yi-1.5-6B drops from 98\% on T1 to 0\% on Mixed), while Qwen3-4B and Gemma-2-9B sustain 82--90\%.
+But there is no single threshold. T1 (intent) and T4 (function routing) are universally learnable---even 1B models achieve near-perfect validity. T3 (tool calling) and T5 (code patching) are hard: only Qwen3-4B and 9B+ models sustain learning. Most revealing is the Mixed condition: multi-task training causes catastrophic forgetting in smaller models (Yi-1.5-6B drops from 98\% on T1 to 0\% on Mixed), while Qwen3-4B and Gemma-2-9B sustain 82--90\%.
 
-This has practical implications. NVIDIA's work shows small models are 10--30$\times$ cheaper to deploy. Our work shows small models \emph{can} learn simple structured tasks but cannot learn complex ones or maintain performance under multi-task pressure. Together, these findings point to a task-aware strategy: match model capacity to task complexity, and train on 9B+ models when multi-task reliability matters.
+NVIDIA's work shows small models are 10--30$\times$ cheaper to deploy. Ours shows they \emph{can} learn simple structured tasks but cannot learn complex ones or hold up under multi-task pressure. The implication is a task-aware deployment strategy: match model capacity to task complexity, and default to 9B+ when multi-task reliability matters.
 \end{abstract}
 
 \section{Introduction}
@@ -625,7 +628,7 @@ SLO-aware RL improves schema compliance across all models, with the largest gain
 Naive RL also improves structure but less consistently.
 
 The structure gains are not surprising---schema validity is a binary reward component, so the model learns quickly that valid JSON is good.
-What is more interesting is that structure \emph{does not degrade} when we add other reward components.
+Structure \emph{does not degrade} when we add other reward components.
 This is a common failure mode in multi-objective RL: you optimize for one thing and another thing gets worse.
 Our lexicographic reward design (structure first, then accuracy, then faithfulness) prevents this.
 
@@ -760,19 +763,19 @@ The 1{,}000-step, 6-task results tell a more nuanced story than a single capacit
 
 The practical implication is stark: practitioners who deploy these architectures on commodity hardware \emph{cannot close the deployment gap through training}---they lack the hardware to even attempt it. SSM and MoE models, despite their theoretical inference efficiency, require cluster-level resources for RL fine-tuning. This creates an asymmetry: the architectures designed for efficient deployment are the hardest to improve through post-deployment training. The MoE question---does total or active parameter count determine the effective capacity threshold?---remains open and cannot be answered without multi-GPU experiments.
 
-\textbf{The threshold is task-dependent but vendor-agnostic.} Models from Meta, Alibaba, Microsoft, 01.AI, Mistral, and Google all follow the same pattern within each task category. This isn't a quirk of one company's training data. The per-task thresholds appear fundamental.
+\textbf{The threshold is task-dependent but vendor-agnostic.} Models from Meta, Alibaba, Microsoft, 01.AI, Mistral, and Google all follow the same pattern within each task category. This isn't a quirk of one company's training data. The per-task thresholds appear intrinsic to the task, not the vendor.
 
 \paragraph{Extending NVIDIA's findings.}
 NVIDIA~\citep{nvidia2025slm} demonstrates that small language models are 10--30$\times$ cheaper for inference and can match larger models on focused tasks with supervised fine-tuning.
 Our finding refines this: while SLMs can learn \emph{simple} structured tasks (T1, T4) through RL, they cannot learn \emph{complex} structured tasks (T3, T5) or maintain performance under multi-task pressure.
-This suggests a task-aware ``train large, deploy small'' paradigm: use RL on 9B+ models for complex tasks, then distill; for simple tasks, even 1B models can be trained directly.
+We propose a task-aware ``train large, deploy small'' paradigm: use RL on 9B+ models for complex tasks, then distill; for simple tasks, even 1B models can be trained directly.
 
 The trained adapters are saved to \texttt{out/p2\_training\_20260124/*/adapter/} with checkpoints every 100 steps.
 
 \subsection{Forgetting Analysis: Multi-Task Interference}
 \label{sec:forgetting}
 
-The Mixed task condition reveals a striking failure mode: models that perform well on individual tasks suffer catastrophic degradation when trained on all tasks simultaneously.
+The Mixed task condition exposes a severe failure mode: models that perform well on individual tasks suffer catastrophic degradation when trained on all tasks simultaneously.
 
 \begin{table}[t]
 \centering
@@ -905,7 +908,7 @@ We see slight overfitting risk here---reward continues improving but may not gen
 Stability improvement is modest.
 The disagreement penalty helps, but the model can still produce different outputs for identical inputs at similar probability.
 True determinism would require either temperature=0 (which hurts diversity) or explicit self-consistency mechanisms (which add latency).
-This is a fundamental tension we have not resolved.
+This tension remains unresolved.
 
 \subsection{Reward Design Rationale}
 
@@ -1016,7 +1019,7 @@ On simple tasks (T1, T4), even small models converge well before step 500 and re
 On complex tasks (T3, T5, Mixed), models that fail at 500 steps remain failed at 1{,}000---the learn-then-forget pattern persists.
 Yi-1.5-6B's total collapse on Mixed (0\% at 1{,}000 steps) is particularly telling: extended training made things worse, not better.
 Still, we cannot rule out that alternative training regimes (different learning rates, curriculum learning, longer warmup) might help small models on complex tasks.
-Future work should explore whether the task-dependent threshold is truly fundamental or merely an artifact of our training protocol.
+Future work should explore whether the task-dependent threshold is intrinsic or an artifact of our training protocol.
 
 \paragraph{Reward hacking.}
 The model could learn to maximize reward without actually improving.

@@ -54,7 +54,7 @@
 \title{AgentSLO-Bench: An SLO-Aware Benchmark\\for LLM Agent Deployment}
 
 \author{
-Michael Maloney \\
+V. Michael Maloney \\
 Neuralift; University of New Hampshire \\
 \texttt{mike@neuralift.ai}
 }
@@ -63,6 +63,9 @@ Neuralift; University of New Hampshire \\
 
 \begin{document}
 \maketitle
+\begin{center}
+\textit{Preprint. Work in progress.}
+\end{center}
 
 % =============================================================================
 % ABSTRACT
@@ -70,7 +73,7 @@ Neuralift; University of New Hampshire \\
 \begin{abstract}
 Existing LLM benchmarks measure accuracy in isolation, ignoring whether models can deliver correct answers within the latency budgets that production systems require. We introduce \textbf{AgentSLO-Bench}, a benchmark that jointly evaluates accuracy and latency compliance across three deployment tiers: Interactive (2s), Standard (5s), and Batch (30s). Our metric, \textbf{Success@SLO}, counts a response as successful only if it is correct, structurally valid, \emph{and} delivered within the tier's latency deadline.
 
-We extend the evaluation protocol from Paper~I with a larger prompt set (3{,}300 per model vs.\ 2{,}300) and compute Success@SLO directly from per-request latencies rather than aggregate percentiles. Across 42{,}900 evaluations of 13 models from 8 vendors, the results confirm a fundamental disconnect between accuracy rankings and deployment rankings. The Spearman correlation between accuracy rank and Success@SLO rank is $\rho = +0.17$ ($p = 0.57$) at the Interactive tier, $\rho = -0.17$ ($p = 0.57$) at Standard, and $\rho = +0.02$ ($p = 0.94$) at Batch---none are statistically significant (bootstrapped 95\% CIs all span zero). At the Interactive tier, only Llama-3.2-1B achieves meaningful Success@SLO (6.3\%); all other models score 0.0\%.
+We extend the evaluation protocol from Paper~I with a larger prompt set (3{,}300 per model vs.\ 2{,}300) and compute Success@SLO directly from per-request latencies rather than aggregate percentiles. Across 42{,}900 evaluations of 13 models from 8 vendors, the results show that accuracy rankings and deployment rankings are essentially uncorrelated. The Spearman correlation between accuracy rank and Success@SLO rank is $\rho = +0.17$ ($p = 0.57$) at the Interactive tier, $\rho = -0.17$ ($p = 0.57$) at Standard, and $\rho = +0.02$ ($p = 0.94$) at Batch---none are statistically significant (bootstrapped 95\% CIs all span zero). At the Interactive tier, only Llama-3.2-1B achieves meaningful Success@SLO (6.3\%); all other models score 0.0\%.
 
 \begin{center}
 \small
@@ -103,7 +106,7 @@ AgentSLO-Bench provides a toolkit, CLI, and built-in baselines. Code and data: \
 % =============================================================================
 \section{Introduction}
 
-Paper~I of this series~\cite{maloney2025deploymentgap} established a striking result: accuracy benchmarks have no statistically significant relationship with deployment success. But Paper~I was a \emph{discovery}---it showed the gap exists. It did not provide a reusable tool for measuring it. Its Success@SLO estimates relied on aggregate latency percentiles, it evaluated a fixed prompt set without extensibility, and it offered no way for other teams to reproduce the evaluation on their own hardware with their own models.
+Paper~I of this series~\cite{maloney2025deploymentgap} established a counterintuitive result: accuracy benchmarks have no statistically significant relationship with deployment success. But Paper~I was a \emph{discovery}---it showed the gap exists. It did not provide a reusable tool for measuring it. Its Success@SLO estimates relied on aggregate latency percentiles, it evaluated a fixed prompt set without extensibility, and it offered no way for other teams to reproduce the evaluation on their own hardware with their own models.
 
 This paper addresses a different question: not \emph{does the gap exist} (Paper~I answered that), but \emph{how should the community measure it}? The answer is AgentSLO-Bench---a benchmark that computes Success@SLO from per-request latency measurements rather than percentile estimates, evaluates models across three deployment tiers (Interactive, Standard, Batch), and ships as an installable toolkit that works against any OpenAI-compatible API.
 
@@ -348,7 +351,7 @@ When a model fails to achieve Success@SLO, the failure has one of two causes: th
 \underbrace{1 - \sslo_\tau}_{\text{total gap}} = \underbrace{(1 - \text{acc})}_{\text{accuracy gap}} + \underbrace{\text{acc} \cdot (1 - \text{on\_time}_\tau)}_{\text{latency gap}}
 \end{equation}
 
-Table~\ref{tab:failure-modes} shows this decomposition at the Batch tier (30s). The pattern is stark.
+Table~\ref{tab:failure-modes} shows this decomposition at the Batch tier (30s). The pattern is categorical.
 
 \begin{table}[t]
 \centering
@@ -382,7 +385,7 @@ Gemma-3-12B      & Google    & 12B  & 27.6 & 43.5 & 39.3 & 61\% \\
 
 For the smallest model (Llama-3.2-1B), every single failure is an accuracy failure. It answers every request within 30 seconds---its only limitation is that it gives wrong answers 36.5\% of the time. No amount of latency engineering can help it; it needs to be smarter.
 
-For the most accurate model (Gemma-2-9B), the situation is inverted. It knows the right answer 82.2\% of the time, but 38.9\% of its correct answers arrive after the 30-second deadline. It wastes nearly 39 percentage points of potential S@SLO on latency alone---more than its accuracy deficit (17.8pp). No amount of accuracy improvement can help it; it needs to be faster.
+For the most accurate model (Gemma-2-9B), the constraint flips. It knows the right answer 82.2\% of the time, but 38.9\% of its correct answers arrive after the 30-second deadline. It wastes nearly 39 percentage points of potential S@SLO on latency alone---more than its accuracy deficit (17.8pp). No amount of accuracy improvement can help it; it needs to be faster.
 
 The crossover occurs between 4B and 6B. Below this boundary, accuracy engineering (better training data, longer fine-tuning, improved prompts) is the right investment. Above it, latency engineering (quantization, speculative decoding, batch scheduling, hardware upgrades) yields higher returns. This crossover is the deployment gap in its most concrete form: the interventions that help small models are useless for large ones, and vice versa.
 
@@ -648,7 +651,7 @@ GPT-OSS-20B uses a mixture-of-experts architecture with 3.6B active parameters f
 The explanation is architectural: MoE models must load all expert weights into VRAM even when only a subset is active per token. On a single RTX 4090 with 4-bit quantization, the 20B total parameters consume approximately 10GB of VRAM, leaving limited memory bandwidth for KV-cache and computation. The routing overhead---selecting which experts to activate---adds per-token latency that compounds across the output sequence. In multi-GPU deployments where experts can be sharded across devices, this penalty would diminish. But on the commodity hardware that defines our evaluation context, MoE's memory bandwidth requirements negate its computational sparsity.
 
 \paragraph{The Qwen efficiency anomaly.}
-The most striking architectural finding is the Qwen family's consistently high deployment efficiency. Qwen2.5-3B (71.7\% Batch S@SLO) outperforms every model in the 4--7B range except Qwen3-4B itself. Qwen3-4B (64.6\%) surpasses both 6B and 7B competitors despite its smaller size. At the Standard tier, Qwen2.5-3B achieves 42.6\% S@SLO---the second-highest of any model---while similarly-sized Phi-3-mini manages only 25.6\%.
+The clearest architectural pattern is the Qwen family's consistently high deployment efficiency. Qwen2.5-3B (71.7\% Batch S@SLO) outperforms every model in the 4--7B range except Qwen3-4B itself. Qwen3-4B (64.6\%) surpasses both 6B and 7B competitors despite its smaller size. At the Standard tier, Qwen2.5-3B achieves 42.6\% S@SLO---the second-highest of any model---while similarly-sized Phi-3-mini manages only 25.6\%.
 
 This efficiency appears to stem from a combination of aggressive tokenizer design (Qwen's tokenizer produces shorter output sequences for equivalent semantic content) and training data composition that favors structured output formats. Whatever the mechanism, it produces a concrete deployment advantage: a Qwen-family 3B model delivers more requests on time than a Llama-family 8B model, at less than half the hardware cost.
 
@@ -821,16 +824,16 @@ AgentSLO-Bench occupies a distinct position in the agent evaluation landscape. T
 \begin{table}[h]
 \centering
 \caption{Comparison of agent benchmarks. AgentSLO-Bench uniquely combines SLO constraints, per-request latency, and tiered evaluation.}
-\label{tab:benchmark-comparison}
+\label{tab:benchmark-comparison-rw}
 \small
 \begin{tabular}{@{}lcccccc@{}}
 \toprule
 \textbf{Benchmark} & \textbf{Latency?} & \textbf{SLO Tiers?} & \textbf{Per-Request?} & \textbf{Struct. Output?} & \textbf{Self-Hosted?} \\
 \midrule
-SWE-Bench~\cite{jimenez2024swebench} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
-GAIA~\cite{mialon2024gaia} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
-WebArena~\cite{zhou2024webarena} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
-BFCL~\cite{berkeley2024bfcl} & \ding{55} & \ding{55} & \ding{55} & \ding{51} & \ding{51} \\
+SWE-Bench~\citep{jimenez2024swebench} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
+GAIA~\citep{mialon2024gaia} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
+WebArena~\citep{zhou2024webarena} & \ding{55} & \ding{55} & \ding{55} & \ding{55} & \ding{51} \\
+BFCL~\citep{berkeley2024bfcl} & \ding{55} & \ding{55} & \ding{55} & \ding{51} & \ding{51} \\
 \midrule
 \textbf{AgentSLO-Bench} & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{51} \\
 \bottomrule
@@ -953,7 +956,7 @@ AgentSLO-Bench introduces tiered SLO evaluation for LLM agents, revealing that a
 
 \item \textbf{Rank inversions are pervasive and large.} The most accurate model (Gemma-2-9B, 82.2\%) drops from rank 1 to rank 10 under the Batch SLO---a 9-position inversion. The least accurate (Llama-3.2-1B, 63.5\%) rises from 13th to 4th. These are not edge cases; they affect every size class.
 
-\item \textbf{Failure modes cross over at 4--6B.} Below 4B, models are accuracy-limited---latency engineering cannot help them. Above 6B, models are latency-limited---accuracy engineering cannot help them. The crossover point defines the boundary between two fundamentally different deployment optimization strategies.
+\item \textbf{Failure modes cross over at 4--6B.} Below 4B, models are accuracy-limited---latency engineering cannot help them. Above 6B, models are latency-limited---accuracy engineering cannot help them. The crossover point defines the boundary between two distinct deployment optimization strategies.
 
 \item \textbf{Task difficulty inverts under SLO.} T2 (grounded QA), moderately hard by accuracy (27--57\%), becomes the hardest task under SLO because its long outputs push latency past every deadline. The primary determinant of SLO difficulty is output length, not semantic complexity.
 
