@@ -4,7 +4,12 @@ Usage:
     agentslo-bench baseline     Print built-in 13-model P1 results
     agentslo-bench leaderboard  Generate rankings from result files
     agentslo-bench run          Evaluate an endpoint against benchmark tasks
+
+Examples:
+    agentslo-bench run --model lmstudio:qwen2.5-3b-instruct --tier interactive
+    agentslo-bench run --endpoint http://localhost:1234/v1 --model my-model --tier batch
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,7 +18,12 @@ import time
 from pathlib import Path
 
 from .slo_tiers import TIERS
-from .leaderboard import load_p1_baseline, generate_leaderboard, format_markdown, format_latex
+from .leaderboard import (
+    load_p1_baseline,
+    generate_leaderboard,
+    format_markdown,
+    format_latex,
+)
 from .benchmark_runner import (
     compute_from_p1_data,
     save_results,
@@ -31,12 +41,12 @@ def cmd_baseline(args: argparse.Namespace) -> None:
     print(f"AgentSLO-Bench Baseline: {len(models)} models, 5 tasks, 3 SLO tiers\n")
 
     for tier in TIERS:
-        print(f"=== {tier.name.upper()} TIER ({tier.deadline_ms/1000:.0f}s) ===")
+        print(f"=== {tier.name.upper()} TIER ({tier.deadline_ms / 1000:.0f}s) ===")
         print(f"  {tier.description}")
         print(f"  Typical use: {tier.typical_use}\n")
 
         print(f"  {'Model':<20} {'Accuracy':>10} {'S@SLO':>10}")
-        print(f"  {'-'*20} {'-'*10} {'-'*10}")
+        print(f"  {'-' * 20} {'-' * 10} {'-' * 10}")
 
         for model_name, model_info in models.items():
             results = compute_from_p1_data(model_info, model_name)
@@ -120,7 +130,8 @@ def _extract_json(content: str) -> dict:
 
     # Try to find JSON object in text
     import re
-    match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content)
+
+    match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", content)
     if match:
         try:
             return json.loads(match.group())
@@ -224,27 +235,45 @@ def _run_live_eval(
             task_correct = False
             output = {"error": str(e)}
 
-        results.append(TaskResult(
-            task_id=f"{task_id}_{i}",
-            latency_ms=latency_ms,
-            json_valid=json_valid,
-            task_correct=task_correct,
-            output=output,
-        ))
+        results.append(
+            TaskResult(
+                task_id=f"{task_id}_{i}",
+                latency_ms=latency_ms,
+                json_valid=json_valid,
+                task_correct=task_correct,
+                output=output,
+            )
+        )
 
         # Progress indicator
         status = "✓" if task_correct else "✗"
-        print(f"  [{i+1}/{len(samples)}] {status} {latency_ms:.0f}ms", end="\r")
+        print(f"  [{i + 1}/{len(samples)}] {status} {latency_ms:.0f}ms", end="\r")
 
     print()  # Clear progress line
     return results
 
 
+def _resolve_model_endpoint(args: argparse.Namespace) -> None:
+    """Expand 'lmstudio:model-name' into endpoint + model fields in-place."""
+    if args.model.startswith("lmstudio:"):
+        model_name = args.model[len("lmstudio:") :]
+        args.endpoint = "http://localhost:1234/v1"
+        args.model = model_name
+
+
+def _get_display_tiers(tier_arg: str) -> list:
+    """Return the list of SLOTier objects to display based on --tier value."""
+    if tier_arg == "all":
+        return list(TIERS)
+    return [TIER_MAP[tier_arg]]
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     """Run live evaluation against an LM Studio or OpenAI-compatible endpoint."""
-    print("AgentSLO-Bench Live Evaluation")
+    print(f"AgentSLO-Bench Live Evaluation")
     print(f"  Endpoint: {args.endpoint}")
     print(f"  Model: {args.model}")
+    print(f"  Tier: {args.tier}")
     print(f"  Tasks: {args.tasks}")
     print(f"  Samples per task: {args.samples}")
     print()
@@ -262,25 +291,29 @@ def cmd_run(args: argparse.Namespace) -> None:
         task_results = _run_live_eval(args.endpoint, args.model, task_id, samples)
         tier_results = compute_tier_results(task_results)
 
-        all_results.append(BenchmarkResult(
-            model_name=args.model,
-            task_name=task_id,
-            tier_results=tier_results,
-            task_results=task_results,
-        ))
+        all_results.append(
+            BenchmarkResult(
+                model_name=args.model,
+                task_name=task_id,
+                tier_results=tier_results,
+                task_results=task_results,
+            )
+        )
 
-        # Print per-tier results
-        for tier in TIERS:
+        # Print per-tier results (filtered by --tier)
+        for tier in display_tiers:
             tr = tier_results[tier.name]
-            print(f"  {tier.name.title():12} ({tier.deadline_ms/1000:.0f}s): "
-                  f"S@SLO={tr.success_at_slo_pct:.1f}% "
-                  f"(Acc={tr.accuracy_pct:.1f}%, OnTime={tr.on_time_pct:.1f}%)")
+            print(
+                f"  {tier.name.title():12} ({tier.deadline_ms / 1000:.0f}s): "
+                f"S@SLO={tr.success_at_slo_pct:.1f}% "
+                f"(Acc={tr.accuracy_pct:.1f}%, OnTime={tr.on_time_pct:.1f}%)"
+            )
         print()
 
-    # Summary
+    # Summary (filtered by --tier)
     if all_results:
         print("=== Summary ===")
-        for tier in TIERS:
+        for tier in display_tiers:
             total_count = 0
             total_slo = 0
             for br in all_results:
@@ -289,7 +322,9 @@ def cmd_run(args: argparse.Namespace) -> None:
                     total_count += tr.total
                     total_slo += tr.success_at_slo
             slo_pct = 100.0 * total_slo / max(1, total_count)
-            print(f"  {tier.name.title():12} tier: {slo_pct:.1f}% Success@SLO ({total_slo}/{total_count})")
+            print(
+                f"  {tier.name.title():12} tier: {slo_pct:.1f}% Success@SLO ({total_slo}/{total_count})"
+            )
 
         # Save results if output path provided
         if args.out:
@@ -310,20 +345,39 @@ def main() -> None:
 
     # leaderboard
     p_lead = sub.add_parser("leaderboard", help="Generate leaderboard rankings")
-    p_lead.add_argument("--format", choices=["markdown", "latex", "json"], default="markdown")
+    p_lead.add_argument(
+        "--format", choices=["markdown", "latex", "json"], default="markdown"
+    )
 
     # run
     p_run = sub.add_parser("run", help="Evaluate an endpoint against benchmark tasks")
-    p_run.add_argument("--endpoint", default="http://localhost:1234/v1",
-                       help="OpenAI-compatible API endpoint")
-    p_run.add_argument("--model", default="local-model",
-                       help="Model name to use in API calls")
-    p_run.add_argument("--tasks", nargs="+", default=["T1", "T2", "T3"],
-                       help="Task IDs to evaluate (T1, T2, T3, T4, T5)")
-    p_run.add_argument("--samples", type=int, default=10,
-                       help="Number of samples per task")
-    p_run.add_argument("--out", default=None,
-                       help="Output path for results JSON")
+    p_run.add_argument(
+        "--endpoint",
+        default="http://localhost:1234/v1",
+        help="OpenAI-compatible API endpoint (overridden by lmstudio: prefix in --model)",
+    )
+    p_run.add_argument(
+        "--model",
+        default="local-model",
+        help="Model name for API calls. Use 'lmstudio:model-name' to auto-set "
+        "endpoint to http://localhost:1234/v1 and extract model name",
+    )
+    p_run.add_argument(
+        "--tier",
+        choices=["interactive", "standard", "batch", "all"],
+        default="all",
+        help="SLO tier to evaluate (default: all)",
+    )
+    p_run.add_argument(
+        "--tasks",
+        nargs="+",
+        default=["T1", "T2", "T3"],
+        help="Task IDs to evaluate (T1, T2, T3, T4, T5)",
+    )
+    p_run.add_argument(
+        "--samples", type=int, default=10, help="Number of samples per task"
+    )
+    p_run.add_argument("--out", default=None, help="Output path for results JSON")
 
     args = parser.parse_args()
 

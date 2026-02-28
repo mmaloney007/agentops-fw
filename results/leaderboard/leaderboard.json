@@ -1,0 +1,231 @@
+{
+  "generated": "2026-02-05",
+  "description": "AgentSLO-Bench public leaderboard: 13 models across 3 SLO tiers",
+  "tiers": {
+    "interactive_2s": {
+      "name": "Interactive",
+      "slo_ms": 2000,
+      "description": "Real-time user-facing responses"
+    },
+    "standard_5s": {
+      "name": "Standard",
+      "slo_ms": 5000,
+      "description": "Typical API/agent call latency budget"
+    },
+    "batch_30s": {
+      "name": "Batch",
+      "slo_ms": 30000,
+      "description": "Offline / background processing"
+    }
+  },
+  "models": [
+    {
+      "name": "Gemma-2-9B",
+      "size": "9B",
+      "vendor": "Google",
+      "accuracy": 0.8218,
+      "accuracy_rank": 1,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 4,
+      "standard_s_at_slo": 0.0,
+      "standard_rank": 9,
+      "batch_s_at_slo": 0.5073,
+      "batch_rank": 10,
+      "p95_latency_ms": 92551.7
+    },
+    {
+      "name": "Ministral-8B",
+      "size": "8B",
+      "vendor": "Mistral",
+      "accuracy": 0.8182,
+      "accuracy_rank": 2,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 9,
+      "standard_s_at_slo": 0.0724,
+      "standard_rank": 6,
+      "batch_s_at_slo": 0.5155,
+      "batch_rank": 9,
+      "p95_latency_ms": 70246.5
+    },
+    {
+      "name": "Llama-3.1-8B",
+      "size": "8B",
+      "vendor": "Meta",
+      "accuracy": 0.8067,
+      "accuracy_rank": 3,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 7,
+      "standard_s_at_slo": 0.04,
+      "standard_rank": 7,
+      "batch_s_at_slo": 0.5767,
+      "batch_rank": 6,
+      "p95_latency_ms": 50944.1
+    },
+    {
+      "name": "Qwen3-4B",
+      "size": "4B",
+      "vendor": "Alibaba",
+      "accuracy": 0.8024,
+      "accuracy_rank": 4,
+      "interactive_s_at_slo": 0.0003,
+      "interactive_rank": 2,
+      "standard_s_at_slo": 0.1412,
+      "standard_rank": 5,
+      "batch_s_at_slo": 0.6464,
+      "batch_rank": 3,
+      "p95_latency_ms": 47661.0
+    },
+    {
+      "name": "Mistral-7B-v0.3",
+      "size": "7B",
+      "vendor": "Mistral",
+      "accuracy": 0.7827,
+      "accuracy_rank": 5,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 10,
+      "standard_s_at_slo": 0.0,
+      "standard_rank": 12,
+      "batch_s_at_slo": 0.5533,
+      "batch_rank": 7,
+      "p95_latency_ms": 56089.9
+    },
+    {
+      "name": "Llama-3.2-3B",
+      "size": "3B",
+      "vendor": "Meta",
+      "accuracy": 0.7703,
+      "accuracy_rank": 6,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 8,
+      "standard_s_at_slo": 0.4085,
+      "standard_rank": 3,
+      "batch_s_at_slo": 0.7376,
+      "batch_rank": 1,
+      "p95_latency_ms": 26757.5
+    },
+    {
+      "name": "GPT-OSS-20B",
+      "size": "20B",
+      "vendor": "OpenAI",
+      "accuracy": 0.7582,
+      "accuracy_rank": 7,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 6,
+      "standard_s_at_slo": 0.0,
+      "standard_rank": 11,
+      "batch_s_at_slo": 0.443,
+      "batch_rank": 11,
+      "p95_latency_ms": 72568.2
+    },
+    {
+      "name": "Yi-1.5-6B",
+      "size": "6B",
+      "vendor": "01.AI",
+      "accuracy": 0.7552,
+      "accuracy_rank": 8,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 13,
+      "standard_s_at_slo": 0.0,
+      "standard_rank": 13,
+      "batch_s_at_slo": 0.5382,
+      "batch_rank": 8,
+      "p95_latency_ms": 54567.0
+    },
+    {
+      "name": "Qwen2.5-3B",
+      "size": "3B",
+      "vendor": "Alibaba",
+      "accuracy": 0.7497,
+      "accuracy_rank": 9,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 12,
+      "standard_s_at_slo": 0.4261,
+      "standard_rank": 2,
+      "batch_s_at_slo": 0.717,
+      "batch_rank": 2,
+      "p95_latency_ms": 26858.5
+    },
+    {
+      "name": "Gemma-3-12B",
+      "size": "12B",
+      "vendor": "Google",
+      "accuracy": 0.7239,
+      "accuracy_rank": 10,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 5,
+      "standard_s_at_slo": 0.0,
+      "standard_rank": 10,
+      "batch_s_at_slo": 0.3927,
+      "batch_rank": 12,
+      "p95_latency_ms": 134325.3
+    },
+    {
+      "name": "Phi-3-mini",
+      "size": "3.8B",
+      "vendor": "Microsoft",
+      "accuracy": 0.7088,
+      "accuracy_rank": 11,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 11,
+      "standard_s_at_slo": 0.2558,
+      "standard_rank": 4,
+      "batch_s_at_slo": 0.5852,
+      "batch_rank": 5,
+      "p95_latency_ms": 60153.9
+    },
+    {
+      "name": "Falcon-Mamba-7B",
+      "size": "7B",
+      "vendor": "TII",
+      "accuracy": 0.6642,
+      "accuracy_rank": 12,
+      "interactive_s_at_slo": 0.0,
+      "interactive_rank": 3,
+      "standard_s_at_slo": 0.0,
+      "standard_rank": 8,
+      "batch_s_at_slo": 0.2755,
+      "batch_rank": 13,
+      "p95_latency_ms": 77052.2
+    },
+    {
+      "name": "Llama-3.2-1B",
+      "size": "1B",
+      "vendor": "Meta",
+      "accuracy": 0.6352,
+      "accuracy_rank": 13,
+      "interactive_s_at_slo": 0.0633,
+      "interactive_rank": 1,
+      "standard_s_at_slo": 0.4739,
+      "standard_rank": 1,
+      "batch_s_at_slo": 0.6352,
+      "batch_rank": 4,
+      "p95_latency_ms": 9473.0
+    }
+  ],
+  "spearman": {
+    "interactive": {
+      "rho": 0.1703,
+      "ci_lower": -0.3173,
+      "ci_upper": 0.5838,
+      "p_value": 0.571,
+      "n_bootstrap": 10000,
+      "n_models": 13
+    },
+    "standard": {
+      "rho": -0.169,
+      "ci_lower": -0.6648,
+      "ci_upper": 0.5137,
+      "p_value": 0.5742,
+      "n_bootstrap": 10000,
+      "n_models": 13
+    },
+    "batch": {
+      "rho": 0.022,
+      "ci_lower": -0.5824,
+      "ci_upper": 0.6374,
+      "p_value": 0.9426,
+      "n_bootstrap": 10000,
+      "n_models": 13
+    }
+  }
+}

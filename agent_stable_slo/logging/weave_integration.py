@@ -5,6 +5,7 @@ retroactive evaluation of existing predictions through the Weave UI.
 
 Pattern: mirrors wandb_utils.py — lazy import, env-var gated, graceful fallback.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ def _weave_available() -> bool:
     """Check if weave is importable."""
     try:
         import weave  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -26,14 +28,13 @@ def init_weave(project: str) -> bool:
     """Initialize Weave for a project.
 
     Returns True if weave is available and initialized, False otherwise.
-    Requires WANDB_API_KEY in the environment (Weave uses W&B auth).
+    Accepts auth via WANDB_API_KEY env var or ~/.netrc (wandb login).
     """
     if not _weave_available():
         return False
-    if not os.getenv("WANDB_API_KEY"):
-        return False
     try:
         import weave
+
         weave.init(project)
         return True
     except Exception:
@@ -62,13 +63,14 @@ if _weave_available():
         @weave.op()
         def score(self, output: Any) -> dict:
             # output is the full prediction row from passthrough_model
+            # Return floats (1.0/0.0) instead of bools for numpy aggregation compatibility
             if isinstance(output, dict):
-                on_time = output.get("latency_ms", float("inf")) <= self.tier_ms
-                correct = output.get("task_correct", False)
-                json_valid = output.get("json_valid", False)
+                on_time = float(output.get("latency_ms", float("inf")) <= self.tier_ms)
+                correct = float(bool(output.get("task_correct", False)))
+                json_valid = float(bool(output.get("json_valid", False)))
             else:
-                on_time, correct, json_valid = False, False, False
-            success = on_time and correct and json_valid
+                on_time, correct, json_valid = 0.0, 0.0, 0.0
+            success = float(on_time and correct and json_valid)
             return {
                 "success_at_slo": success,
                 "on_time": on_time,
@@ -82,8 +84,8 @@ if _weave_available():
         @weave.op()
         def score(self, output: Any) -> dict:
             if isinstance(output, dict):
-                return {"json_valid": output.get("json_valid", False)}
-            return {"json_valid": False}
+                return {"json_valid": float(bool(output.get("json_valid", False)))}
+            return {"json_valid": 0.0}
 
     class AccuracyScorer(weave.Scorer):
         """Task-specific accuracy (field accuracy, function match, etc.)."""
@@ -91,27 +93,34 @@ if _weave_available():
         @weave.op()
         def score(self, output: Any) -> dict:
             if isinstance(output, dict):
-                return {"task_correct": output.get("task_correct", False)}
-            return {"task_correct": False}
+                return {"task_correct": float(bool(output.get("task_correct", False)))}
+            return {"task_correct": 0.0}
 
 else:
     # Stub classes when weave is not installed
     class SLOScorer:  # type: ignore[no-redef]
         def __init__(self, **kwargs: Any) -> None:
-            raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+            raise ImportError(
+                "weave is not installed. Install with: pip install 'weave>=0.51'"
+            )
 
     class JSONValidityScorer:  # type: ignore[no-redef]
         def __init__(self, **kwargs: Any) -> None:
-            raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+            raise ImportError(
+                "weave is not installed. Install with: pip install 'weave>=0.51'"
+            )
 
     class AccuracyScorer:  # type: ignore[no-redef]
         def __init__(self, **kwargs: Any) -> None:
-            raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+            raise ImportError(
+                "weave is not installed. Install with: pip install 'weave>=0.51'"
+            )
 
 
 # ---------------------------------------------------------------------------
 # Dataset + evaluation helpers
 # ---------------------------------------------------------------------------
+
 
 def _normalize_prediction_row(row: dict) -> dict:
     """Normalize a prediction row for Weave scoring.
@@ -142,7 +151,9 @@ def _normalize_prediction_row(row: dict) -> dict:
             if fb:
                 # Consider correct if the primary field matches
                 # For clinc: intent match; for hotpot: answer match
-                matches = [v.get("match", False) for v in fb.values() if isinstance(v, dict)]
+                matches = [
+                    v.get("match", False) for v in fb.values() if isinstance(v, dict)
+                ]
                 # Use first field (typically the main one) as correctness signal
                 normalized["task_correct"] = matches[0] if matches else False
             else:
@@ -168,7 +179,9 @@ def create_dataset_from_predictions(
     Returns a weave.Dataset, or raises ImportError if weave is unavailable.
     """
     if not _weave_available():
-        raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+        raise ImportError(
+            "weave is not installed. Install with: pip install 'weave>=0.51'"
+        )
 
     import weave
 
@@ -205,19 +218,24 @@ def run_retroactive_eval(
         Evaluation summary dict.
     """
     if not _weave_available():
-        raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+        raise ImportError(
+            "weave is not installed. Install with: pip install 'weave>=0.51'"
+        )
 
     import asyncio
     import weave
+
+    # Fields the scorers actually read
+    _SCORER_KEYS = {"latency_ms", "task_correct", "json_valid"}
 
     @weave.op()
     def passthrough_model(row: dict) -> dict:
         """Identity model — predictions are already computed.
 
-        Receives the full prediction row (wrapped in 'row' column by dataset)
-        and returns it directly for scorers to process.
+        Returns only the fields scorers need. Filtering prevents Weave's
+        numpy aggregation from choking on mixed-type non-scorer fields.
         """
-        return row
+        return {k: row[k] for k in _SCORER_KEYS if k in row}
 
     evaluation = weave.Evaluation(
         dataset=dataset,
@@ -230,10 +248,23 @@ def run_retroactive_eval(
         results = loop.run_until_complete(evaluation.evaluate(passthrough_model))
     except Exception as e:
         # Weave 0.52 has a numpy aggregation bug with large datasets
-        # Return partial results if available
+        # where dtype resolution fails on string scorer outputs.
+        # Individual rows are scored; only the summary aggregation fails.
         error_msg = str(e)
         if "ufunc 'add'" in error_msg:
-            print("  Note: Weave aggregation completed but summary failed (numpy bug). Check Weave UI for results.")
+            print(
+                "  Note: Weave aggregation completed but summary failed (numpy bug). Check Weave UI for results."
+            )
+        if (
+            "add.reduce" in error_msg
+            or "ufunc 'add'" in error_msg
+            or "resolved dtypes" in error_msg
+            or "inhomogeneous shape" in error_msg
+        ):
+            print(
+                f"  Note: Rows scored but summary aggregation failed (numpy dtype bug). Check Weave UI for per-row results.",
+                flush=True,
+            )
             results = {"error": "aggregation_failed", "message": error_msg}
         else:
             raise

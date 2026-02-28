@@ -30,26 +30,29 @@ def test_weave_integration_module():
 
 
 def test_slo_scorer_scoring():
-    """Test SLOScorer.score() logic."""
+    """Test SLOScorer.score() logic.
+
+    Scorers return floats (1.0/0.0) for numpy aggregation compatibility.
+    """
     from agent_stable_slo.logging.weave_integration import SLOScorer
 
     scorer = SLOScorer(tier_ms=2000)  # 2s deadline
 
     # Under deadline, correct, valid JSON -> success
     result = scorer.score(output={"latency_ms": 1500, "task_correct": True, "json_valid": True})
-    assert result["success_at_slo"] is True
-    assert result["on_time"] is True
-    assert result["correct"] is True
+    assert result["success_at_slo"] == 1.0
+    assert result["on_time"] == 1.0
+    assert result["correct"] == 1.0
 
     # Over deadline -> failure
     result = scorer.score(output={"latency_ms": 2500, "task_correct": True, "json_valid": True})
-    assert result["success_at_slo"] is False
-    assert result["on_time"] is False
+    assert result["success_at_slo"] == 0.0
+    assert result["on_time"] == 0.0
 
     # Under deadline but incorrect -> failure
     result = scorer.score(output={"latency_ms": 1500, "task_correct": False, "json_valid": True})
-    assert result["success_at_slo"] is False
-    assert result["correct"] is False
+    assert result["success_at_slo"] == 0.0
+    assert result["correct"] == 0.0
 
 
 def test_json_validity_scorer():
@@ -60,15 +63,15 @@ def test_json_validity_scorer():
 
     # Valid JSON field
     result = scorer.score(output={"json_valid": True})
-    assert result["json_valid"] is True
+    assert result["json_valid"] == 1.0
 
     # Invalid JSON field
     result = scorer.score(output={"json_valid": False})
-    assert result["json_valid"] is False
+    assert result["json_valid"] == 0.0
 
-    # Missing field -> default False
+    # Missing field -> default 0.0
     result = scorer.score(output={})
-    assert result["json_valid"] is False
+    assert result["json_valid"] == 0.0
 
 
 def test_accuracy_scorer():
@@ -79,15 +82,15 @@ def test_accuracy_scorer():
 
     # Correct
     result = scorer.score(output={"task_correct": True})
-    assert result["task_correct"] is True
+    assert result["task_correct"] == 1.0
 
     # Incorrect
     result = scorer.score(output={"task_correct": False})
-    assert result["task_correct"] is False
+    assert result["task_correct"] == 0.0
 
-    # Missing field -> default False
+    # Missing field -> default 0.0
     result = scorer.score(output={})
-    assert result["task_correct"] is False
+    assert result["task_correct"] == 0.0
 
 
 @pytest.mark.skipif(
