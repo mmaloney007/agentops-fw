@@ -45,19 +45,12 @@
 \title{The Deployment Gap: Why Benchmark Accuracy\\Fails to Predict Production Readiness}
 
 \author{
-V. Michael Maloney \\
+Michael Maloney \\
 Neuralift; University of New Hampshire \\
 \texttt{mike@neuralift.ai}
 }
 
 \date{}
-
-\usepackage{fancyhdr}
-\pagestyle{fancy}
-\fancyhf{}
-\renewcommand{\headrulewidth}{0pt}
-\chead{\textcolor{red}{\small\textbf{PRE-DRAFT --- Do Not Distribute}}}
-\cfoot{\thepage}
 
 \begin{document}
 \maketitle
@@ -68,7 +61,7 @@ Neuralift; University of New Hampshire \\
 \begin{abstract}
 Model selection for production deployment relies heavily on accuracy benchmarks, yet these benchmarks measure only one dimension of readiness. We investigate whether accuracy rankings predict deployment success when latency constraints are imposed.
 
-We evaluate 13 models on five structured output tasks---intent classification, grounded QA, tool calling, function routing, and code patching---under a 2-second latency deadline. What we found was stark: of 29,900 evaluation requests across all models, only 9.3\% from the smallest model arrived both correct and on time. Every other model---all twelve of them---failed to deliver a single request within the deadline.
+We evaluate 13 models on five structured output tasks---intent classification, grounded QA, tool calling, function routing, and code patching---under a 2-second latency deadline. The results reveal a fundamental disconnect between accuracy and deployment readiness: of 29,900 evaluation requests across all models, only 9.3\% from the smallest model arrived both correct and on time. Every other model failed to deliver a single request within the deadline.
 
 \begin{center}
 \begin{tabular}{llcc}
@@ -94,13 +87,13 @@ GPT-OSS-20B & OpenAI & 99.1\% & 0.0\% (worst) \\
 
 The deployment gap---the difference between accuracy and Success@SLO---exceeds 90\% for every model we tested. Twelve of thirteen models achieve near-perfect accuracy while delivering zero production value under realistic latency constraints.
 
-We swept deadline thresholds from 2s to 10s. At production-realistic deadlines, accuracy has no predictive power for deployment success (Spearman $\rho = 0.09$ at 2s). Even at a generous 10-second deadline, 10 of 13 models change rank between accuracy and Success@SLO orderings. This is not an artifact of aggressive thresholds---the disconnect persists regardless of where the line is drawn.
+Sensitivity analysis across deadline thresholds (2s, 5s, 10s) reveals a striking pattern: at production-realistic deadlines, accuracy has essentially no predictive power for deployment success (Spearman $\rho = 0.09$ at 2s). Even at generous 10-second deadlines, 10 of 13 models change rank between accuracy and Success@SLO orderings. The deployment gap isn't an artifact of aggressive thresholds---it's fundamental.
 
 The pattern holds across vendors and architectures: Meta, Alibaba, Microsoft, Google, OpenAI, Mistral, 01.AI, and TII models from the US, China, France, and UAE all show the same inversion. Bigger models that dominate accuracy leaderboards collapse under latency constraints.
 
 We introduce \emph{Success@SLO}---the fraction of requests that are both correct AND arrive on time. This single metric captures what production systems actually experience. We also release SpecSLOEval, a framework for measuring structure, accuracy, faithfulness, stability, and latency across five task types through a unified evaluation harness.
 
-Accuracy-only evaluation is insufficient for deployment decisions.
+These findings suggest that accuracy-only evaluation is insufficient for deployment decisions.
 \end{abstract}
 
 %==============================================================================
@@ -297,7 +290,7 @@ And unless you are checking every output manually, you will not notice until som
 
 RAGAS~\citep{es2023ragas} and similar LLM-as-judge frameworks try to automate this checking.
 You ask a second model: ``Is this claim supported by this context?''
-Atomic-fact decomposition~\citep{atomicFacts2023} goes further, breaking outputs into individual claims and scoring each one.
+Atomic-fact decomposition~\citep{atomicFacts2024} goes further, breaking outputs into individual claims and scoring each one.
 
 LLM-as-judge methods are powerful but imperfect.
 Studies document judge bias and sensitivity to prompt framing~\citep{chen2024humans}.
@@ -373,7 +366,7 @@ This ignores three factors that dominate production outcomes:
     \item \textbf{Consistency.} Users expect the same answer to the same question. Flaky outputs erode trust even when individually correct. If your model produces different answers on repeated runs, something is broken even if the answers are ``correct.''
 \end{enumerate}
 
-A model can score 90\% on MMLU~\citep{hendrycks2021mmlu} or top the HELM~\citep{liang2023helm} leaderboard while failing 99\% of production requests due to latency.
+A model can score 90\% on MMLU~\citep{hendrycks2021mmlu} or top the HELM~\citep{liang2022helm} leaderboard while failing 99\% of production requests due to latency.
 This is exactly what we observe with Ministral-8B in our experiments.
 It is an ``accuracy liar''---a model that looks great on benchmarks and fails in production.
 
@@ -682,7 +675,7 @@ The correlation is negative.
 %% Updated: 2026-01-29 - Final 13-model evaluation results with REAL data
 \begin{table}[t]
 \centering
-\caption{Main results across 13 models from 8 vendors. The deployment gap is categorical: only one model achieves any Success@SLO under a 2-second deadline. Models sorted by tool calling accuracy (T3) to highlight the inversion---the best accuracy performers have the worst deployment outcomes.}
+\caption{Main results across 13 models from 8 vendors. The deployment gap is stark: only one model achieves any Success@SLO under a 2-second deadline. Models sorted by tool calling accuracy (T3) to highlight the inversion---the best accuracy performers have the worst deployment outcomes.}
 \label{tab:main-results}
 \small
 \begin{tabular}{llccccc}
@@ -770,7 +763,7 @@ The patterns tell a clear story:
 
 \paragraph{What the data shows.}
 
-The results are unambiguous. Across 13 models from 8 vendors, only one achieves any Success@SLO under a 2-second deadline.
+The results are stark. Across 13 models from 8 vendors, only one achieves any Success@SLO under a 2-second deadline.
 
 \textbf{The deployment gap is near-total.} Twelve of thirteen models show 0.0\% Success@SLO. Not low rates---zero. These models achieve 99\%+ accuracy on JSON validity and strong performance on task-specific metrics (up to 73.8\% on tool calling). None of that matters when P95 latencies range from 27 to 134 seconds.
 
@@ -778,7 +771,7 @@ The results are unambiguous. Across 13 models from 8 vendors, only one achieves 
 
 \textbf{Architecture claims don't survive production.} Falcon-Mamba-7B uses the theoretically efficient Mamba/SSM architecture. In practice: 0\% tool calling accuracy, 0\% Success@SLO, P95 of 77 seconds. The MoE architecture in GPT-OSS-20B (only 3.6B active parameters per token) doesn't help either---it achieves solid accuracy but 0\% Success@SLO with a P95 of 73 seconds.
 
-\textbf{The pattern is universal.} Meta, Google, Alibaba, Microsoft, Mistral, OpenAI, 01.AI, and TII---models from the US, China, France, and UAE---all show the same failure mode. This isn't vendor-specific. The deployment gap is structural---it follows from how we build and evaluate language models.
+\textbf{The pattern is universal.} Meta, Google, Alibaba, Microsoft, Mistral, OpenAI, 01.AI, and TII---models from the US, China, France, and UAE---all show the same failure mode. This isn't vendor-specific. The deployment gap is fundamental to how we build and evaluate language models.
 
 \subsection{Latency Distribution Analysis}
 
@@ -935,7 +928,7 @@ As deadlines loosen, correlation increases, but significant rank shuffling persi
 
 The pattern is clear: \textbf{at production-realistic deadlines, accuracy rankings are meaningless}.
 Even at generous 10-second deadlines, the majority of models change rank between accuracy and deployment metrics.
-This isn't a quirk of our 2-second threshold---it's a structural property of how latency interacts with accuracy in production settings.
+This isn't a quirk of our 2-second threshold---it's a fundamental property of how latency interacts with accuracy in production settings.
 
 Why 2 seconds?
 This threshold aligns with industry standards for user-facing services:
@@ -946,7 +939,7 @@ This threshold aligns with industry standards for user-facing services:
 \end{itemize}
 
 Our choice of 2s represents the upper bound of acceptable interactive latency.
-Results at 1s would be even more severe---only the 1B model remains viable (see Figure~\ref{fig:slo-sensitivity} for sensitivity analysis).
+Results at 1s would be even more stark---only the 1B model remains viable (see Figure~\ref{fig:slo-sensitivity} for sensitivity analysis).
 
 \subsection{Configuration Ladder Results}
 
@@ -1239,7 +1232,7 @@ Success@SLO makes NVIDIA's insight actionable by providing a metric that capture
 
 \subsection{Industry Validation: Adaptive Compute}
 
-OpenAI's GPT-5 family~\citep{openai2025gpt5} provides independent validation of the deployment gap.
+OpenAI's GPT-5 family~\citep{openai2025gpt5} provides striking validation of the deployment gap.
 Rather than shipping a single model optimized for accuracy, OpenAI implemented \emph{adaptive inference-time compute}---the model chooses how long to ``think'' based on query complexity.
 
 GPT-5's architecture includes: (1) an efficient model for quick responses, (2) a deeper reasoning model for harder problems, and (3) a real-time router that decides which to use.
@@ -1299,7 +1292,7 @@ Async/batch processing & 60s+ & $<$5\% & All tasks \\
 \end{table}
 
 \paragraph{Task complexity determines SLO requirements.}
-Different tasks have structurally different latency profiles, independent of model choice:
+Different tasks have fundamentally different latency profiles, independent of model choice:
 
 \begin{itemize}[leftmargin=12pt]
     \item \textbf{Simple classification (T1):} P50 = 3.9s. Gap closes at 10--20s SLO.

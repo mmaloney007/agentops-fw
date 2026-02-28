@@ -1,4 +1,4 @@
-\begin{thebibliography}{15}
+\begin{thebibliography}{19}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -7,9 +7,14 @@
 
 \bibitem[{Akamai Technologies}(2017)]{akamai2017performance}
 {Akamai Technologies}.
-\newblock Akamai online retail performance report: Milliseconds are critical,
-  2017.
+\newblock The state of online retail performance: Spring 2017, 2017.
 \newblock 53\% of mobile users abandon pages taking longer than 3 seconds.
+
+\bibitem[Belcak et~al.(2025)Belcak, Heinrich, Diao, Fu, Dong, Muralidharan,
+  Lin, and Molchanov]{nvidia2025slm}
+Peter Belcak, Greg Heinrich, Shizhe Diao, Yonggan Fu, Xin Dong, Saurav
+  Muralidharan, Yingyan~Celine Lin, and Pavlo Molchanov.
+\newblock Small language models are the future of agentic {AI}, 2025.
 
 \bibitem[Chiang et~al.(2024)]{chiang2024chatbot}
 Wei-Lin Chiang et~al.
@@ -41,6 +46,13 @@ Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas Mazeika, Dawn
   Song, and Jacob Steinhardt.
 \newblock Measuring massive multitask language understanding, 2021.
 
+\bibitem[Jimenez et~al.(2024)Jimenez, Yang, Wettig, Yao, Pei, Press, and
+  Narasimhan]{jimenez2024swebench}
+Carlos~E. Jimenez, John Yang, Alexander Wettig, Shunyu Yao, Kexin Pei, Ofir
+  Press, and Karthik Narasimhan.
+\newblock {SWE-bench}: Can language models resolve real-world {GitHub} issues?
+\newblock In \emph{Proceedings of ICLR}, 2024.
+
 \bibitem[Larson et~al.(2019)]{larson2019clinc}
 Stefan Larson et~al.
 \newblock An evaluation dataset for intent classification and out-of-scope
@@ -52,29 +64,39 @@ Percy Liang et~al.
 \newblock {HELM}: Holistic evaluation of language models, 2023.
 
 \bibitem[Maloney(2025{\natexlab{a}})]{maloney2025capacity}
-Michael Maloney.
+V.~Michael Maloney.
 \newblock Capacity thresholds in schema-aware training: Why small models can't
   close the deployment gap.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{a}}.
 \newblock Paper~II of this series.
 
 \bibitem[Maloney(2025{\natexlab{b}})]{maloney2025deploymentgap}
-Michael Maloney.
+V.~Michael Maloney.
 \newblock The deployment gap: Why benchmark accuracy fails to predict
   production readiness.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{b}}.
 \newblock Paper~I of this series. Documents the disconnect between accuracy and
   SLO compliance across 13 models.
 
-\bibitem[{NVIDIA}(2025)]{nvidia2025slm}
-{NVIDIA}.
-\newblock Small language models for enterprise inference, 2025.
-\newblock NVIDIA Technical Blog. Recommends latency-aware model selection for
-  SLM deployment.
+\bibitem[Mialon et~al.(2024)Mialon, Fourrier, Swift, Wolf, LeCun, and
+  Scialom]{mialon2024gaia}
+Gr{\'e}goire Mialon, Cl{\'e}mentine Fourrier, Craig Swift, Thomas Wolf, Yann
+  LeCun, and Thomas Scialom.
+\newblock {GAIA}: A benchmark for general {AI} assistants.
+\newblock \emph{arXiv preprint arXiv:2311.12983}, 2024.
 
 \bibitem[Patil et~al.(2023)Patil, Zhang, Wang, and Gonzalez]{patil2023gorilla}
 Shishir~G. Patil, Tianjun Zhang, Xin Wang, and Joseph~E. Gonzalez.
 \newblock Gorilla: Large language model connected with massive {APIs}, 2023.
+
+\bibitem[Patil et~al.(2025)Patil, Mao, Yan, Ji, Suresh, Stoica, and
+  Gonzalez]{berkeley2024bfcl}
+Shishir~G. Patil, Huanzhi Mao, Fanjia Yan, Charlie Cheng-Jie Ji, Vishnu Suresh,
+  Ion Stoica, and Joseph~E. Gonzalez.
+\newblock The {Berkeley} function calling leaderboard ({BFCL}): From tool use
+  to agentic evaluation of large language models.
+\newblock In \emph{Proceedings of the 42nd International Conference on Machine
+  Learning (ICML)}, volume 267 of \emph{PMLR}, 2025.
 
 \bibitem[Reddi et~al.(2020)]{reddi2020mlperf}
 Vijay~Janapa Reddi et~al.
@@ -91,5 +113,13 @@ Zhilin Yang et~al.
 \newblock {HotpotQA}: A dataset for diverse, explainable multi-hop question
   answering.
 \newblock In \emph{Proceedings of EMNLP}, 2018.
+
+\bibitem[Zhou et~al.(2024)Zhou, Xu, Zhu, Zhou, Lo, Sridhar, Cheng, Bisk, Fried,
+  Alon, and Neubig]{zhou2024webarena}
+Shuyan Zhou, Frank~F. Xu, Hao Zhu, Xuhui Zhou, Robert Lo, Abishek Sridhar,
+  Xianyi Cheng, Yonatan Bisk, Daniel Fried, Uri Alon, and Graham Neubig.
+\newblock {WebArena}: A realistic web environment for building autonomous
+  agents.
+\newblock In \emph{Proceedings of ICLR}, 2024.
 
 \end{thebibliography}

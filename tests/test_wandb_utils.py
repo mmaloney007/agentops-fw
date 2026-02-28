@@ -3,7 +3,6 @@
 Uses WANDB_MODE=offline to avoid network calls during CI.
 """
 import os
-import pytest
 
 # Set offline mode before imports
 os.environ["WANDB_MODE"] = "offline"

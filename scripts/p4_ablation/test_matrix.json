@@ -1,0 +1,290 @@
+[
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.0,
+    "seed": 42,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.0,
+    "seed": 123,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.0,
+    "seed": 456,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.05,
+    "seed": 42,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.05,
+    "seed": 123,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.05,
+    "seed": 456,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.1,
+    "seed": 42,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.1,
+    "seed": 123,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.1,
+    "seed": 456,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.2,
+    "seed": 42,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.2,
+    "seed": 123,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "qwen3_4b",
+    "config_preset": "p2_qwen3_4b",
+    "task": "T5",
+    "lambda_val": 0.2,
+    "seed": 456,
+    "description": "Transient latency spikes"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.0,
+    "seed": 42,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.0,
+    "seed": 123,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.0,
+    "seed": 456,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.05,
+    "seed": 42,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.05,
+    "seed": 123,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.05,
+    "seed": 456,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.1,
+    "seed": 42,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.1,
+    "seed": 123,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.1,
+    "seed": 456,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.2,
+    "seed": 42,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.2,
+    "seed": 123,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "yi_6b",
+    "config_preset": "p2_yi_6b",
+    "task": "Mixed",
+    "lambda_val": 0.2,
+    "seed": 456,
+    "description": "Catastrophic SLO violations"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.0,
+    "seed": 42,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.0,
+    "seed": 123,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.0,
+    "seed": 456,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.05,
+    "seed": 42,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.05,
+    "seed": 123,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.05,
+    "seed": 456,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.1,
+    "seed": 42,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.1,
+    "seed": 123,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.1,
+    "seed": 456,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.2,
+    "seed": 42,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.2,
+    "seed": 123,
+    "description": "High latency tax (small batch)"
+  },
+  {
+    "model_name": "phi3_mini",
+    "config_preset": "p2_phi3_mini",
+    "task": "T2",
+    "lambda_val": 0.2,
+    "seed": 456,
+    "description": "High latency tax (small batch)"
+  }
+]

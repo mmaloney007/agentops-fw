@@ -1,5 +1,4 @@
 """Tests for agentops_fw.validators module."""
-import pytest
 
 from agentops_fw.validators import validate_json
 

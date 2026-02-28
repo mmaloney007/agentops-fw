@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -796,7 +795,7 @@ Examples:
     pending_runs = tracker.get_pending_runs(all_runs)
 
     print(f"\n{'='*60}")
-    print(f"P2 Training Matrix")
+    print("P2 Training Matrix")
     print(f"{'='*60}")
     print(f"Models: {len(args.models)}")
     print(f"Tasks: {len(args.tasks)}")
@@ -869,7 +868,7 @@ Examples:
 
             print(f"\n[Retry {i}/{len(failed_runs)}] {run_key}")
             print(f"  Previous failure: {run_data.get('status')} - {run_data.get('error_message', 'unknown')}")
-            print(f"  Using OOM-safe settings: 4-bit, grad_accum=4, grad_ckpt, lora_rank=8")
+            print("  Using OOM-safe settings: 4-bit, grad_accum=4, grad_ckpt, lora_rank=8")
 
             # Clear previous error state
             tracker.state.runs[run_key]["status"] = "in_progress"
@@ -891,7 +890,7 @@ Examples:
     final_completed = sum(1 for v in tracker.state.runs.values() if v.get("status") == "completed")
 
     print(f"\n{'='*60}")
-    print(f"Training Matrix Complete")
+    print("Training Matrix Complete")
     print(f"{'='*60}")
     print(f"Completed: {final_completed}/{len(tracker.state.runs)}")
     print(f"Failed: {final_failed}")
@@ -902,7 +901,7 @@ Examples:
         print(f"\n{final_failed} runs still failed. To retry manually:")
         print(f"  python scripts/retry_failed_runs.py --input {out_dir}")
 
-    print(f"\nTo aggregate results:")
+    print("\nTo aggregate results:")
     print(f"  python scripts/aggregate_p2_results.py --input {out_dir}")
 
 

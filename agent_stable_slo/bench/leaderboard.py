@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .slo_tiers import TIERS, TIER_MAP
-from .benchmark_runner import BenchmarkResult, compute_from_p1_data
+from .benchmark_runner import compute_from_p1_data
 
 # Path to built-in P1 baseline data
 P1_DATA_PATH = Path(__file__).parent.parent.parent / "out" / "p1_comprehensive_20260118" / "all_results.json"
@@ -25,12 +25,22 @@ def load_p1_baseline() -> dict:
 
 
 def compute_spearman_rho(ranks_a: list[float], ranks_b: list[float]) -> float:
-    """Compute Spearman rank correlation coefficient."""
+    """Compute Spearman rho from rank vectors.
+
+    Uses Pearson correlation over rank vectors, which is tie-correct.
+    """
     n = len(ranks_a)
-    if n < 3:
+    if n < 3 or n != len(ranks_b):
         return 0.0
-    d_sq = sum((a - b) ** 2 for a, b in zip(ranks_a, ranks_b))
-    return 1.0 - (6.0 * d_sq) / (n * (n * n - 1))
+    mean_a = sum(ranks_a) / n
+    mean_b = sum(ranks_b) / n
+    num = sum((a - mean_a) * (b - mean_b) for a, b in zip(ranks_a, ranks_b))
+    den_a = sum((a - mean_a) ** 2 for a in ranks_a)
+    den_b = sum((b - mean_b) ** 2 for b in ranks_b)
+    den = math.sqrt(den_a * den_b)
+    if den == 0.0:
+        return 0.0
+    return num / den
 
 
 def rank_values(values: list[float], descending: bool = True) -> list[float]:

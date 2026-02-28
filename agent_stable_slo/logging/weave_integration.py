@@ -5,6 +5,7 @@ retroactive evaluation of existing predictions through the Weave UI.
 
 Pattern: mirrors wandb_utils.py — lazy import, env-var gated, graceful fallback.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ def _weave_available() -> bool:
     """Check if weave is importable."""
     try:
         import weave  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -32,6 +34,7 @@ def init_weave(project: str) -> bool:
         return False
     try:
         import weave
+
         weave.init(project)
         return True
     except Exception:
@@ -97,20 +100,27 @@ else:
     # Stub classes when weave is not installed
     class SLOScorer:  # type: ignore[no-redef]
         def __init__(self, **kwargs: Any) -> None:
-            raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+            raise ImportError(
+                "weave is not installed. Install with: pip install 'weave>=0.51'"
+            )
 
     class JSONValidityScorer:  # type: ignore[no-redef]
         def __init__(self, **kwargs: Any) -> None:
-            raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+            raise ImportError(
+                "weave is not installed. Install with: pip install 'weave>=0.51'"
+            )
 
     class AccuracyScorer:  # type: ignore[no-redef]
         def __init__(self, **kwargs: Any) -> None:
-            raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+            raise ImportError(
+                "weave is not installed. Install with: pip install 'weave>=0.51'"
+            )
 
 
 # ---------------------------------------------------------------------------
 # Dataset + evaluation helpers
 # ---------------------------------------------------------------------------
+
 
 def _normalize_prediction_row(row: dict) -> dict:
     """Normalize a prediction row for Weave scoring.
@@ -141,7 +151,9 @@ def _normalize_prediction_row(row: dict) -> dict:
             if fb:
                 # Consider correct if the primary field matches
                 # For clinc: intent match; for hotpot: answer match
-                matches = [v.get("match", False) for v in fb.values() if isinstance(v, dict)]
+                matches = [
+                    v.get("match", False) for v in fb.values() if isinstance(v, dict)
+                ]
                 # Use first field (typically the main one) as correctness signal
                 normalized["task_correct"] = matches[0] if matches else False
             else:
@@ -167,7 +179,9 @@ def create_dataset_from_predictions(
     Returns a weave.Dataset, or raises ImportError if weave is unavailable.
     """
     if not _weave_available():
-        raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+        raise ImportError(
+            "weave is not installed. Install with: pip install 'weave>=0.51'"
+        )
 
     import weave
 
@@ -204,7 +218,9 @@ def run_retroactive_eval(
         Evaluation summary dict.
     """
     if not _weave_available():
-        raise ImportError("weave is not installed. Install with: pip install 'weave>=0.51'")
+        raise ImportError(
+            "weave is not installed. Install with: pip install 'weave>=0.51'"
+        )
 
     import asyncio
     import weave
@@ -235,8 +251,20 @@ def run_retroactive_eval(
         # where dtype resolution fails on string scorer outputs.
         # Individual rows are scored; only the summary aggregation fails.
         error_msg = str(e)
-        if "add.reduce" in error_msg or "ufunc 'add'" in error_msg or "resolved dtypes" in error_msg or "inhomogeneous shape" in error_msg:
-            print(f"  Note: Rows scored but summary aggregation failed (numpy dtype bug). Check Weave UI for per-row results.", flush=True)
+        if "ufunc 'add'" in error_msg:
+            print(
+                "  Note: Weave aggregation completed but summary failed (numpy bug). Check Weave UI for results."
+            )
+        if (
+            "add.reduce" in error_msg
+            or "ufunc 'add'" in error_msg
+            or "resolved dtypes" in error_msg
+            or "inhomogeneous shape" in error_msg
+        ):
+            print(
+                f"  Note: Rows scored but summary aggregation failed (numpy dtype bug). Check Weave UI for per-row results.",
+                flush=True,
+            )
             results = {"error": "aggregation_failed", "message": error_msg}
         else:
             raise

@@ -224,6 +224,13 @@ class TestSpearmanRho:
         assert compute_spearman_rho([1.0], [1.0]) == 0.0
         assert compute_spearman_rho([1.0, 2.0], [2.0, 1.0]) == 0.0
 
+    def test_tie_heavy_case_is_tie_correct(self):
+        # These rank vectors represent ties in both variables.
+        # Tie-correct Spearman (Pearson on ranks) is exactly 0.0.
+        ranks_a = [3.5, 3.5, 1.5, 1.5]
+        ranks_b = [3.5, 1.5, 3.5, 1.5]
+        assert compute_spearman_rho(ranks_a, ranks_b) == pytest.approx(0.0)
+
 
 class TestBootstrapSpearman:
     def test_perfect_correlation(self):

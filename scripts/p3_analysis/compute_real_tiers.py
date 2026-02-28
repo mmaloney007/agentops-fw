@@ -227,7 +227,7 @@ def spearman_p_value(rho: float, n: int) -> float:
     # Two-tailed p-value from t-statistic
     df = n - 2
     # Approximation: use the incomplete beta function relationship
-    x = df / (df + t_stat * t_stat)
+    df / (df + t_stat * t_stat)
     # Simple approximation using normal CDF for large enough df
     z = abs(t_stat) * math.sqrt(1 - 1 / (4 * df) - 7 / (120 * df * df)) if df > 2 else abs(t_stat)
     # Standard normal CDF approximation (Abramowitz & Stegun)

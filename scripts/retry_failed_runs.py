@@ -249,7 +249,7 @@ def main():
     for run in failed_runs:
         print(f"  {run['run_key']}: {run['status']} - {run['error']}")
 
-    print(f"\nRetry settings:")
+    print("\nRetry settings:")
     for k, v in OOM_RETRY_SETTINGS.items():
         print(f"  {k}: {v}")
 
@@ -262,13 +262,13 @@ def main():
         print("\nDry run complete. Remove --dry-run to execute.")
         return
 
-    print(f"\nStarting retries...")
+    print("\nStarting retries...")
     for i, run in enumerate(failed_runs, 1):
         print(f"\n[{i}/{len(failed_runs)}] Retrying: {run['run_key']}")
         print(f"  Model: {run['model']}")
         print(f"  Task: {run['task']}")
         print(f"  Seed: {run['seed']}")
-        print(f"  Settings: 4-bit, grad_accum=4, max_tokens=128")
+        print("  Settings: 4-bit, grad_accum=4, max_tokens=128")
 
         # Reset status to in_progress
         state["runs"][run["run_key"]]["status"] = "in_progress"

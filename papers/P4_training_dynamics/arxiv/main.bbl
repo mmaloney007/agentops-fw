@@ -36,21 +36,21 @@ James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel Veness, Guillaume
   (13):\penalty0 3521--3526, 2017.
 
 \bibitem[Maloney(2025{\natexlab{a}})]{maloney2025agentslobench}
-Michael Maloney.
+V.~Michael Maloney.
 \newblock {AgentSLO-Bench}: An {SLO}-aware benchmark for {LLM} agent
   deployment.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{a}}.
 \newblock Paper~III of this series.
 
 \bibitem[Maloney(2025{\natexlab{b}})]{maloney2025capacity}
-Michael Maloney.
+V.~Michael Maloney.
 \newblock Capacity thresholds in schema-aware training: Why small models can't
   close the deployment gap.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{b}}.
 \newblock Paper~II of this series.
 
 \bibitem[Maloney(2025{\natexlab{c}})]{maloney2025deploymentgap}
-Michael Maloney.
+V.~Michael Maloney.
 \newblock The deployment gap: Why benchmark accuracy fails to predict
   production readiness.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{c}}.

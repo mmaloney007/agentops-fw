@@ -48,21 +48,31 @@
 \title{Training Dynamics of Schema-Aware Reinforcement Learning\\for LLM Agents: Reward Decomposition, Forgetting, and\\Early Prediction}
 
 \author{
-Michael Maloney \\
+V. Michael Maloney \\
 Neuralift; University of New Hampshire \\
 \texttt{mike@neuralift.ai}
 }
 
 \date{}
 
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\chead{\textcolor{red}{\small\textbf{PRE-DRAFT --- Do Not Distribute}}}
+\cfoot{\thepage}
+
 \begin{document}
 \maketitle
+\begin{center}
+\textit{Preprint. Work in progress.}
+\end{center}
 
 % =============================================================================
 % ABSTRACT
 % =============================================================================
 \begin{abstract}
-Paper~II showed that GRPO training with a composite SLO-aware reward produces task-dependent capacity thresholds: small models learn simple structured tasks but fail on complex ones. This paper asks \emph{why}. We analyze the training dynamics of 185 GRPO runs across 11 models and 6 task types, decomposing the composite reward into its schema, accuracy, latency, and cost components (RQ1), building a full forgetting matrix across model-task pairs (RQ2), classifying validity curves into sustained, transient, and flat trajectories (RQ3), and testing whether early training signals predict final outcomes (RQ3+). Our synthesis (RQ4) reveals that the capacity threshold is not a single phenomenon but a compound of three interacting mechanisms: reward component dominance shifts as model size increases, multi-task interference follows architecture-specific patterns rather than size-based ones, and training curves exhibit distinct morphological types that are predictable from the first 50 steps.
+Paper~II showed that GRPO training with a composite SLO-aware reward produces task-dependent capacity thresholds: small models learn simple structured tasks but fail on complex ones. This paper asks \emph{why}. We analyze the training dynamics of 185 GRPO runs across 11 models and 6 task types, decomposing the composite reward into its schema, accuracy, latency, and cost components (RQ1), building a full forgetting matrix across model-task pairs (RQ2), classifying validity curves into sustained, transient, and flat trajectories (RQ3), and testing whether early training signals predict final outcomes (RQ3+). Our synthesis (RQ4) proposes that the capacity threshold is not a single phenomenon but a compound of three interacting mechanisms: reward component dominance shifts as model size increases, multi-task interference follows architecture-specific patterns rather than size-based ones, and training curves exhibit distinct morphological types that are predictable from the first 50 steps. These mechanisms are identified from observational analysis of existing training runs; we outline the ablation experiments needed to establish causal relationships and provide the experimental infrastructure to execute them.
 
 \begin{center}
 \small
@@ -84,7 +94,7 @@ Gemma-2-9B       & 9B   & 5 & 1 & 0 & selective \\
 \end{tabular}
 \end{center}
 
-Key finding: Qwen2.5-3B (3B) exhibits \emph{positive} interference ($\delta = +0.03$), meaning multi-task training \emph{helps} it, while Yi-1.5-6B (6B)---twice the size---shows the worst forgetting ($\delta = -0.59$), collapsing from 98\% single-task to 0\% multi-task validity. Size is necessary but not sufficient; architecture determines whether capacity translates to capability.
+Key finding: Qwen2.5-3B (3B) exhibits \emph{positive} interference ($\delta = +0.03$), meaning multi-task training \emph{helps} it, while Yi-1.5-6B (6B)---twice the size---shows the worst forgetting ($\delta = -0.59$), collapsing from 98\% single-task to 0\% multi-task validity. Size is necessary but not sufficient; architecture appears to determine whether capacity translates to capability. These findings are observational---we identify the patterns and propose causal mechanisms, then specify the ablation experiments (latency weight variation, held-out family validation) required to confirm them.
 \end{abstract}
 
 % =============================================================================
@@ -108,7 +118,7 @@ This paper answers that question through four research questions:
 \item[RQ3+: Early Prediction.] Can features extracted from the first 50 training steps predict whether a run will achieve sustained validity?
 \end{description}
 
-Our analysis covers 185 completed GRPO training runs: 11 models $\times$ 6 tasks $\times$ 3 seeds (with 2 models blocked by OOM). All data comes from the training runs described in Paper~II; no new experiments are needed. Where Paper~II asked ``\emph{what} are the thresholds?'' and reported them as empirical results, this paper asks ``\emph{why} do the thresholds exist?'' and provides a mechanistic answer. The contribution is analytical: we re-examine existing training trajectories through four new lenses---reward decomposition, forgetting matrices, curve taxonomy, and early prediction---to explain the capacity thresholds as a compound of three interacting mechanisms rather than a single phenomenon.
+Our analysis covers 185 completed GRPO training runs: 11 models $\times$ 6 tasks $\times$ 3 seeds (with 2 models blocked by OOM). All data comes from the training runs described in Paper~II; no new experiments are needed. Where Paper~II asked ``\emph{what} are the thresholds?'' and reported them as empirical results, this paper asks ``\emph{why} do the thresholds exist?'' and proposes a mechanistic hypothesis grounded in observational evidence. The contribution is analytical: we re-examine existing training trajectories through four new lenses---reward decomposition, forgetting matrices, curve taxonomy, and early prediction---and propose that the capacity thresholds arise from a compound of three interacting mechanisms rather than a single phenomenon. Because these findings are drawn from observational analysis of existing runs (no new experiments), we explicitly distinguish between established patterns (RQ1--RQ3+, supported by the data) and proposed mechanisms (RQ4, requiring ablation experiments for causal validation).
 
 % =============================================================================
 % 2. BACKGROUND
@@ -197,7 +207,7 @@ We decompose the average reward for each model-task combination into estimated c
 \begin{align}
 \hat{R}_{\text{schema}} &= \text{json\_valid\_pct} / 100 \\
 \hat{R}_{\text{latency}} &= -\lambda \cdot \text{avg\_latency\_ms} / 1000 \\
-\hat{R}_{\text{cost}} &= -\mu \cdot \text{avg\_tokens\_out} / 100 \\
+\hat{R}_{\text{cost}} &= -\mu \cdot \text{avg\_tokens\_out} / 1000 \\
 \hat{R}_{\text{residual}} &= R_{\text{total}} - \hat{R}_{\text{schema}} - \hat{R}_{\text{latency}} - \hat{R}_{\text{cost}}
 \end{align}
 
@@ -207,7 +217,7 @@ The residual captures the combined effect of task accuracy, faithfulness, and st
 
 \begin{table}[t]
 \centering
-\caption{Reward decomposition by model (averaged across all tasks and seeds). $R_s$ = schema, $R_r$ = residual (accuracy + other), $R_l$ = latency penalty (absolute value), $R_c$ = cost penalty (absolute value).}
+\caption{Reward decomposition by model (averaged across all tasks and seeds). $R_s$ = schema, $R_r$ = residual (accuracy + faithfulness + stability + decomposition error), $R_l$ = latency penalty (absolute value), $R_c$ = cost penalty (absolute value). Note: $R_r$ values exceeding 1.0 indicate that the post-hoc decomposition absorbs approximation error from using aggregate metrics rather than per-step component logs. Per-step instrumentation (Section~\ref{sec:ablation-plan}) would enable exact decomposition.}
 \label{tab:reward-decomp}
 \small
 \begin{tabular}{llc rrrr r}
@@ -344,7 +354,7 @@ The model-level averages in Table~\ref{tab:reward-decomp} smooth over dramatic t
 \label{fig:task-reward}
 \end{figure}
 
-The per-task view reveals why T5 is the frontier task. Even Qwen3-4B---which achieves near-perfect rewards on T1--T4---faces a fundamentally different optimization landscape on T5: the latency penalty ($|R_l| = 0.83$) exceeds the schema reward ($R_s = 0.49$), meaning the model is \emph{penalized more for being slow than rewarded for being correct}. The GRPO gradient is, in effect, learning to produce shorter (and therefore less correct) outputs as the optimal policy. This explains the transient pattern: T5 validity rises briefly as the model discovers the diff format, then declines as the latency penalty pulls the policy toward brevity.
+The per-task view reveals why T5 is the frontier task. Even Qwen3-4B---which achieves near-perfect rewards on T1--T4---faces a fundamentally different optimization landscape on T5: the latency penalty ($|R_l| = 0.83$) exceeds the schema reward ($R_s = 0.49$), meaning the model is \emph{penalized more for being slow than rewarded for being correct}. The GRPO gradient would, under these conditions, favor shorter (and potentially less correct) outputs. This is \emph{consistent with} the transient pattern: T5 validity rises briefly as the model discovers the diff format, then declines---possibly because the latency penalty incentivizes brevity over correctness. However, we cannot rule out alternative explanations (e.g., representational interference from other tasks in mixed training, or insufficient model capacity for dual-grammar compliance) without the $\lambda$ ablation specified in Section~\ref{sec:ablation-plan}.
 
 The reward profile also explains why T2 is harder than T3 despite comparable accuracy. On T3, Qwen3-4B achieves $R_s = 1.0$ with $|R_l| = 0.45$ (latency tax = 17\%). On T2, $R_s = 0.99$ is essentially the same, but $|R_l| = 0.68$ (latency tax = 27\%). The 10-point difference in latency tax translates to a qualitatively different gradient landscape: T3 converges to a clear optimum (near-perfect validity), while T2 oscillates as the model trades output quality against response length.
 
@@ -395,7 +405,7 @@ Table~\ref{tab:forgetting} reveals that forgetting is \emph{not} a simple functi
 Yi-1.5-6B (6B) shows the worst forgetting ($\delta = -0.59$), collapsing from 59\% average single-task validity to 0\% mixed validity. Yet Qwen2.5-3B (3B)---half the size---shows \emph{positive} interference ($\delta = +0.03$), meaning multi-task training actually helps.
 
 \paragraph{Architecture families matter.}
-The Llama family (1B, 3B, 8B) consistently shows negative interference ($\delta \in [-0.37, -0.15]$), with severity decreasing as size increases. The Qwen family (3B, 4B) shows robust or positive interference. This suggests that the pre-training data mixture and tokenizer design affect multi-task RL trainability as much as raw parameter count.
+The Llama family (1B, 3B, 8B) consistently shows negative interference ($\delta \in [-0.37, -0.15]$), with severity decreasing as size increases. The Qwen family (3B, 4B) shows robust or positive interference. The pre-training data mixture and tokenizer design likely affect multi-task RL trainability as much as raw parameter count.
 
 \paragraph{T3 and T5 are fragile tasks.}
 Seven of ten models achieve 0\% single-task validity on either T3 (tool calling) or T5 (code patching). These tasks require nested JSON structures that smaller models cannot consistently produce. When combined with other tasks in mixed training, these fragile capabilities are the first to collapse.
@@ -450,7 +460,7 @@ Figure~\ref{fig:forgetting-heatmap} presents the forgetting matrix as a heatmap,
 \label{fig:forgetting-heatmap}
 \end{figure}
 
-The heatmap reveals a striking pattern: forgetting does not correlate with model size. Yi-1.5-6B (6B parameters) shows the largest gap between single-task and mixed-task performance, while Qwen2.5-3B (3B parameters, half the size) actually \emph{improves} under multi-task training. The catastrophic models (1B-L, 3B-L, 6B, 7B) share a common trait: they achieve high single-task validity on T1 and T4 ($>$98\%) but 0\% on T3 and T5. When forced to train on all tasks simultaneously, the gradient signal from the hard tasks (T3, T5) overwhelms the learned representations for the easy tasks, destroying everything. The robust models (3B-Q, 4B, 8B-M) share a different trait: they achieve non-zero single-task validity on T3 ($\geq$67\%), suggesting that T3 capability serves as a ``structural anchor'' that stabilizes multi-task training.
+The heatmap reveals a clear pattern: forgetting does not correlate with model size. Yi-1.5-6B (6B parameters) shows the largest gap between single-task and mixed-task performance, while Qwen2.5-3B (3B parameters, half the size) actually \emph{improves} under multi-task training. The catastrophic models (1B-L, 3B-L, 6B, 7B) share a common trait: they achieve high single-task validity on T1 and T4 ($>$98\%) but 0\% on T3 and T5. When forced to train on all tasks simultaneously, the gradient signal from the hard tasks (T3, T5) overwhelms the learned representations for the easy tasks, destroying everything. The robust models (3B-Q, 4B, 8B-M) share a different trait: they achieve non-zero single-task validity on T3 ($\geq$67\%), suggesting that T3 capability serves as a ``structural anchor'' that stabilizes multi-task training.
 
 \subsection{Model Family Comparison}
 
@@ -460,13 +470,13 @@ The forgetting matrix reveals that interference patterns cluster by model \emph{
 All three Llama models exhibit catastrophic or selective forgetting ($\delta = -0.37, -0.37, -0.15$), with severity decreasing monotonically with size. The pattern is remarkably consistent: all three learn T1, T2, and T4 individually ($\geq$98\% validity) but fail T3 and T5. Under mixed training, all three collapse---the 1B and 3B to $\sim$20\% validity, the 8B to 45\%. The Llama family appears to encode task capabilities in overlapping representation subspaces that interfere destructively under multi-task gradients. Scaling helps (the 8B retains more) but does not change the qualitative pattern.
 
 \paragraph{Qwen family (3B, 4B): robust by design.}
-Both Qwen models show robust forgetting profiles ($\delta = +0.03, 0.00$). More remarkably, Qwen2.5-3B is the \emph{only} 3B model that learns T3 (tool calling), and Qwen3-4B is one of only two models to achieve even transient T5 (code patching) learning. The Qwen family's structured-output capability is disproportionate to its parameter count, suggesting that pre-training data composition---likely including substantial tool-use and code-generation data---creates representations that are more naturally aligned with structured output tasks. For practitioners, this means Qwen models are the first choice for multi-task GRPO training on commodity hardware.
+Both Qwen models show robust forgetting profiles ($\delta = +0.03, 0.00$). More remarkably, Qwen2.5-3B is the \emph{only} 3B model that learns T3 (tool calling), and Qwen3-4B is one of only two models to achieve even transient T5 (code patching) learning. The Qwen family's structured-output capability is disproportionate to its parameter count, suggesting that pre-training data composition---plausibly including substantial tool-use and code-generation data---creates representations that are more naturally aligned with structured output tasks. For practitioners, this makes Qwen models strong candidates for multi-task GRPO training on commodity hardware, though we note that our sample contains only two Qwen models and the pattern requires confirmation with additional family members (see Section~\ref{sec:ablation-plan}, Ablation~A3).
 
 \paragraph{Mistral family (7B, 8B): split personality.}
 Mistral-7B ($\delta = -0.38$, catastrophic) and Ministral-8B ($\delta = 0.00$, robust) share a vendor but exhibit opposite forgetting behaviors. The 8B Ministral learns T3; the 7B Mistral does not. Under mixed training, Ministral-8B achieves 73\% validity while Mistral-7B collapses to 15\%. This is not simply a size effect---the 1B difference between 7B and 8B is insufficient to explain a 58-percentage-point gap in mixed validity. Instead, Ministral-8B's architecture changes (likely attention mechanism modifications and updated training data between the Mistral and Ministral generations) create a qualitatively different interference profile. For practitioners, this is a cautionary tale: model name similarity does not imply training-dynamics similarity.
 
 \paragraph{Google family (9B, 12B): diminishing returns.}
-Gemma-2-9B ($\delta = -0.07$, selective) and Gemma-3-12B (completed only 8 of 18 runs due to OOM) both show strong single-task capability. Gemma-2-9B is one of only four models to learn T3 and one of only two to achieve transient T5. But its selective forgetting profile means multi-task training costs it approximately 7 percentage points compared to single-task averages. The 12B Gemma-3 could not complete T2, T5, or Mixed training on our 24GB GPU---even 12B models push the boundaries of commodity hardware for GRPO training with LoRA. This suggests that the Gemma family's deployment ceiling on single-GPU hardware is approximately 9B.
+Gemma-2-9B ($\delta = -0.07$, selective) and Gemma-3-12B (completed only 8 of 18 runs due to OOM) both show strong single-task capability. Gemma-2-9B is one of only four models to learn T3 and one of only two to achieve transient T5. But its selective forgetting profile means multi-task training costs it approximately 7 percentage points compared to single-task averages. The 12B Gemma-3 could not complete T2, T5, or Mixed training on our 24GB GPU---even 12B models push the boundaries of commodity hardware for GRPO training with LoRA. The Gemma family's deployment ceiling on single-GPU hardware is approximately 9B.
 
 \paragraph{Cross-family synthesis.}
 The family comparison reveals a pattern invisible in the aggregate: \emph{training-time behavior clusters by vendor, not by size}. A model's forgetting profile is better predicted by knowing its family than its parameter count. Table~\ref{tab:family-summary} summarizes the family-level patterns.
@@ -603,11 +613,11 @@ The four curves reveal qualitatively different learning dynamics:
 
 \paragraph{Sustained curves} show early improvement followed by a high-variance plateau. Qwen3-4B on Mixed rises from 67\% to 80\% within 50 steps, then oscillates between 76\% and 94\% for the remaining 950 steps. The oscillations are characteristic---they reflect the GRPO gradient's stochasticity interacting with the multi-task prompt distribution. Importantly, the model never drops below 60\% after step 30, meaning its structural capability is firmly established even as the exact validity percentage fluctuates.
 
-\paragraph{Catastrophic curves} are the most dramatic finding. Yi-1.5-6B on Mixed starts promisingly---reaching 58\% validity by step 100, comparable to where sustained curves establish their plateau. But then it collapses. By step 250, validity drops to 27\%. By step 700, it falls to 16\%. By step 800, the model produces 0\% valid JSON. It has not merely failed to improve; it has \emph{destroyed} the structural capability it had at step 100. This is not forgetting in the gradual sense---it is a phase transition where the model's ability to produce valid JSON evaporates entirely.
+\paragraph{Catastrophic curves} are the most dramatic finding. Yi-1.5-6B on Mixed starts promisingly---reaching 58\% validity by step 100, comparable to where sustained curves establish their plateau. But then it collapses. By step 250, validity drops to 27\%. By step 700, it falls to 16\%. By step 800, the model produces 0\% valid JSON. It has not merely failed to improve; it has \emph{destroyed} the structural capability it had at step 100. This is not forgetting in the gradual sense---it is a sharp transition where the model's ability to produce valid JSON evaporates entirely.
 
 \paragraph{Transient curves} show the same initial rise as sustained curves but lack the capacity to maintain the plateau under continued gradient updates. Llama-3.2-1B on Mixed peaks at $\sim$61\% around step 600---briefly crossing the sustained threshold---but declines to 17\% by step 930. The peak is real (it reproduces across seeds), but the model cannot sustain multi-task validity. This ``learn-then-forget'' pattern suggests that the model's capacity is insufficient to maintain all task capabilities simultaneously under the multi-task gradient.
 
-\paragraph{Flat curves} hover near 0\% validity throughout all 1{,}000 training steps. Llama-3.2-1B on T3 (tool calling) never produces valid JSON for the tool-calling schema---not even once across any seed. This is not a training failure; it is a fundamental capacity limitation. The model lacks the representation capacity to learn the nested JSON structures required by T3, and no amount of additional training steps would change this.
+\paragraph{Flat curves} hover near 0\% validity throughout all 1{,}000 training steps. Llama-3.2-1B on T3 (tool calling) never produces valid JSON for the tool-calling schema---not even once across any seed. This is not a training failure; it is a hard capacity limitation. The model lacks the representation capacity to learn the nested JSON structures required by T3, and no amount of additional training steps would change this.
 
 \subsection{All-Model Mixed Training Outcomes}
 
@@ -643,11 +653,11 @@ The four representative curves in Figure~\ref{fig:curve-shapes} illustrate the t
 \node[font=\footnotesize] at (5.0,-0.3) {\textcolor{robust}{\rule{8pt}{8pt}} Robust};
 \node[font=\footnotesize] at (7.8,-0.3) {\textcolor{selective}{\rule{8pt}{8pt}} Selective};
 \end{tikzpicture}
-\caption{\textbf{Final Mixed validity for all 10 models, colored by forgetting profile.} The bimodal distribution is stark: models either achieve $>$60\% final validity (robust/selective profiles) or collapse to $<$20\% (catastrophic). Yi-1.5-6B (6B) at 0\% and Qwen3-4B (4B) at 86\% represent the extremes---a 2$\times$ size difference producing an infinite capability ratio. The gap between catastrophic and non-catastrophic models is not gradual; it is a phase transition.}
+\caption{\textbf{Final Mixed validity for all 10 models, colored by forgetting profile.} The bimodal distribution is categorical: models either achieve $>$60\% final validity (robust/selective profiles) or collapse to $<$20\% (catastrophic). Yi-1.5-6B (6B) at 0\% and Qwen3-4B (4B) at 86\% represent the extremes---a 2$\times$ size difference producing an infinite capability ratio. The gap between catastrophic and non-catastrophic models is not gradual; it is a sharp bimodal separation.}
 \label{fig:all-mixed}
 \end{figure}
 
-The bimodal distribution is the most important finding: there is no ``partially failed'' Mixed training outcome. Models either cross a viability threshold and maintain $>$60\% final validity, or they collapse below 20\%. The gap between the two groups---45 percentage points from the worst robust model (Phi-3-mini at 62\%) to the best catastrophic model (Llama-3.2-3B at 19\%)---is a chasm, not a gradient. This bimodality explains why the capacity threshold is so sharp: it is not a smooth degradation with decreasing size, but a phase transition between two qualitatively different training regimes.
+The bimodal distribution is the most important finding: there is no ``partially failed'' Mixed training outcome. Models either cross a viability threshold and maintain $>$60\% final validity, or they collapse below 20\%. The gap between the two groups---45 percentage points from the worst robust model (Phi-3-mini at 62\%) to the best catastrophic model (Llama-3.2-3B at 19\%)---is a chasm, not a gradient. This bimodality explains why the capacity threshold is so sharp: it is not a smooth degradation with decreasing size, but a sharp bimodal separation between two qualitatively different training regimes.
 
 \subsection{Per-Task Learning Landscape}
 
@@ -676,7 +686,7 @@ Gemma-2-9B       & Google    & 9B   & \textcolor{sustained}{\ding{51}} & \textco
 \end{tabular}
 \end{table}
 
-The learning matrix reveals a cascade of thresholds. \textbf{Tier 1 tasks} (T1, T4)---flat schemas requiring simple key-value output---are universally learnable. Every model achieves sustained validity regardless of size. These tasks set a floor: if a model cannot learn T1, there is a fundamental problem with the training setup, not the model.
+The learning matrix reveals a cascade of thresholds. \textbf{Tier 1 tasks} (T1, T4)---flat schemas requiring simple key-value output---are universally learnable. Every model achieves sustained validity regardless of size. These tasks set a floor: if a model cannot learn T1, there is a problem with the training setup, not the model.
 
 \textbf{Tier 2 tasks} (T2, T3)---nested schemas with arrays and sub-objects---split the field. T3 (tool calling) is the sharpest discriminator: exactly 4 of 10 models learn it (Qwen2.5-3B, Qwen3-4B, Ministral-8B, Gemma-2-9B). The common trait is not size but \emph{pre-training exposure to structured tool-use formats}. T2 (grounded QA) is learnable by 8 of 10 models individually, but collapses for the catastrophic models under mixed training.
 
@@ -712,7 +722,7 @@ This stability arises because most curves either converge to $\geq$95\% validity
 
 \subsection{Seed Variance}
 
-A notable finding is that some model-task combinations show extreme seed variance. Gemma-2-9B on T5 (code patching) is the most striking: seed 42 achieves 34\% last-50 validity, seed 456 achieves 98\%, and seed 123 achieves only 0.7\%. This suggests that T5 lies precisely at Gemma-2-9B's capacity boundary---with favorable initialization the model crosses the threshold, but with unfavorable initialization it does not. This finding has practical implications: single-seed evaluations of training effectiveness can be deeply misleading for models near capacity boundaries.
+Some model-task combinations show extreme seed variance. Gemma-2-9B on T5 (code patching) is the clearest case: seed 42 achieves 34\% last-50 validity, seed 456 achieves 98\%, and seed 123 achieves only 0.7\%. T5 appears to lie precisely at Gemma-2-9B's capacity boundary---with favorable initialization the model crosses the threshold, but with unfavorable initialization it does not. This finding has practical implications: single-seed evaluations of training effectiveness can be deeply misleading for models near capacity boundaries.
 
 % =============================================================================
 % 7. EARLY PREDICTION (RQ3+)
@@ -804,36 +814,53 @@ We can quantify the savings precisely. Our campaign comprises 185 runs $\times$ 
 % =============================================================================
 % 8. THRESHOLD MECHANISM (RQ4)
 % =============================================================================
-\section{The Capacity Threshold Mechanism (RQ4)}
+\section{Toward a Mechanistic Explanation (RQ4)}
 \label{sec:mechanism}
 
-Synthesizing the findings from RQ1--RQ3, we can now characterize the capacity threshold not as a single phenomenon but as the interaction of three mechanisms:
+Synthesizing the patterns from RQ1--RQ3, we propose that the capacity threshold is not a single phenomenon but the interaction of three mechanisms. \textbf{Important caveat:} the evidence presented here is observational---we identify consistent patterns across 185 training runs and propose mechanisms that explain them, but we have not yet performed the ablation experiments needed to establish causation. We specify the required ablations in Section~\ref{sec:ablation-plan}.
 
-\subsection{Mechanism 1: Reward Component Competition}
+\subsection{Proposed Mechanism 1: Reward Component Competition}
 
-From RQ1, we know that the latency penalty grows with model size while the schema reward is approximately constant for models that can produce valid JSON. This creates a ``reward budget'' effect: larger models must compensate for higher latency penalties by achieving proportionally higher accuracy. The threshold occurs when the latency penalty exceeds the model's ability to improve accuracy, causing the net reward to stagnate.
+From RQ1, the latency penalty grows with model size while the schema reward is approximately constant for models that can produce valid JSON. This is consistent with a ``reward budget'' effect: larger models must compensate for higher latency penalties by achieving proportionally higher accuracy. We hypothesize that the threshold occurs when the latency penalty exceeds the model's ability to improve accuracy, causing the net reward to stagnate. \textbf{Test:} Varying $\lambda$ across values $\{0, 0.05, 0.1, 0.2\}$ for models at the threshold boundary (Section~\ref{sec:ablation-plan}) would confirm whether transient curves convert to sustained curves when the latency penalty is reduced.
 
 For the smallest models (1B), the latency penalty is small ($|R_l| = 0.13$), so even modest accuracy improvements produce positive reward signals. For the 8B models, the latency penalty ($|R_l| = 0.50$ for Llama-3.1-8B) consumes a quarter of the maximum reward, requiring high accuracy to maintain comparable total reward.
 
-\subsection{Mechanism 2: Architecture-Specific Interference}
+\subsection{Proposed Mechanism 2: Architecture-Specific Interference}
 
-From RQ2, we know that forgetting is not a smooth function of model size. The threshold for multi-task capability depends on architecture-specific factors---likely the pre-training data mixture, tokenizer design, and attention mechanism variant. Models from the same family (e.g., Llama) show consistent forgetting patterns regardless of size, while models from different families at the same size show dramatically different patterns (Qwen2.5-3B is robust, Llama-3.2-3B is catastrophic).
+From RQ2, forgetting is not a smooth function of model size. The threshold for multi-task capability correlates with architecture-specific factors---plausibly the pre-training data mixture, tokenizer design, and attention mechanism variant, though we cannot isolate which factor is operative from our data. Models from the same family (e.g., Llama) show consistent forgetting patterns regardless of size, while models from different families at the same size show dramatically different patterns (Qwen2.5-3B is robust, Llama-3.2-3B is catastrophic). \textbf{Test:} With only 2--3 models per family, these patterns are suggestive but not statistically powered. Expanding to 5+ models per family (e.g., including Qwen-7B, Llama-3.3-8B) would confirm whether family-level clustering is real or an artifact of small sample size.
 
-\subsection{Mechanism 3: Learning Curve Morphology}
+\subsection{Proposed Mechanism 3: Learning Curve Morphology}
 
-From RQ3, we know that training curves fall into three distinct types, and that the transition between types is sharp rather than gradual. A model either crosses the threshold into sustained learning (typically within 200 steps) or it never does. The transient category represents models at the boundary---they briefly cross the threshold but lack the capacity to maintain it under the continuing gradient updates.
+From RQ3, training curves fall into three distinct types, and the transition between types is sharp rather than gradual. A model either crosses the threshold into sustained learning (typically within 200 steps) or it never does. The transient category represents models at the boundary---they briefly cross the threshold but appear to lack the capacity to maintain it under the continuing gradient updates. \textbf{Test:} If the transient pattern is driven by reward component competition (Mechanism~1), then reducing $\lambda$ should convert transient curves to sustained ones. If it is driven by representational interference (Mechanism~2), then $\lambda$ reduction would not help. The ablation in Section~\ref{sec:ablation-plan} discriminates between these explanations.
 
-\subsection{The Compound Threshold}
+\subsection{The Compound Threshold (Hypothesis)}
 
-The effective capacity threshold for a given task is determined by the conjunction of all three mechanisms:
+We propose that the effective capacity threshold for a given task is determined by the conjunction of all three mechanisms:
 
 \begin{equation}
 \text{threshold}(t) = \min\left\{s : R_s(s) + R_r(s) > |R_l(s)| + |R_c(s)| + \epsilon_{\text{forgetting}}(s, t)\right\}
 \end{equation}
 
-where $s$ is model size, $t$ is the task, and $\epsilon_{\text{forgetting}}$ captures the architecture-specific interference penalty. This explains why the threshold is task-dependent (different tasks have different accuracy difficulties) and architecture-dependent (different architectures have different $\epsilon_{\text{forgetting}}$).
+where $s$ is model size, $t$ is the task, and $\epsilon_{\text{forgetting}}$ captures the architecture-specific interference penalty. This formulation is \emph{descriptive}---it summarizes the observed patterns---but is not yet empirically validated as a predictive model. If correct, it explains why the threshold is task-dependent (different tasks have different accuracy difficulties) and architecture-dependent (different architectures have different $\epsilon_{\text{forgetting}}$).
 
-Consider what this means in practice. A team selecting a model for GRPO training cannot rely on parameter count alone. Two decisions are required: (1) is the model above the task-specific size threshold? and (2) does the model's architecture have a compatible forgetting profile? A 6B model with a catastrophic forgetting profile (Yi-1.5-6B) is a worse investment than a 3B model with a robust profile (Qwen2.5-3B)---not by a small margin, but by the difference between 0\% and 76\% mixed-task validity. The compound threshold means that ``bigger is better'' is not merely imprecise; for multi-task training, it is actively misleading.
+The practical implication is that a team selecting a model for GRPO training cannot rely on parameter count alone. Two decisions are required: (1) is the model above the task-specific size threshold? and (2) does the model's architecture have a compatible forgetting profile? A 6B model with a catastrophic forgetting profile (Yi-1.5-6B) is a worse investment than a 3B model with a robust profile (Qwen2.5-3B)---not by a small margin, but by the difference between 0\% and 76\% mixed-task validity. The compound threshold means that ``bigger is better'' is not merely imprecise; for multi-task training, it is actively misleading.
+
+\subsection{Required Ablation Experiments}
+\label{sec:ablation-plan}
+
+The three proposed mechanisms make distinct, testable predictions. We specify the minimal ablation experiments required to validate them:
+
+\paragraph{Ablation A1: Latency weight variation ($\lambda$ sweep).}
+Train 3 models that exhibit transient or catastrophic curves (Qwen3-4B on T5, Yi-1.5-6B on Mixed, Phi-3-mini on T2) at $\lambda \in \{0, 0.05, 0.1, 0.2\}$ with 3 seeds each (36 runs total, $\sim$30 GPU-hours on RTX 4090). \textbf{Prediction:} If Mechanism~1 (reward competition) drives the transient pattern, reducing $\lambda$ to 0 should convert transient curves to sustained. If the curves remain transient at $\lambda = 0$, the explanation lies in representational interference (Mechanism~2), not reward dynamics. A partial effect---transient curves becoming sustained for some models but not others---would indicate that both mechanisms contribute, with their relative importance varying by architecture.
+
+\paragraph{Ablation A2: Held-out family validation for early prediction.}
+Re-train the RQ3+ logistic regression with family-based cross-validation: hold out all models from one family (e.g., all Llama models), train on the remaining families, and predict on the held-out family. Repeat for each family. \textbf{Prediction:} If the early predictor generalizes across architectures, held-out accuracy should remain within 10 percentage points of the leave-one-out estimate (81\%). If accuracy collapses for held-out families, the predictor is overfitting to family-specific patterns and the practical recommendation (terminate at $\bar{V}_{50} < 10\%$) requires family-specific calibration.
+
+\paragraph{Ablation A3: Additional model families.}
+Add 2--3 models per family (e.g., Qwen-7B, Llama-3.3-8B, Gemma-2-2B) to test whether forgetting profiles are truly family-level properties or artifacts of our small per-family sample (currently 2--3 models per family). \textbf{Prediction:} If Mechanism~2 is correct, new family members should match the forgetting profile of existing members (e.g., a new Llama variant should be catastrophic).
+
+We release the training scripts and configurations needed for A1 and A2 alongside this paper, enabling independent replication.
+
 
 % =============================================================================
 % 9. DISCUSSION AND CONCLUSION
@@ -874,17 +901,7 @@ Never trust single-seed results for models near capacity boundaries. Gemma-2-9B 
 
 \subsection{Curriculum Implications}
 
-The task-tier structure revealed by our analysis has direct implications for training curricula. Consider the three task tiers identified in Section~\ref{sec:curves}: Tier~1 (T1, T4) is universally learnable, Tier~2 (T2, T3) discriminates by architecture, and Tier~3 (T5) is a frontier task that no model sustains. A natural curriculum would be:
-
-\begin{enumerate}[leftmargin=*]
-\item \textbf{Phase 1 (steps 0--200):} Train only on Tier~1 tasks. This establishes the structural foundations---valid JSON production, schema compliance, basic field population---that all subsequent learning depends on. Our data shows that models achieve $>$95\% validity on T1/T4 within 100 steps. This foundation phase is fast and reliable.
-
-\item \textbf{Phase 2 (steps 200--600):} Introduce Tier~2 tasks. With structural foundations established, the gradient from T2 and T3 refines the model's ability to produce nested objects and argument dictionaries. Models that succeed on T3 in our flat-curriculum setup (where all tasks are presented from step 0) typically show T3 validity rising only after step 200---suggesting that T3 learning \emph{already} depends on structural foundations learned from easier tasks in the mixed batch.
-
-\item \textbf{Phase 3 (steps 600--1000):} Introduce T5 \emph{only if} the model has achieved sustained T3 validity. Our learning matrix shows that every model that achieves even transient T5 learning (Qwen3-4B, Gemma-2-9B) also achieves sustained T3 learning. No model learns T5 without first learning T3. This suggests a prerequisite relationship that a curriculum could exploit: T3 capability is a necessary (though not sufficient) condition for T5 capability.
-\end{enumerate}
-
-We did not test this curriculum---our training runs used flat (simultaneous) task presentation throughout. But the transient curve pattern provides suggestive evidence: Llama-3.2-1B on Mixed \emph{peaks} at step 600, precisely when a curriculum would be introducing harder tasks. Its peak validity (61\%) is genuine capability that the flat-curriculum gradient subsequently destroys. A staged curriculum might preserve this capability by reducing gradient interference from already-mastered easy tasks. We flag this as the highest-priority experiment for future work.
+The task-tier structure (Tier~1: T1/T4 universally learnable; Tier~2: T2/T3 architecture-dependent; Tier~3: T5 frontier) suggests that staged curriculum training---introducing harder tasks only after easier ones are mastered---might convert some transient curves to sustained ones by reducing gradient interference. Suggestive evidence: every model that achieves even transient T5 learning also achieves sustained T3 learning, implying a prerequisite relationship. However, we did not test curriculum training; all 185 runs used flat (simultaneous) task presentation. We flag curriculum experiments as high-priority future work.
 
 \subsection{What Practitioners Should Monitor}
 
@@ -902,15 +919,7 @@ Our analysis suggests a specific set of training-time diagnostics that practitio
 
 \subsection{Reward Weight Sensitivity}
 
-A natural question is whether the capacity thresholds we observe are artifacts of our specific reward weights ($\lambda = 0.1$, $\mu = 0.05$, $\gamma = 0.1$) or would persist under different parameterizations. While a full hyperparameter sweep is beyond our compute budget (it would require re-running all 185 training runs for each weight configuration), we can reason analytically about the sensitivity.
-
-The latency tax for model $m$ is $\tau_m = |R_l| / (R_s + R_r)$. Halving $\lambda$ from 0.1 to 0.05 would halve $|R_l|$ and therefore halve $\tau_m$. For Phi-3-mini, which pays the highest effective tax (34\%), this would reduce the tax to 17\%---comparable to Llama-3.2-1B's current level. The question is whether this reduction would move Phi-3-mini from ``marginally robust'' ($\delta = +0.34$, boosted by the multi-task regularization effect) to a genuinely better learner, or whether the forgetting dynamics are independent of the reward weight.
-
-We argue that the forgetting profiles (RQ2) are largely $\lambda$-invariant. The interference delta $\delta$ measures single-task vs.\ multi-task validity---a structural property of the model's ability to produce valid JSON across tasks simultaneously. The latency penalty affects \emph{total reward} but not \emph{structural validity}, because a model either produces valid JSON or it does not, regardless of how fast it does so. The catastrophic models (Llama-3.2-1B/3B, Yi-1.5-6B, Mistral-7B) fail because their representations for different tasks interfere destructively, not because the latency penalty is too high.
-
-However, the curve taxonomy (RQ3) is likely $\lambda$-sensitive. The transient pattern---where validity rises then falls---could be an artifact of the latency penalty pulling the policy toward shorter (and eventually invalid) outputs. Reducing $\lambda$ would weaken this pull, potentially converting some transient curves to sustained ones. The strongest candidate is Qwen3-4B on T5, where the latency tax is 63\%: at $\lambda = 0.05$, the tax would drop to $\sim$32\%, potentially stabilizing the curve above the sustained threshold.
-
-This analysis suggests a two-stage approach: (1) determine forgetting profiles with a standard $\lambda$ (these are architecture-invariant), then (2) tune $\lambda$ per-model to optimize the reward budget for models with high latency taxes. We leave empirical validation for future work but note that the analytical framework---latency tax, reward budget, forgetting profile---provides the vocabulary for principled $\lambda$ selection.
+A natural question is whether the capacity thresholds are artifacts of our specific reward weights ($\lambda = 0.1$, $\mu = 0.05$, $\gamma = 0.1$). We conjecture that forgetting profiles (RQ2) are largely $\lambda$-invariant, because the interference delta $\delta$ measures structural validity (JSON correctness) rather than reward magnitude. Catastrophic models fail because their representations for different tasks interfere destructively, not because the latency penalty is too high. The curve taxonomy (RQ3), in contrast, is likely $\lambda$-sensitive: the transient pattern could be an artifact of the latency penalty incentivizing brevity. Ablation A1 (Section~\ref{sec:ablation-plan}) directly tests this conjecture by sweeping $\lambda$ on models at the transient boundary.
 
 \subsection{From Training Dynamics to Production Deployment}
 
@@ -944,9 +953,11 @@ We use fixed reward weights ($\lambda = 0.1$, $\mu = 0.05$, $\gamma = 0.1$) acro
 \subsection{Future Work}
 
 \begin{itemize}[leftmargin=*]
-\item \textbf{Per-step reward decomposition.} Instrumenting the GRPO loop to log individual reward components at each step would enable precise tracking of the reward budget competition described in RQ1.
+\item \textbf{Ablation experiments (highest priority).} The three ablations specified in Section~\ref{sec:ablation-plan} ($\lambda$ sweep, held-out family validation, expanded model families) are the minimum required to convert the proposed mechanisms from hypothesis to established finding. We release training scripts and configurations for A1 and A2 with this paper.
 
-\item \textbf{Curriculum learning.} The transient curve category suggests that progressive task introduction (easy tasks first) might improve convergence for medium-capacity models.
+\item \textbf{Per-step reward decomposition.} Instrumenting the GRPO loop to log individual reward components at each step would enable precise tracking of the reward budget competition described in RQ1, replacing the current post-hoc approximation.
+
+\item \textbf{Curriculum learning.} The transient curve category and task-tier structure suggest that progressive task introduction might convert some transient curves to sustained ones.
 
 \item \textbf{Multi-objective Pareto analysis.} Rather than combining rewards with fixed weights, a Pareto frontier analysis would reveal the true tradeoff surface between schema validity, accuracy, and latency.
 
@@ -959,11 +970,13 @@ This paper completes the analytical arc of the first four papers in a six-paper 
 
 \subsection{Conclusion}
 
-The capacity threshold for schema-aware RL training is not a single phenomenon. It is a compound of three interacting mechanisms: reward competition (larger models face higher latency penalties that consume their quality signal), architecture-specific interference (some model families forget catastrophically regardless of size, while others benefit from multi-task training), and curve morphology (learning either happens within the first 50 steps or not at all).
+We propose that the capacity threshold for schema-aware RL training is not a single phenomenon but a compound of three interacting mechanisms: reward competition (larger models face higher latency penalties that consume their quality signal), architecture-specific interference (some model families forget catastrophically regardless of size, while others benefit from multi-task training), and curve morphology (learning either happens within the first 50 steps or not at all).
 
-These mechanisms interact in ways that defy simple heuristics. A 6B model can fail where a 3B model succeeds. A model that achieves 98\% validity on four tasks individually can produce 0\% valid output when trained on all four together. And a run that looks promising at step 50 can collapse to zero by step 800.
+The empirical patterns are clear. A 6B model can fail where a 3B model succeeds. A model that achieves 98\% validity on four tasks individually can produce 0\% valid output when trained on all four together. And a run that looks promising at step 50 can collapse to zero by step 800. These patterns are robust across seeds and threshold sensitivity analysis.
 
-The practical implication is clear: selecting models for GRPO training requires more than checking parameter counts against a threshold table. It requires understanding the model's forgetting profile, monitoring early training signals, and validating with multiple seeds. The tools we provide---interference deltas, curve taxonomy, early prediction heuristics, and the decision guide in Section~9.2---are designed to make this process systematic rather than ad hoc. For the practical deployment of GRPO-trained LLM agents, architecture matters as much as scale, and training dynamics matter as much as final accuracy.
+What remains to be established is the causal structure connecting these patterns. The ablation experiments specified in Section~\ref{sec:ablation-plan}---$\lambda$ sweeps to test reward competition, held-out family validation to test early prediction generalization, and expanded model families to test architecture-level clustering---will determine which of the proposed mechanisms are operative and which are epiphenomenal. We release the training scripts and configurations needed to execute these ablations.
+
+The practical implication holds regardless of mechanism: selecting models for GRPO training requires more than checking parameter counts against a threshold table. It requires understanding the model's forgetting profile, monitoring early training signals, and validating with multiple seeds. The tools we provide---interference deltas, curve taxonomy, early prediction heuristics, and the decision guide in Section~9.2---are designed to make this process systematic rather than ad hoc. For the practical deployment of GRPO-trained LLM agents, architecture matters as much as scale, and training dynamics matter as much as final accuracy.
 
 % =============================================================================
 % REFERENCES

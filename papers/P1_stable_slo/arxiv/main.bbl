@@ -7,8 +7,8 @@
 
 \bibitem[Agrawal et~al.(2024)]{agrawal2024sarathi}
 Amey Agrawal et~al.
-\newblock Sarathi-serve: High-throughput and memory-efficient llm serving with
-  partitioned attention, 2024.
+\newblock Taming throughput-latency tradeoff in {LLM} inference with
+  {Sarathi-Serve}, 2024.
 
 \bibitem[{Akamai Technologies}(2017)]{akamai2017performance}
 {Akamai Technologies}.
@@ -18,10 +18,15 @@ Amey Agrawal et~al.
   2017.
 \newblock Report showing that 2-second delays increase bounce rates by 103\%.
 
+\bibitem[Belcak et~al.(2025)Belcak, Heinrich, Diao, Fu, Dong, Muralidharan,
+  Lin, and Molchanov]{nvidia2025slm}
+Peter Belcak, Greg Heinrich, Shizhe Diao, Yonggan Fu, Xin Dong, Saurav
+  Muralidharan, Yingyan~Celine Lin, and Pavlo Molchanov.
+\newblock Small language models are the future of agentic ai, 2025.
+
 \bibitem[Chen et~al.(2024)]{chen2024humans}
 Yujia Chen et~al.
-\newblock Humans or llms as the judge? a study on evaluation methods for text
-  summarization, 2024.
+\newblock Humans or {LLMs} as the judge? a study on judgement biases, 2024.
 
 \bibitem[Dao et~al.(2023)]{dao2023flashattention2}
 Tri Dao et~al.
@@ -81,25 +86,20 @@ Stefan Larson, Anish Mahendran, Joseph~J. Peper, Christopher Clarke, Andrew
 \newblock In \emph{Proceedings of the 2019 Conference on Empirical Methods in
   Natural Language Processing (EMNLP)}, 2019.
 
-\bibitem[Liang et~al.(2022)Liang, Bommasani, Lee, Tsipras, Soylu, Yasunaga,
-  Zhang, Narayanan, Wu, Kumar, et~al.]{liang2022helm}
+\bibitem[Liang et~al.(2023)Liang, Bommasani, Lee, Tsipras, Soylu, Yasunaga,
+  Zhang, Narayanan, Wu, Kumar, et~al.]{liang2023helm}
 Percy Liang, Rishi Bommasani, Tony Lee, Dimitris Tsipras, Dilara Soylu,
   Michihiro Yasunaga, Yian Zhang, Deepak Narayanan, Yuhuai Wu, Ananya Kumar,
   et~al.
 \newblock Holistic evaluation of language models.
-\newblock \emph{arXiv preprint arXiv:2211.09110}, 2022.
+\newblock \emph{Transactions on Machine Learning Research}, 2023.
 
 \bibitem[Min et~al.(2023)Min, Krishna, Lyu, Wang, Yih, Choi, and
-  Hajishirzi]{atomicFacts2024}
+  Hajishirzi]{atomicFacts2023}
 Sewon Min, Kalpesh Krishna, Xinxi Lyu, Hanlin Wang, Wen-tau Yih, Yejin Choi,
   and Hannaneh Hajishirzi.
 \newblock Factscore: Fine-grained atomic evaluation of factual precision in
   long form text generation, 2023.
-
-\bibitem[{NVIDIA}(2025)]{nvidia2025slm}
-{NVIDIA}.
-\newblock Small language models are the future of agentic ai, 2025.
-\newblock Demonstrates 10-30x cost reduction for SLMs in agentic systems.
 
 \bibitem[{OpenAI}(2024)]{openaiStructuredOutputs}
 {OpenAI}.

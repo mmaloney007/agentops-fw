@@ -10,10 +10,10 @@ Results appear in the Weave UI for interactive exploration.
 Usage:
     python scripts/weave_eval.py --project agentslo-bench [--model MODEL] [--all]
 """
+
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from agent_stable_slo.logging.weave_integration import (
+from agent_stable_slo.logging.weave_integration import (  # noqa: E402
     AccuracyScorer,
     JSONValidityScorer,
     SLOScorer,
@@ -130,7 +130,9 @@ def main() -> None:
             if len(matches) == 1:
                 target = {matches[0]: pred_files[matches[0]]}
             else:
-                print(f"Model '{args.model}' not found. Available: {sorted(pred_files.keys())}")
+                print(
+                    f"Model '{args.model}' not found. Available: {sorted(pred_files.keys())}"
+                )
                 sys.exit(1)
         else:
             target = {args.model: pred_files[args.model]}

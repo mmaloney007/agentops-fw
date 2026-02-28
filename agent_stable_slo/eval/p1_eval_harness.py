@@ -412,8 +412,6 @@ def run_eval(args: argparse.Namespace) -> None:
                     schema=warmup_schema,
                     mode=mode,
                     temperature=0.0,
-                    endpoint=args.endpoint,
-                    model=args.model,
                     max_tokens=10,
                     max_retries=0,
                     repair_max_attempts=0,
@@ -503,35 +501,53 @@ def run_eval(args: argparse.Namespace) -> None:
                     hotpot_f1s.append(float(f1))
 
                     if judge_enabled and final.parsed_json:
-                        question, context = _parse_hotpot_prompt(prompt)
-                        faith: FaithfulnessResult = score_faithfulness(
-                            base_url=judge_base_url,
-                            api_key=os.getenv("OPENAI_API_KEY", ""),
-                            model=judge_model,
-                            question=question,
-                            context=context,
-                            candidate_json=final.parsed_json,
-                            temperature=judge_temp,
-                            top_p=judge_top_p,
-                            max_tokens_out=judge_max_tokens,
-                        )
-                        metrics["hotpot_faithfulness"] = float(faith.faithfulness)
-                        metrics["hotpot_contradiction_rate"] = float(
-                            faith.contradiction_rate
-                        )
-                        faith_scores.append(float(faith.faithfulness))
-                        contra_rates.append(float(faith.contradiction_rate))
-                        if len(judge_trace_records) < judge_trace_limit:
-                            judge_trace_records.append(
-                                {
-                                    "task_id": task.id,
-                                    "task_instance_id": task_instance_id,
-                                    "question": question,
-                                    "context": context,
-                                    "candidate_json": final.parsed_json,
-                                    "judge_result": asdict(faith),
-                                }
+                        question = ""
+                        context = ""
+                        try:
+                            question, context = _parse_hotpot_prompt(prompt)
+                            faith: FaithfulnessResult = score_faithfulness(
+                                base_url=judge_base_url,
+                                api_key=os.getenv("OPENAI_API_KEY", ""),
+                                model=judge_model,
+                                question=question,
+                                context=context,
+                                candidate_json=final.parsed_json,
+                                temperature=judge_temp,
+                                top_p=judge_top_p,
+                                max_tokens_out=judge_max_tokens,
                             )
+                            metrics["hotpot_faithfulness"] = float(faith.faithfulness)
+                            metrics["hotpot_contradiction_rate"] = float(
+                                faith.contradiction_rate
+                            )
+                            faith_scores.append(float(faith.faithfulness))
+                            contra_rates.append(float(faith.contradiction_rate))
+                            if len(judge_trace_records) < judge_trace_limit:
+                                judge_trace_records.append(
+                                    {
+                                        "task_id": task.id,
+                                        "task_instance_id": task_instance_id,
+                                        "question": question,
+                                        "context": context,
+                                        "candidate_json": final.parsed_json,
+                                        "judge_result": asdict(faith),
+                                    }
+                                )
+                        except Exception as exc:
+                            # Judge failures should not terminate full evaluation runs.
+                            metrics["hotpot_faithfulness"] = 0.0
+                            metrics["hotpot_contradiction_rate"] = 1.0
+                            if len(judge_trace_records) < judge_trace_limit:
+                                judge_trace_records.append(
+                                    {
+                                        "task_id": task.id,
+                                        "task_instance_id": task_instance_id,
+                                        "question": question,
+                                        "context": context,
+                                        "candidate_json": final.parsed_json,
+                                        "judge_error": str(exc),
+                                    }
+                                )
                     else:
                         metrics["hotpot_faithfulness"] = 0.0
                         metrics["hotpot_contradiction_rate"] = 1.0

@@ -1,0 +1,77 @@
+{
+  "summary": {
+    "total_runs": 191,
+    "sustained_count": 116,
+    "not_sustained_count": 75,
+    "sustained_ratio": 0.6073298429319371
+  },
+  "baseline": {
+    "majority_class_accuracy": 0.6073298429319371
+  },
+  "loo_cv": {
+    "accuracy": 0.9476439790575916,
+    "correct": 181,
+    "total": 191
+  },
+  "lofo": {
+    "aggregate_accuracy": 0.9476439790575916,
+    "by_family": {
+      "llama": {
+        "accuracy": 0.9444444444444444,
+        "correct": 51,
+        "total": 54
+      },
+      "phi": {
+        "accuracy": 0.8333333333333334,
+        "correct": 15,
+        "total": 18
+      },
+      "qwen": {
+        "accuracy": 0.9722222222222222,
+        "correct": 35,
+        "total": 36
+      },
+      "mistral": {
+        "accuracy": 0.9444444444444444,
+        "correct": 34,
+        "total": 36
+      },
+      "gemma": {
+        "accuracy": 0.9655172413793104,
+        "correct": 28,
+        "total": 29
+      },
+      "yi": {
+        "accuracy": 1.0,
+        "correct": 18,
+        "total": 18
+      }
+    }
+  },
+  "early_termination_rule": {
+    "rule": "V50 < 10%",
+    "below_threshold": {
+      "count": 58,
+      "sustained": 0,
+      "not_sustained": 58,
+      "sustained_ratio": 0.0
+    },
+    "above_threshold": {
+      "count": 133,
+      "sustained": 116,
+      "not_sustained": 17,
+      "sustained_ratio": 0.8721804511278195
+    },
+    "rule_holds": true
+  },
+  "interpretation": {
+    "lofo_vs_loo_diff_pp": 0.0,
+    "conclusion": "STRENGTHENS confidence (plus robust termination rule)",
+    "reasoning": [
+      "LOFO is similar to LOO-CV (difference: +0.0pp):",
+      "- Early predictor generalizes well across model families",
+      "- Family-level overfitting is minimal",
+      "\nEarly termination rule (V\u0304_50 < 10% \u2192 not sustained) shows promise"
+    ]
+  }
+}
