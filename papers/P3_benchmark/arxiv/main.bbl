@@ -7,9 +7,14 @@
 
 \bibitem[{Akamai Technologies}(2017)]{akamai2017performance}
 {Akamai Technologies}.
-\newblock Akamai online retail performance report: Milliseconds are critical,
-  2017.
+\newblock The state of online retail performance: Spring 2017, 2017.
 \newblock 53\% of mobile users abandon pages taking longer than 3 seconds.
+
+\bibitem[Belcak et~al.(2025)Belcak, Heinrich, Diao, Fu, Dong, Muralidharan,
+  Lin, and Molchanov]{nvidia2025slm}
+Peter Belcak, Greg Heinrich, Shizhe Diao, Yonggan Fu, Xin Dong, Saurav
+  Muralidharan, Yingyan~Celine Lin, and Pavlo Molchanov.
+\newblock Small language models are the future of agentic {AI}, 2025.
 
 \bibitem[Chiang et~al.(2024)]{chiang2024chatbot}
 Wei-Lin Chiang et~al.
@@ -59,14 +64,14 @@ Percy Liang et~al.
 \newblock {HELM}: Holistic evaluation of language models, 2023.
 
 \bibitem[Maloney(2025{\natexlab{a}})]{maloney2025capacity}
-Michael Maloney.
+V.~Michael Maloney.
 \newblock Capacity thresholds in schema-aware training: Why small models can't
   close the deployment gap.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{a}}.
 \newblock Paper~II of this series.
 
 \bibitem[Maloney(2025{\natexlab{b}})]{maloney2025deploymentgap}
-Michael Maloney.
+V.~Michael Maloney.
 \newblock The deployment gap: Why benchmark accuracy fails to predict
   production readiness.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{b}}.
@@ -80,15 +85,18 @@ Gr{\'e}goire Mialon, Cl{\'e}mentine Fourrier, Craig Swift, Thomas Wolf, Yann
 \newblock {GAIA}: A benchmark for general {AI} assistants.
 \newblock \emph{arXiv preprint arXiv:2311.12983}, 2024.
 
-\bibitem[{NVIDIA}(2025)]{nvidia2025slm}
-{NVIDIA}.
-\newblock Small language models for enterprise inference, 2025.
-\newblock NVIDIA Technical Blog. Recommends latency-aware model selection for
-  SLM deployment.
-
 \bibitem[Patil et~al.(2023)Patil, Zhang, Wang, and Gonzalez]{patil2023gorilla}
 Shishir~G. Patil, Tianjun Zhang, Xin Wang, and Joseph~E. Gonzalez.
 \newblock Gorilla: Large language model connected with massive {APIs}, 2023.
+
+\bibitem[Patil et~al.(2025)Patil, Mao, Yan, Ji, Suresh, Stoica, and
+  Gonzalez]{berkeley2024bfcl}
+Shishir~G. Patil, Huanzhi Mao, Fanjia Yan, Charlie Cheng-Jie Ji, Vishnu Suresh,
+  Ion Stoica, and Joseph~E. Gonzalez.
+\newblock The {Berkeley} function calling leaderboard ({BFCL}): From tool use
+  to agentic evaluation of large language models.
+\newblock In \emph{Proceedings of the 42nd International Conference on Machine
+  Learning (ICML)}, volume 267 of \emph{PMLR}, 2025.
 
 \bibitem[Reddi et~al.(2020)]{reddi2020mlperf}
 Vijay~Janapa Reddi et~al.
@@ -99,13 +107,6 @@ Vijay~Janapa Reddi et~al.
 \bibitem[Willard and Louf(2023)]{willard2023outlines}
 Brandon~T. Willard and R{\'e}mi Louf.
 \newblock Efficient guided generation for large language models, 2023.
-
-\bibitem[Yan et~al.(2024)Yan, Mao, Ji, Wang, Patil, Stoica, and
-  Gonzalez]{berkeley2024bfcl}
-Fanjia Yan, Huanzhi Mao, Charlie Cheng-Jie Ji, Tianjun Wang, Shishir~G. Patil,
-  Ion Stoica, and Joseph~E. Gonzalez.
-\newblock Berkeley function calling leaderboard.
-\newblock \emph{arXiv preprint arXiv:2402.15671}, 2024.
 
 \bibitem[Yang et~al.(2018)]{yang2018hotpotqa}
 Zhilin Yang et~al.

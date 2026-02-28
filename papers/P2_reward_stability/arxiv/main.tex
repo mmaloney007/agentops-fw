@@ -53,6 +53,13 @@ Neuralift; University of New Hampshire \\
 
 \date{}
 
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\chead{\textcolor{red}{\small\textbf{PRE-DRAFT --- Do Not Distribute}}}
+\cfoot{\thepage}
+
 \begin{document}
 \maketitle
 \begin{center}
@@ -243,6 +250,12 @@ Code RL~\citep{coderl2022} & Test pass rate & Partial & No & No \\
 \end{tabular}
 \end{table}
 
+\paragraph{Concurrent work.}
+Two recent papers also apply GRPO to structured-output compliance.
+\citet{agarwal2025thinkjson} train a 1.5B model with a composite reward combining schema validity and content correctness, achieving 80\%+ structural accuracy on a single model.
+\citet{hu2025rlstruct} propose a multi-dimensional reward hierarchy (syntax $\to$ schema $\to$ content) and report 89.7\% accuracy on a 4B model.
+Our work differs in three ways: (1) we test across 13 models spanning 1B--12B parameters, discovering a capacity threshold below which training fails entirely; (2) our reward includes an explicit latency penalty absent from both prior works; and (3) we analyze training dynamics---reward decomposition, catastrophic forgetting, and early predictors of success---rather than reporting only final-state metrics.
+
 \subsection{LoRA and Efficient Fine-Tuning}
 
 Low-Rank Adaptation (LoRA)~\citep{hu2021lora} freezes the base model and injects trainable low-rank matrices into attention layers, drastically reducing memory and compute.
@@ -426,7 +439,7 @@ Scoring faithfulness requires an LLM-as-judge call, which is expensive.
 Every training step that checks faithfulness doubles your API calls.
 Here is how we keep costs reasonable:
 \begin{enumerate}[leftmargin=12pt]
-    \item Enable faithfulness judging only for tasks requiring grounding (e.g., HotpotQA), disable for others (e.g., CLINC intent classification).
+    \item Enable faithfulness judging only for tasks requiring grounding (e.g., T2 grounded summarization), disable for others (e.g., T1 incident classification).
     \item Use a fast local judge model (same LM Studio endpoint or separate judge).
     \item Log judge latency separately and exclude it from agent latency $L$ to avoid double-penalizing.
     \item Fall back to neutral score ($f = 0.5$) on judge errors.
@@ -600,7 +613,7 @@ We train and evaluate on 6 task types spanning the full complexity spectrum:
     \item \textbf{T5 (Code Patching):} 300 SWE-bench style code repair tasks requiring diff generation.
     \item \textbf{Mixed:} 500 balanced samples from T1--T5 for multi-task evaluation.
 \end{itemize}
-Task complexity varies significantly: T1 and T4 require simple structured output with constrained vocabularies; T2 and T3 require reasoning over context; T5 requires code understanding; Mixed tests whether models can maintain performance across diverse demands simultaneously.
+T1 and T2 use production-representative data (incident triage, operational summaries) rather than the academic benchmarks (CLINC-150, HotpotQA) used for evaluation in Paper~I. T3--T5 share the same datasets as Paper~I, enabling direct comparison of pre- and post-training performance on held-out evaluation data. Task complexity varies significantly: T1 and T4 require simple structured output with constrained vocabularies; T2 and T3 require reasoning over context; T5 requires code understanding; Mixed tests whether models can maintain performance across diverse demands simultaneously.
 
 \paragraph{Hyperparameters.}
 \begin{itemize}[leftmargin=12pt]
@@ -638,7 +651,7 @@ Our lexicographic reward design (structure first, then accuracy, then faithfulne
 \label{tab:structure}
 \begin{tabular}{l l ccc}
 \toprule
-\textbf{Model} & \textbf{Method} & \textbf{T1 (CLINC)} & \textbf{T2 (HotpotQA)} & \textbf{T3 (Tools)} \\
+\textbf{Model} & \textbf{Method} & \textbf{T1 (Incident)} & \textbf{T2 (Ops Summary)} & \textbf{T3 (Tools)} \\
 \midrule
 Qwen3-4B & Pretrained & 92.4 & 88.7 & 85.3 \\
 (4B, below) & Naive RL & 95.2 & 91.3 & 89.7 \\
@@ -660,7 +673,7 @@ SLO-aware RL significantly improves both: faithfulness increases by 0.08--0.12 p
 Naive RL improves task accuracy but does not address faithfulness or stability.
 
 The faithfulness gains are task-specific.
-T2 (HotpotQA) requires reasoning across multiple paragraphs, and the model learns to stay grounded in the provided context rather than hallucinating.
+T2 (grounded summarization) requires reasoning across source data, and the model learns to stay grounded in the provided context rather than hallucinating.
 T1 and T3 do not have explicit faithfulness requirements, so we do not compute faithfulness for them.
 
 Stability improvement is harder to interpret.
