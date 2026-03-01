@@ -17,7 +17,6 @@ Usage:
 """
 
 import sys
-import os
 import time
 
 def print_header(title: str):
@@ -117,7 +116,7 @@ def test_memory_info():
         available_gb = mem.available / (1024**3)
         passed = total_gb >= 32  # Need at least 32GB for training
         details = f"Total: {total_gb:.1f}GB, Available: {available_gb:.1f}GB"
-        print_status(f"RAM >= 32GB", passed, details)
+        print_status("RAM >= 32GB", passed, details)
         return passed
     except ImportError:
         print_status("RAM check", False, "psutil not installed")
@@ -180,7 +179,7 @@ def test_lora_attachment():
         model_id = "Qwen/Qwen2.5-0.5B-Instruct"
         device = "mps" if torch.backends.mps.is_available() else "cpu"
 
-        print(f"        Loading model for LoRA test...")
+        print("        Loading model for LoRA test...")
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=torch.float16,
@@ -219,7 +218,7 @@ def test_lora_attachment():
 
 def main():
     print_header("SMOKE TEST: MacBook Pro M2 Max (MPS Backend)")
-    print(f"  Testing training feasibility on Apple Silicon")
+    print("  Testing training feasibility on Apple Silicon")
     print(f"  Date: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     results = {}

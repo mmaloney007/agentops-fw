@@ -1,6 +1,8 @@
-import torch
+import pytest
 
-from agent_stable_slo.utils.dist import rank_world, seed_with_rank
+torch = pytest.importorskip("torch")
+
+from agent_stable_slo.utils.dist import rank_world, seed_with_rank  # noqa: E402
 
 
 def _train_single_batch(model, opt, x, y):

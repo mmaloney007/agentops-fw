@@ -5,5 +5,13 @@ authors:
   - family-names: Maloney
     given-names: Mike
     email: mikey.maloney@gmail.com
-date-released: 2025-11-03
-version: 0.1.1
+date-released: 2026-02-04
+version: 0.2.0
+repository-code: "https://github.com/agentops-ai/agentops-fw"
+license: MIT
+keywords:
+  - llm
+  - agents
+  - slo
+  - structured-output
+  - reinforcement-learning

@@ -14,7 +14,8 @@ def _timestamp() -> str:
 
 
 def load_tasks(path: str):
-    return [json.loads(x) for x in open(path, "r", encoding="utf-8") if x.strip()]
+    with open(path, "r", encoding="utf-8") as f:
+        return [json.loads(x) for x in f if x.strip()]
 
 
 def main():
@@ -64,7 +65,8 @@ def main():
         with open(eval_path, mode, encoding="utf-8") as fo:
             for i in range(args.start, args.start + args.steps):
                 row = ds[i % len(ds)]
-                schema = json.load(open(row["schema_path"], "r", encoding="utf-8"))
+                with open(row["schema_path"], "r", encoding="utf-8") as sf:
+                    schema = json.load(sf)
                 best = None
                 for _ in range(max(1, args.samples)):
                     out_json, lat_ms, ttft_ms, tokens = provider_generate(

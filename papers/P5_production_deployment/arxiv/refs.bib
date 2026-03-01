@@ -1,0 +1,265 @@
+% Production Deployment (Paper V) -- Bibliography
+% Includes self-citations to P1–P4 and production ML / MLOps references
+
+% =============================================================================
+% Self-citations: Papers I–IV of this series
+% =============================================================================
+
+@article{maloney2025deploymentgap,
+  title={The Deployment Gap: Why Benchmark Accuracy Fails to Predict Production Readiness},
+  author={Maloney, Michael},
+  journal={arXiv preprint},
+  year={2025},
+  note={Paper~I of this series. Spearman $\rho = 0.09$ between accuracy and Success@SLO across 13 models.}
+}
+
+@article{maloney2025capacity,
+  title={Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap},
+  author={Maloney, Michael},
+  journal={arXiv preprint},
+  year={2025},
+  note={Paper~II of this series. Task-dependent capacity thresholds from 185 GRPO runs.}
+}
+
+@article{maloney2025agentslobench,
+  title={{AgentSLO-Bench}: An {SLO}-Aware Benchmark for {LLM} Agent Deployment},
+  author={Maloney, Michael},
+  journal={arXiv preprint},
+  year={2025},
+  note={Paper~III of this series. Reusable benchmark with 3 SLO tiers and 42,900 evaluations.}
+}
+
+@article{maloney2025dynamics,
+  title={Training Dynamics of Schema-Aware Reinforcement Learning for {LLM} Agents},
+  author={Maloney, Michael},
+  journal={arXiv preprint},
+  year={2025},
+  note={Paper~IV of this series. Reward decomposition, forgetting matrices, and early prediction.}
+}
+
+% =============================================================================
+% Production ML / MLOps
+% =============================================================================
+
+@inproceedings{sculley2015debt,
+  title={Hidden Technical Debt in Machine Learning Systems},
+  author={Sculley, D. and Holt, Gary and Golovin, Daniel and Davydov, Eugene and Phillips, Todd and Ebner, Dietmar and Chaudhary, Vinay and Young, Michael and Crespo, Jean-Fran{\c{c}}ois and Dennison, Dan},
+  booktitle={Advances in Neural Information Processing Systems},
+  volume={28},
+  year={2015}
+}
+
+@article{paleyes2022challenges,
+  title={Challenges in Deploying Machine Learning: A Survey of Case Studies},
+  author={Paleyes, Andrei and Urma, Raoul-Gabriel and Lawrence, Neil D.},
+  journal={ACM Computing Surveys},
+  volume={55},
+  number={6},
+  pages={1--29},
+  year={2022},
+  doi={10.1145/3533378}
+}
+
+@inproceedings{shankar2022operationalizing,
+  title={Operationalizing Machine Learning: An Interview Study},
+  author={Shankar, Shreya and Garcia, Rolando and Hellerstein, Joseph M. and Parameswaran, Aditya G.},
+  booktitle={Proceedings of the 2022 CHI Conference on Human Factors in Computing Systems},
+  year={2022},
+  doi={10.1145/3491102.3501832}
+}
+
+@article{kreuzberger2023mlops,
+  title={{MLOps}: A Taxonomy and a Methodology},
+  author={Kreuzberger, Dominik and K{\"u}hl, Niklas and Hirschl, Sebastian},
+  journal={IEEE Access},
+  volume={11},
+  pages={9919--9936},
+  year={2023},
+  doi={10.1109/ACCESS.2023.3239757}
+}
+
+% =============================================================================
+% ML Testing and Monitoring
+% =============================================================================
+
+@inproceedings{breck2017ml,
+  title={The {ML} Test Score: A Rubric for {ML} Production Readiness and Technical Debt Reduction},
+  author={Breck, Eric and Cai, Shanqing and Nielsen, Eric and Salib, Michael and Sculley, D.},
+  booktitle={Proceedings of the IEEE International Conference on Big Data},
+  pages={1123--1132},
+  year={2017}
+}
+
+@misc{klaise2020monitoring,
+  title={Monitoring Machine Learning Models in Production},
+  author={Klaise, Janis and Van Looveren, Arnaud and Vacanti, Giovanni and Coca, Alexandru},
+  year={2020},
+  eprint={2007.06299},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+@misc{evidentlyai,
+  title={Evidently {AI}: Open-source {ML} Monitoring},
+  author={{Evidently AI}},
+  year={2024},
+  howpublished={\url{https://www.evidentlyai.com/}},
+  note={Open-source toolkit for ML model monitoring and data drift detection}
+}
+
+% =============================================================================
+% Benchmark-to-Production Transfer
+% =============================================================================
+
+@inproceedings{ethayarajh2020utility,
+  title={Utility Is in the Eye of the User: A Critique of {NLP} Leaderboards},
+  author={Ethayarajh, Kawin and Jurafsky, Dan},
+  booktitle={Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  pages={4846--4853},
+  year={2020}
+}
+
+@misc{chiang2024chatbot,
+  title={Chatbot Arena: An Open Platform for Evaluating {LLMs} by Human Preference},
+  author={Chiang, Wei-Lin and others},
+  year={2024},
+  eprint={2403.04132},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+% =============================================================================
+% LLM Serving Systems
+% =============================================================================
+
+@misc{kwon2023vllm,
+  title={Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
+  author={Kwon, Woosuk and others},
+  year={2023},
+  eprint={2309.06180},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+@misc{zheng2023sglang,
+  title={{SGLang}: Efficient Execution of Structured Language Model Programs},
+  author={Zheng, Zhiqiang and others},
+  year={2023},
+  eprint={2312.07104},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+@misc{dao2023flashattention2,
+  title={{FlashAttention-2}: Faster Attention with Better Parallelism and Work Partitioning},
+  author={Dao, Tri and others},
+  year={2023},
+  eprint={2307.08691},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+@misc{agrawal2024sarathi,
+  title={Sarathi-Serve: High-throughput and Memory-efficient {LLM} Serving with Partitioned Attention},
+  author={Agrawal, Amey and others},
+  year={2024},
+  eprint={2403.02310},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+% =============================================================================
+% Tail Latency and SLOs
+% =============================================================================
+
+@article{dean2013tail,
+  title={The Tail at Scale},
+  author={Dean, Jeffrey and Barroso, Luiz Andr{\'e}},
+  journal={Communications of the ACM},
+  volume={56},
+  number={2},
+  pages={74--80},
+  year={2013},
+  doi={10.1145/2408776.2408794}
+}
+
+@misc{akamai2017performance,
+  title={The State of Online Retail Performance: Spring 2017},
+  author={{Akamai Technologies}},
+  year={2017},
+  howpublished={\url{https://www.akamai.com/us/en/about/news/press/2017-press/akamai-releases-spring-2017-state-of-online-retail-performance-report.jsp}},
+  note={Report showing that 2-second delays increase bounce rates by 103\%}
+}
+
+% =============================================================================
+% Benchmarks and Evaluation
+% =============================================================================
+
+@misc{hendrycks2021mmlu,
+  title={Measuring Massive Multitask Language Understanding},
+  author={Hendrycks, Dan and Burns, Collin and Basart, Steven and Zou, Andy and Mazeika, Mantas and Song, Dawn and Steinhardt, Jacob},
+  year={2021},
+  eprint={2009.03300},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@misc{liang2023helm,
+  title={{HELM}: Holistic Evaluation of Language Models},
+  author={Liang, Percy and others},
+  year={2023},
+  eprint={2211.09110},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@misc{geng2025jsonschemabench,
+  title={{JSONSchemaBench}: A Rigorous Benchmark of Structured Outputs for Language Models},
+  author={Geng, Saibo and Cooper, Hudson and Moskal, Micha{\l} and Jenkins, Samuel and Berman, Julian and Ranchin, Nathan and West, Robert and Horvitz, Eric and Nori, Harsha},
+  year={2025},
+  eprint={2501.10868},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+
+@inproceedings{reddi2020mlperf,
+  title={{MLPerf} Inference Benchmark},
+  author={Reddi, Vijay Janapa and others},
+  booktitle={Proceedings of the ACM/IEEE International Symposium on Computer Architecture},
+  year={2020}
+}
+
+% =============================================================================
+% Small Language Models
+% =============================================================================
+
+@misc{nvidia2025slm,
+  title={Small Language Models are the Future of Agentic AI},
+  author={{NVIDIA}},
+  year={2025},
+  eprint={2506.02153},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  note={Demonstrates 10--30$\times$ cost reduction for SLMs in agentic systems}
+}
+
+% =============================================================================
+% Canary / Shadow Deployment
+% =============================================================================
+
+@inproceedings{sato2019canary,
+  title={Continuous Delivery for Machine Learning},
+  author={Sato, Danilo and Wider, Arif and Windheuser, Christoph},
+  booktitle={ThoughtWorks Technical Report},
+  year={2019},
+  note={\url{https://martinfowler.com/articles/cd4ml.html}}
+}
+
+@article{amershimultiversion2019,
+  title={Software Engineering for Machine Learning: A Case Study},
+  author={Amershi, Saleema and Begel, Andrew and Bird, Christian and DeLine, Robert and Gall, Harald and Kamar, Erin and Nagappan, Nachiappan and Nushi, Besmira and Zimmermann, Thomas},
+  journal={Proceedings of the 41st International Conference on Software Engineering: Software Engineering in Practice},
+  pages={291--300},
+  year={2019},
+  publisher={IEEE}
+}

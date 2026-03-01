@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+_ROOT = Path(__file__).resolve().parent.parent
+
 
 def _read_jsonl(path: Path):
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -10,11 +12,11 @@ def _read_jsonl(path: Path):
 
 
 def test_clinc_label_type_match_rate_is_full():
-    labels_path = Path("tasks/clinc150_labels.json")
+    labels_path = _ROOT / "tasks" / "clinc150_labels.json"
     assert labels_path.exists(), "missing tasks/clinc150_labels.json"
     labels = set(json.loads(labels_path.read_text(encoding="utf-8")))
 
-    task_path = Path("tasks/clinc_en.jsonl")
+    task_path = _ROOT / "tasks" / "clinc_en.jsonl"
     assert task_path.exists(), "missing tasks/clinc_en.jsonl"
 
     total = 0

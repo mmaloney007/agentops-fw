@@ -28,6 +28,12 @@ from transformers import BitsAndBytesConfig  # type: ignore
 
 from agent_stable_slo.logging import wandb_utils as WL
 from agent_stable_slo.logging.structured import JsonLogger
+from agent_stable_slo.logging.weave_ops import (
+    enable_weave_tracing,
+    is_weave_enabled,
+    log_train_step,
+    log_reward_breakdown,
+)
 from agent_stable_slo.rewards.composite import composite_reward
 from agent_stable_slo.rewards.schema_reward import schema_valid
 from agent_stable_slo.utils.checkpoint import CheckpointManager
@@ -142,7 +148,8 @@ def _load_dataset(tasks_path: str) -> List[Dict[str, Any]]:
                 continue
             rec = json.loads(raw)
             schema_path = rec["schema_path"]
-            schema = json.load(open(schema_path, "r", encoding="utf-8"))
+            with open(schema_path, "r", encoding="utf-8") as sf:
+                schema = json.load(sf)
             rec["schema"] = schema
             rows.append(rec)
     if not rows:
@@ -412,6 +419,13 @@ def train_loop(cfg: GRPOTrainConfig):
     if cfg.ddp_backend:
         init_distributed(cfg.ddp_backend)
 
+    # Initialize Weave tracing if WEAVE_PROJECT is set
+    weave_project = os.getenv("WEAVE_PROJECT")
+    if weave_project:
+        weave_ok = enable_weave_tracing(weave_project)
+        if weave_ok:
+            print(f"[weave] Atomic training tracing enabled for project: {weave_project}")
+
     hw = detect_hardware()
     hw_cfg = hw.as_dict()
     hw_cfg["recommended"] = recommended_defaults(hw)
@@ -655,6 +669,22 @@ def train_loop(cfg: GRPOTrainConfig):
             if blocked_now and cfg.reject_blocklisted:
                 reward = 0.0
 
+            # Log reward breakdown to Weave for component analysis
+            if is_weave_enabled():
+                log_reward_breakdown(
+                    output_json=out_json,
+                    schema=schema,
+                    ok_success=int(json_valid),
+                    latency_ms=lat_ms,
+                    tokens=tokens_out,
+                    lam_latency=lam,
+                    mu_cost=mu,
+                    disagreement_rate=disagreement_rate,
+                    gamma_stability=gamma,
+                    faithfulness=faithfulness_score,
+                    kappa_faithfulness=cfg.kappa_faithfulness,
+                )
+
             baseline = running_baseline
             running_baseline = 0.9 * running_baseline + 0.1 * reward
             advantage = reward - baseline
@@ -711,6 +741,25 @@ def train_loop(cfg: GRPOTrainConfig):
             fo.write(json.dumps(rec) + "\n")
             fo.flush()
             _log_to_wandb(run, step, reward, rec)
+
+            # Atomic step-level Weave tracing (if enabled)
+            if is_weave_enabled():
+                log_train_step(
+                    step=step,
+                    prompt=prompt,
+                    output_text=txt,
+                    output_json=out_json,
+                    reward=float(reward),
+                    advantage=float(advantage),
+                    loss=float(accum_loss),
+                    latency_ms=float(lat_ms),
+                    json_valid=bool(json_valid),
+                    tokens_out=tokens_out,
+                    faithfulness=float(faithfulness_score),
+                    disagreement_rate=float(disagreement_rate),
+                    model_name=cfg.base_model,
+                    task_type=row.get("schema_path", "unknown"),
+                )
 
             if (
                 cfg.checkpoint_every

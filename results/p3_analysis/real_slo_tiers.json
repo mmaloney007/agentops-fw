@@ -1,0 +1,1182 @@
+{
+  "dataset": "p1_full_eval_42900",
+  "source": "/Users/maloney/Documents/GitHub/agentops-fw/out/p1_full_eval/p1_13models_5tasks_20260124_221550",
+  "total_predictions": 42900,
+  "tiers": {
+    "interactive": 2000,
+    "standard": 5000,
+    "batch": 30000
+  },
+  "models": {
+    "falcon-mamba-7b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.918,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.026,
+          "s_at_slo_batch": 0.024
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 0.9,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.52,
+          "s_at_slo_batch": 0.47
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.01,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.33,
+          "s_at_slo_batch": 0.01
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.114,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.0,
+          "s_at_slo_batch": 0.0
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 0.975,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.5867,
+          "s_at_slo_batch": 0.5733
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9133,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.8467,
+          "s_at_slo_batch": 0.79
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9875,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.0775,
+          "s_at_slo_batch": 0.0775
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.6642,
+        "on_time_interactive": 0.0,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.0,
+        "s_at_slo_standard": 0.0,
+        "on_time_batch": 0.2997,
+        "s_at_slo_batch": 0.2755,
+        "avg_latency_ms": 41655.3,
+        "p50_latency_ms": 37523.5,
+        "p95_latency_ms": 77052.2,
+        "p99_latency_ms": 103660.7
+      }
+    },
+    "gemma-2-9b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.984,
+          "on_time_interactive": 0.014,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.014,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.984
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.56,
+          "s_at_slo_batch": 0.56
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.51,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.527,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.003,
+          "s_at_slo_batch": 0.001
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.925,
+          "s_at_slo_batch": 0.925
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9933,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.9467,
+          "s_at_slo_batch": 0.9417
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9925,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.0125,
+          "s_at_slo_batch": 0.0125
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.8218,
+        "on_time_interactive": 0.0021,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.0021,
+        "s_at_slo_standard": 0.0,
+        "on_time_batch": 0.5267,
+        "s_at_slo_batch": 0.5073,
+        "avg_latency_ms": 37313.9,
+        "p50_latency_ms": 22869.1,
+        "p95_latency_ms": 92551.7,
+        "p99_latency_ms": 127016.1
+      }
+    },
+    "gemma-3-12b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.956,
+          "on_time_interactive": 0.018,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.018,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.992,
+          "s_at_slo_batch": 0.95
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.15,
+          "s_at_slo_batch": 0.15
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.0,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.217,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.0,
+          "s_at_slo_batch": 0.0
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.7717,
+          "s_at_slo_batch": 0.7717
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.995,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.5667,
+          "s_at_slo_batch": 0.5667
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9925,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.0075,
+          "s_at_slo_batch": 0.0075
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.7239,
+        "on_time_interactive": 0.0027,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.0027,
+        "s_at_slo_standard": 0.0,
+        "on_time_batch": 0.3991,
+        "s_at_slo_batch": 0.3927,
+        "avg_latency_ms": 62759.3,
+        "p50_latency_ms": 40348.0,
+        "p95_latency_ms": 134325.3,
+        "p99_latency_ms": 188553.3
+      }
+    },
+    "gpt-oss-20b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.776,
+          "on_time_interactive": 0.012,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.012,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.714,
+          "s_at_slo_batch": 0.544
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.74,
+          "s_at_slo_batch": 0.74
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.59,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.415,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.002,
+          "s_at_slo_batch": 0.001
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.82,
+          "s_at_slo_batch": 0.82
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.955,
+          "s_at_slo_batch": 0.955
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9975,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.125,
+          "s_at_slo_batch": 0.125
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.7582,
+        "on_time_interactive": 0.0018,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.0018,
+        "s_at_slo_standard": 0.0,
+        "on_time_batch": 0.487,
+        "s_at_slo_batch": 0.443,
+        "avg_latency_ms": 38329.2,
+        "p50_latency_ms": 30403.5,
+        "p95_latency_ms": 72568.2,
+        "p99_latency_ms": 119514.2
+      }
+    },
+    "llama-3.1-8b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.958,
+          "on_time_interactive": 0.012,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.284,
+          "s_at_slo_standard": 0.264,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.958
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 0.85,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.91,
+          "s_at_slo_batch": 0.77
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.96,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.502,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.077,
+          "s_at_slo_batch": 0.049
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.975,
+          "s_at_slo_batch": 0.975
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.995,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.9817,
+          "s_at_slo_batch": 0.9783
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9975,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.315,
+          "s_at_slo_batch": 0.315
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.8067,
+        "on_time_interactive": 0.0018,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.043,
+        "s_at_slo_standard": 0.04,
+        "on_time_batch": 0.6255,
+        "s_at_slo_batch": 0.5767,
+        "avg_latency_ms": 23159.6,
+        "p50_latency_ms": 15636.5,
+        "p95_latency_ms": 50944.1,
+        "p99_latency_ms": 73133.4
+      }
+    },
+    "llama-3.2-1b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.622,
+          "on_time_interactive": 0.462,
+          "s_at_slo_interactive": 0.272,
+          "on_time_standard": 1.0,
+          "s_at_slo_standard": 0.622,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.622
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 0.85,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.8,
+          "s_at_slo_standard": 0.66,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.85
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.47,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.274,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.017,
+          "s_at_slo_standard": 0.006,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.274
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 0.7483,
+          "on_time_interactive": 0.0017,
+          "s_at_slo_interactive": 0.0017,
+          "on_time_standard": 0.9683,
+          "s_at_slo_standard": 0.7267,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.7483
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9683,
+          "on_time_interactive": 0.1267,
+          "s_at_slo_interactive": 0.12,
+          "on_time_standard": 0.9733,
+          "s_at_slo_standard": 0.9433,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.9683
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.99,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.4475,
+          "s_at_slo_standard": 0.4475,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.99
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.6352,
+        "on_time_interactive": 0.0933,
+        "s_at_slo_interactive": 0.0633,
+        "on_time_standard": 0.6024,
+        "s_at_slo_standard": 0.4739,
+        "on_time_batch": 1.0,
+        "s_at_slo_batch": 0.6352,
+        "avg_latency_ms": 4595.1,
+        "p50_latency_ms": 3544.8,
+        "p95_latency_ms": 9473.0,
+        "p99_latency_ms": 12612.0
+      }
+    },
+    "llama-3.2-3b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.93,
+          "on_time_interactive": 0.002,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.996,
+          "s_at_slo_standard": 0.926,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.93
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.04,
+          "s_at_slo_standard": 0.04,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 1.0
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.01,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.488,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.488
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 0.8367,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.84,
+          "s_at_slo_standard": 0.7067,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.8367
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9817,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.7733,
+          "s_at_slo_standard": 0.7617,
+          "on_time_batch": 0.9983,
+          "s_at_slo_batch": 0.98
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.995,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.73,
+          "s_at_slo_batch": 0.7275
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.7703,
+        "on_time_interactive": 0.0003,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.4458,
+        "s_at_slo_standard": 0.4085,
+        "on_time_batch": 0.967,
+        "s_at_slo_batch": 0.7376,
+        "avg_latency_ms": 10629.9,
+        "p50_latency_ms": 7476.5,
+        "p95_latency_ms": 26757.5,
+        "p99_latency_ms": 37773.9
+      }
+    },
+    "ministral-8b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.882,
+          "on_time_interactive": 0.012,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.554,
+          "s_at_slo_standard": 0.478,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.882
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.68,
+          "s_at_slo_batch": 0.68
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.66,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.565,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.01,
+          "s_at_slo_batch": 0.01
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.955,
+          "s_at_slo_batch": 0.955
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9983,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.97,
+          "s_at_slo_batch": 0.9683
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9875,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.0725,
+          "s_at_slo_batch": 0.07
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.8182,
+        "on_time_interactive": 0.0018,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.0839,
+        "s_at_slo_standard": 0.0724,
+        "on_time_batch": 0.5539,
+        "s_at_slo_batch": 0.5155,
+        "avg_latency_ms": 27665.2,
+        "p50_latency_ms": 18458.4,
+        "p95_latency_ms": 70246.5,
+        "p99_latency_ms": 91847.7
+      }
+    },
+    "mistral-7b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.934,
+          "on_time_interactive": 0.012,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.012,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.934
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 0.89,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.85,
+          "s_at_slo_batch": 0.75
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.01,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.76,
+          "s_at_slo_batch": 0.01
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.444,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.01,
+          "s_at_slo_batch": 0.008
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.975,
+          "s_at_slo_batch": 0.975
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9917,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.985,
+          "s_at_slo_batch": 0.9767
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9675,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.265,
+          "s_at_slo_batch": 0.26
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.7827,
+        "on_time_interactive": 0.0018,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.0018,
+        "s_at_slo_standard": 0.0,
+        "on_time_batch": 0.5918,
+        "s_at_slo_batch": 0.5533,
+        "avg_latency_ms": 27012.2,
+        "p50_latency_ms": 20316.5,
+        "p95_latency_ms": 56089.9,
+        "p99_latency_ms": 77372.3
+      }
+    },
+    "phi-3-mini": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.792,
+          "on_time_interactive": 0.012,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.978,
+          "s_at_slo_standard": 0.778,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.792
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.02,
+          "s_at_slo_standard": 0.02,
+          "on_time_batch": 0.93,
+          "s_at_slo_batch": 0.93
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.92,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.302,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.477,
+          "s_at_slo_batch": 0.177
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 0.94,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.69,
+          "s_at_slo_standard": 0.6617,
+          "on_time_batch": 0.9933,
+          "s_at_slo_batch": 0.9333
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.995,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0933,
+          "s_at_slo_standard": 0.0933,
+          "on_time_batch": 0.9883,
+          "s_at_slo_batch": 0.9833
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.95,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.2975,
+          "s_at_slo_batch": 0.2875
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.7088,
+        "on_time_interactive": 0.0018,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.2912,
+        "s_at_slo_standard": 0.2558,
+        "on_time_batch": 0.7485,
+        "s_at_slo_batch": 0.5852,
+        "avg_latency_ms": 19979.4,
+        "p50_latency_ms": 10875.9,
+        "p95_latency_ms": 60153.9,
+        "p99_latency_ms": 93260.1
+      }
+    },
+    "qwen2.5-3b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.952,
+          "on_time_interactive": 0.012,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.992,
+          "s_at_slo_standard": 0.944,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.952
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 0.74,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.02,
+          "s_at_slo_standard": 0.01,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.74
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.332,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.993,
+          "s_at_slo_batch": 0.33
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.8367,
+          "s_at_slo_standard": 0.8367,
+          "on_time_batch": 0.9933,
+          "s_at_slo_batch": 0.9933
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.995,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.7217,
+          "s_at_slo_standard": 0.7167,
+          "on_time_batch": 0.9983,
+          "s_at_slo_batch": 0.9933
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9875,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0025,
+          "s_at_slo_standard": 0.0025,
+          "on_time_batch": 0.7425,
+          "s_at_slo_batch": 0.735
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.7497,
+        "on_time_interactive": 0.0018,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.4345,
+        "s_at_slo_standard": 0.4261,
+        "on_time_batch": 0.9652,
+        "s_at_slo_batch": 0.717,
+        "avg_latency_ms": 11752.4,
+        "p50_latency_ms": 7416.5,
+        "p95_latency_ms": 26858.5,
+        "p99_latency_ms": 41061.7
+      }
+    },
+    "qwen3-4b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.954,
+          "on_time_interactive": 0.002,
+          "s_at_slo_interactive": 0.002,
+          "on_time_standard": 0.976,
+          "s_at_slo_standard": 0.932,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.954
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.94,
+          "s_at_slo_batch": 0.94
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.95,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.478,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.595,
+          "s_at_slo_batch": 0.314
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.9883,
+          "s_at_slo_batch": 0.9883
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9933,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.945,
+          "s_at_slo_batch": 0.9383
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.9925,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.2325,
+          "s_at_slo_batch": 0.23
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.8024,
+        "on_time_interactive": 0.0003,
+        "s_at_slo_interactive": 0.0003,
+        "on_time_standard": 0.1479,
+        "s_at_slo_standard": 0.1412,
+        "on_time_batch": 0.7688,
+        "s_at_slo_batch": 0.6464,
+        "avg_latency_ms": 19685.8,
+        "p50_latency_ms": 12162.1,
+        "p95_latency_ms": 47661.0,
+        "p99_latency_ms": 69191.9
+      }
+    },
+    "yi-1.5-6b": {
+      "per_task": {
+        "T1": {
+          "count": 500,
+          "accuracy": 0.926,
+          "on_time_interactive": 0.012,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.012,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 1.0,
+          "s_at_slo_batch": 0.926
+        },
+        "T1v": {
+          "count": 100,
+          "accuracy": 0.85,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.8,
+          "s_at_slo_batch": 0.69
+        },
+        "T2": {
+          "count": 100,
+          "accuracy": 0.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.82,
+          "s_at_slo_batch": 0.0
+        },
+        "T2v": {
+          "count": 1000,
+          "accuracy": 0.372,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.005,
+          "s_at_slo_batch": 0.003
+        },
+        "T3": {
+          "count": 600,
+          "accuracy": 1.0,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.9767,
+          "s_at_slo_batch": 0.9767
+        },
+        "T4": {
+          "count": 600,
+          "accuracy": 0.9867,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.9783,
+          "s_at_slo_batch": 0.965
+        },
+        "T5": {
+          "count": 400,
+          "accuracy": 0.95,
+          "on_time_interactive": 0.0,
+          "s_at_slo_interactive": 0.0,
+          "on_time_standard": 0.0,
+          "s_at_slo_standard": 0.0,
+          "on_time_batch": 0.2,
+          "s_at_slo_batch": 0.19
+        }
+      },
+      "aggregate": {
+        "total": 3300,
+        "accuracy": 0.7552,
+        "on_time_interactive": 0.0018,
+        "s_at_slo_interactive": 0.0,
+        "on_time_standard": 0.0018,
+        "s_at_slo_standard": 0.0,
+        "on_time_batch": 0.5818,
+        "s_at_slo_batch": 0.5382,
+        "avg_latency_ms": 25916.2,
+        "p50_latency_ms": 18377.5,
+        "p95_latency_ms": 54567.0,
+        "p99_latency_ms": 69576.1
+      }
+    }
+  },
+  "spearman": {
+    "interactive": {
+      "rho": 0.1703,
+      "ci_lower": -0.3173,
+      "ci_upper": 0.5838,
+      "p_value": 0.571,
+      "n_bootstrap": 10000,
+      "n_models": 13
+    },
+    "standard": {
+      "rho": -0.169,
+      "ci_lower": -0.6648,
+      "ci_upper": 0.5137,
+      "p_value": 0.5742,
+      "n_bootstrap": 10000,
+      "n_models": 13
+    },
+    "batch": {
+      "rho": 0.022,
+      "ci_lower": -0.5824,
+      "ci_upper": 0.6374,
+      "p_value": 0.9426,
+      "n_bootstrap": 10000,
+      "n_models": 13
+    }
+  }
+}

@@ -3,7 +3,6 @@
 Wrapper to run Phi-3-mini training with DynamicCache patch.
 Fixes the 'seen_tokens' and 'get_max_length' attribute errors in older Phi-3 model code.
 """
-import sys
 
 # Apply DynamicCache patch BEFORE any other imports
 from transformers import DynamicCache

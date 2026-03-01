@@ -1,4 +1,5 @@
-% SpecSLOEval / Piece I -- curated bibliography (biblatex-compatible)
+% SpecSLOEval / Paper I -- curated bibliography
+% Clean version: only entries cited in main.tex
 
 @article{dean2013tail,
   title        = {The Tail at Scale},
@@ -30,7 +31,7 @@
 }
 
 @misc{agrawal2024sarathi,
-  title        = {Sarathi-Serve: High-throughput and Memory-efficient LLM Serving with Partitioned Attention},
+  title        = {Taming Throughput-Latency Tradeoff in {LLM} Inference with {Sarathi-Serve}},
   author       = {Agrawal, Amey and others},
   year         = {2024},
   eprint       = {2403.02310},
@@ -47,29 +48,11 @@
   primaryClass = {cs.LG}
 }
 
-@misc{prabhu2024vattention,
-  title        = {vAttention: Dynamic Memory Management for Serving LLMs without PagedAttention},
-  author       = {Prabhu, Sumanth and others},
-  year         = {2024},
-  eprint       = {2405.04437},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
 @misc{geng2025jsonschemabench,
-  title        = {JSONSchemaBench: A Comprehensive Benchmark for Structured JSON Generation},
-  author       = {Geng, Saibo and Antoniak, Maria and Wang, Haoyu and Han, Qian and Haddow, Barry and Birch, Alexandra},
+  title        = {{JSONSchemaBench}: A Rigorous Benchmark of Structured Outputs for Language Models},
+  author       = {Geng, Saibo and Cooper, Hudson and Moskal, Micha{\l} and Jenkins, Samuel and Berman, Julian and Ranchin, Nathan and West, Robert and Horvitz, Eric and Nori, Harsha},
   year         = {2025},
   eprint       = {2501.10868},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
-@misc{letmespeakfreely,
-  title        = {Let Me Speak Freely: A Study on Constrained Decoding and Output Format Constraints},
-  author       = {Elazar, Amine and Choi, Yejin and others},
-  year         = {2024},
-  eprint       = {2408.02442},
   archivePrefix= {arXiv},
   primaryClass = {cs.CL}
 }
@@ -83,7 +66,7 @@
   primaryClass = {cs.CL}
 }
 
-@misc{atomicFacts2024,
+@misc{atomicFacts2023,
   title        = {FactScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation},
   author       = {Min, Sewon and Krishna, Kalpesh and Lyu, Xinxi and Wang, Hanlin and Yih, Wen-tau and Choi, Yejin and Hajishirzi, Hannaneh},
   year         = {2023},
@@ -93,7 +76,7 @@
 }
 
 @misc{chen2024humans,
-  title        = {Humans or LLMs as the Judge? A Study on Evaluation Methods for Text Summarization},
+  title        = {Humans or {LLMs} as the Judge? A Study on Judgement Biases},
   author       = {Chen, Yujia and others},
   year         = {2024},
   eprint       = {2402.10669},
@@ -101,47 +84,12 @@
   primaryClass = {cs.CL}
 }
 
-@misc{dettmers2023qlora,
-  title        = {QLoRA: Efficient Finetuning of Quantized LLMs},
-  author       = {Dettmers, Tim and others},
-  year         = {2023},
-  eprint       = {2305.14314},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-@misc{schulman2017ppo,
-  title        = {Proximal Policy Optimization Algorithms},
-  author       = {Schulman, John and others},
-  year         = {2017},
-  eprint       = {1707.06347},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-@misc{achiam2017cpo,
-  title        = {Constrained Policy Optimization},
-  author       = {Achiam, Joshua and others},
-  year         = {2017},
-  eprint       = {1705.10528},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-@book{altman1999cmdp,
-  title        = {Constrained Markov Decision Processes},
-  author       = {Altman, Eitan},
-  year         = {1999},
-  publisher    = {Chapman and Hall/CRC},
-  address      = {Boca Raton, FL}
-}
-
 @misc{openaiStructuredOutputs,
   title        = {Structured Outputs (OpenAI documentation)},
   author       = {{OpenAI}},
   year         = {2024},
   howpublished = {\url{https://openai.com/index/introducing-structured-outputs-in-the-api/}},
-  note         = {Accessed: 2025-12-22}
+  note         = {Accessed: 2025-01-18}
 }
 
 @inproceedings{larson2019clinc150,
@@ -164,77 +112,13 @@
   primaryClass = {cs.CL}
 }
 
-@article{williams1992reinforce,
-  title        = {Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning},
-  author       = {Williams, Ronald J.},
-  journal      = {Machine Learning},
-  volume       = {8},
-  number       = {3-4},
-  pages        = {229--256},
-  year         = {1992},
-  publisher    = {Springer}
-}
-
-@misc{hu2021lora,
-  title        = {{LoRA}: Low-Rank Adaptation of Large Language Models},
-  author       = {Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},
-  year         = {2021},
-  eprint       = {2106.09685},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
-@misc{ouyang2022rlhf,
-  title        = {Training language models to follow instructions with human feedback},
-  author       = {Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo and others},
-  year         = {2022},
-  eprint       = {2203.02155},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
-@misc{rafailov2023dpo,
-  title        = {Direct Preference Optimization: Your Language Model is Secretly a Reward Model},
-  author       = {Rafailov, Rafael and Sharma, Archit and Mitchell, Eric and Ermon, Stefano and Manning, Christopher D. and Finn, Chelsea},
-  year         = {2023},
-  eprint       = {2305.18290},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-@misc{mangrulkar2022peft,
-  title        = {{PEFT}: Parameter-Efficient Fine-Tuning of Billion-Scale Models on Low-Resource Hardware},
-  author       = {Mangrulkar, Sourab and Packers, Sylvain and others},
-  year         = {2022},
-  howpublished = {\url{https://github.com/huggingface/peft}},
-  note         = {HuggingFace PEFT library}
-}
-
-@misc{min2023factscore,
-  title        = {{FActScore}: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation},
-  author       = {Min, Sewon and Krishna, Kalpesh and Lyu, Xinxi and Lewis, Mike and Yih, Wen-tau and Koh, Pang Wei and Iyyer, Mohit and Zettlemoyer, Luke and Hajishirzi, Hannaneh},
-  year         = {2023},
-  eprint       = {2305.14251},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
-@misc{ray2019benchmarking,
-  title        = {Benchmarking Safe Exploration in Deep Reinforcement Learning},
-  author       = {Ray, Alex and Achiam, Joshua and Amodei, Dario},
-  year         = {2019},
-  howpublished = {\url{https://cdn.openai.com/safexp-short.pdf}},
-  note         = {OpenAI Safety Team}
-}
-
 @misc{nvidia2025slm,
   title        = {Small Language Models are the Future of Agentic AI},
-  author       = {{NVIDIA}},
+  author       = {Belcak, Peter and Heinrich, Greg and Diao, Shizhe and Fu, Yonggan and Dong, Xin and Muralidharan, Saurav and Lin, Yingyan Celine and Molchanov, Pavlo},
   year         = {2025},
   eprint       = {2506.02153},
   archivePrefix= {arXiv},
-  primaryClass = {cs.CL},
-  note         = {Demonstrates 10-30x cost reduction for SLMs in agentic systems}
+  primaryClass = {cs.CL}
 }
 
 @article{hendrycks2021mmlu,
@@ -244,11 +128,14 @@
   year         = {2021}
 }
 
-@article{liang2022helm,
+@article{liang2023helm,
   title        = {Holistic Evaluation of Language Models},
   author       = {Liang, Percy and Bommasani, Rishi and Lee, Tony and Tsipras, Dimitris and Soylu, Dilara and Yasunaga, Michihiro and Zhang, Yian and Narayanan, Deepak and Wu, Yuhuai and Kumar, Ananya and others},
-  journal      = {arXiv preprint arXiv:2211.09110},
-  year         = {2022}
+  journal      = {Transactions on Machine Learning Research},
+  year         = {2023},
+  eprint       = {2211.09110},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
 }
 
 @misc{berkeley2024bfcl,
@@ -268,16 +155,6 @@
   primaryClass = {cs.CL}
 }
 
-@misc{grpo,
-  title        = {DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models},
-  author       = {Shao, Zhihong and Wang, Peiyi and Zhu, Qihao and Xu, Runxin and Song, Junxiao and Zhang, Mingchuan and Li, Y.K. and Wu, Y. and Guo, Daya},
-  year         = {2024},
-  eprint       = {2402.03300},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL},
-  note         = {Introduces Group Relative Policy Optimization (GRPO)}
-}
-
 @misc{akamai2017performance,
   title        = {The State of Online Retail Performance: Spring 2017},
   author       = {{Akamai Technologies}},
@@ -293,4 +170,3 @@
   howpublished = {\url{https://openai.com/index/introducing-gpt-5/}},
   note         = {Accessed: 2026-02-01}
 }
-

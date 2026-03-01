@@ -1,10 +1,14 @@
 import json
+from pathlib import Path
+
 from agentops_fw.core import StubLLM
 from agentops_fw.validators import validate_json
 
+_ROOT = Path(__file__).resolve().parent.parent
+
 
 def test_constrained_valid():
-    with open("tasks/pilot.json", "r", encoding="utf-8") as f:
+    with open(_ROOT / "tasks" / "pilot.json", "r", encoding="utf-8") as f:
         spec = json.load(f)
     llm = StubLLM(seed=123)
     for t in spec["tasks"]:
@@ -14,7 +18,7 @@ def test_constrained_valid():
 
 
 def test_posthoc_has_some_invalids():
-    with open("tasks/pilot.json", "r", encoding="utf-8") as f:
+    with open(_ROOT / "tasks" / "pilot.json", "r", encoding="utf-8") as f:
         spec = json.load(f)
     llm = StubLLM(seed=999)
     invalid = 0

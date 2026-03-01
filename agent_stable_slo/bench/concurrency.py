@@ -27,7 +27,8 @@ def run_bench(qps, duration, schema_path):
         name=f"bench-qps{qps}-dur{duration}",
         config={"qps": qps, "duration": duration, "schema": schema_path},
     ) as run:
-        schema = json.load(open(schema_path, "r", encoding="utf-8"))
+        with open(schema_path, "r", encoding="utf-8") as f:
+            schema = json.load(f)
         total = int(qps * duration)
         prompts = [
             f"Case {i}: return JSON conforming to the schema" for i in range(total)

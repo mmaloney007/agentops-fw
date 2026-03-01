@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Quick test to see if W&B artifact upload is the bottleneck."""
 
+import os
 import wandb
 import time
 
 print("Initializing W&B...")
 run = wandb.init(
     project="specsloeval",
-    entity="neuralift-ai",
+    entity=os.environ.get("WANDB_ENTITY", "mike007"),  # Personal account
     name="test-artifact-upload",
     mode="online",
 )

@@ -15,12 +15,14 @@ from collections import defaultdict
 
 
 def load_tasks(path: str) -> List[Dict[str, Any]]:
-    return [json.loads(x) for x in open(path, "r", encoding="utf-8") if x.strip()]
+    with open(path, "r", encoding="utf-8") as f:
+        return [json.loads(x) for x in f if x.strip()]
 
 
 def safe_validate(schema_path: str, obj: Dict[str, Any]) -> bool:
     try:
-        schema = json.load(open(schema_path, "r", encoding="utf-8"))
+        with open(schema_path, "r", encoding="utf-8") as sf:
+            schema = json.load(sf)
         validate(obj, schema)
         return True
     except Exception:

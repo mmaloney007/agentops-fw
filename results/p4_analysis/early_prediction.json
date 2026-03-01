@@ -1,0 +1,461 @@
+{
+  "prediction_results": {
+    "full": {
+      "n_samples": 63,
+      "accuracy": 0.8254,
+      "n_sustained": 41,
+      "n_other": 22,
+      "weights": {
+        "early_mean_50": 6.2327,
+        "peak_step": 1.1897,
+        "size_b": 1.2781
+      },
+      "bias": -2.6623
+    },
+    "loo_cv": {
+      "accuracy": 0.8095,
+      "n_correct": 51,
+      "n_total": 63
+    },
+    "per_model": {
+      "gemma-2-9b": {
+        "accuracy": 0.8333,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 1,
+            "correct": false
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "gemma-3-12b": {
+        "accuracy": 0.6667,
+        "predictions": [
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 1,
+            "correct": false
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          }
+        ]
+      },
+      "llama-3.1-8b": {
+        "accuracy": 0.8333,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 0,
+            "correct": false
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "llama-3.2-1b": {
+        "accuracy": 0.8333,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T1",
+            "predicted": 0,
+            "actual": 1,
+            "correct": false
+          },
+          {
+            "task": "T2",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "llama-3.2-3b": {
+        "accuracy": 0.6667,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 0,
+            "correct": false
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 0,
+            "actual": 1,
+            "correct": false
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "ministral-8b": {
+        "accuracy": 0.8333,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 1,
+            "correct": false
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "mistral-7b-v0.3": {
+        "accuracy": 0.6667,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 0,
+            "correct": false
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 0,
+            "actual": 1,
+            "correct": false
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "phi-3-mini": {
+        "accuracy": 1.0,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "qwen2.5-3b": {
+        "accuracy": 0.8333,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 1,
+            "correct": false
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "qwen3-4b": {
+        "accuracy": 1.0,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      },
+      "yi-1.5-6b": {
+        "accuracy": 0.8333,
+        "predictions": [
+          {
+            "task": "Mixed",
+            "predicted": 1,
+            "actual": 0,
+            "correct": false
+          },
+          {
+            "task": "T1",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T2",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T3",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          },
+          {
+            "task": "T4",
+            "predicted": 1,
+            "actual": 1,
+            "correct": true
+          },
+          {
+            "task": "T5",
+            "predicted": 0,
+            "actual": 0,
+            "correct": true
+          }
+        ]
+      }
+    }
+  },
+  "feature_names": [
+    "early_mean_50",
+    "peak_step",
+    "size_b"
+  ]
+}

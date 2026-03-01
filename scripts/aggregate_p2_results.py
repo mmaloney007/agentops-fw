@@ -21,7 +21,7 @@ import json
 import statistics
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 def load_train_log(log_path: Path) -> List[Dict[str, Any]]:
@@ -58,7 +58,7 @@ def extract_run_metrics(run_dir: Path) -> Optional[Dict[str, Any]]:
     steps = [e.get("step", 0) for e in entries]
     rewards = [e.get("reward", 0) for e in entries]
     json_valids = [e.get("json_valid", 0) for e in entries]
-    schema_valids = [e.get("schema_valid", 0) for e in entries]
+    [e.get("schema_valid", 0) for e in entries]
     latencies = [e.get("latency_ms", 0) for e in entries if e.get("latency_ms")]
     tokens_out = [e.get("tokens_out", 0) for e in entries if e.get("tokens_out")]
 

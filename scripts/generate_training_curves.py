@@ -14,9 +14,7 @@ Also generates pgfplots-ready .dat files for direct LaTeX inclusion.
 """
 
 import json
-import os
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np

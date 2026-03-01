@@ -36,10 +36,10 @@ def main():
 
     set_seed(args.seed, deterministic=False)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    tasks = [
-        json.loads(x) for x in open(args.tasks, "r", encoding="utf-8") if x.strip()
-    ]
-    schema = json.load(open(args.schema, "r", encoding="utf-8"))
+    with open(args.tasks, "r", encoding="utf-8") as f:
+        tasks = [json.loads(x) for x in f if x.strip()]
+    with open(args.schema, "r", encoding="utf-8") as f:
+        schema = json.load(f)
 
     run_name = "stability-" + os.path.basename(args.out)
     with (

@@ -1,0 +1,11 @@
+model size_b mixed_validity single_avg interference_delta profile
+llama-3.2-1b 1.0 0.2200 0.5880 -0.3680 catastrophic
+llama-3.2-3b 3.0 0.2267 0.5987 -0.3720 catastrophic
+qwen2.5-3b 3.0 0.7600 0.7333 0.0267 robust
+phi-3-mini 3.8 0.7400 0.4000 0.3400 robust
+qwen3-4b 4.0 0.9000 0.8960 0.0040 robust
+yi-1.5-6b 6.0 0.0000 0.5920 -0.5920 catastrophic
+mistral-7b-v0.3 7.0 0.1467 0.5307 -0.3840 catastrophic
+ministral-8b 8.0 0.7333 0.7293 0.0040 robust
+llama-3.1-8b 8.0 0.4533 0.6000 -0.1467 selective
+gemma-2-9b 9.0 0.8200 0.8880 -0.0680 selective

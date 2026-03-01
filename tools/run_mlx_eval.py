@@ -52,7 +52,8 @@ def main():
             prompt = row["prompt"]
             schema_path = row["schema_path"]
             # Load schema for potential future use (e.g., constrained decoding)
-            _ = json.load(open(schema_path, "r", encoding="utf-8"))
+            with open(schema_path, "r", encoding="utf-8") as sf:
+                _ = json.load(sf)
 
             t0 = time.time()
             completion = generate(

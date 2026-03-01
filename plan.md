@@ -1234,5 +1234,166 @@ All papers in the 6-paper arc should reference consistent SLO thresholds and fin
 
 ---
 
+---
+
+## Paper 4: Ablation Runs — Reward Decomposition (36 Runs)
+
+### Motivation
+
+P4 (Training Dynamics) currently analyzes the existing 185 runs from P2. To strengthen its claims — particularly RQ1 (reward decomposition) — we need controlled ablation experiments where individual reward components are removed or reweighted. The current analysis infers component contributions from the composite reward; ablations would provide causal evidence.
+
+### Experimental Design
+
+**Ablation matrix**: 6 reward configurations × 3 seeds × 2 model sizes = **36 runs**
+
+| Config | R_schema | R_success | R_latency | R_cost | R_stability | Purpose |
+|--------|----------|-----------|-----------|--------|-------------|---------|
+| **Full** (baseline) | 1.0 | 1.0 | -0.1L | -0.05C | -0.1D | Control |
+| **No latency** | 1.0 | 1.0 | 0 | -0.05C | -0.1D | Is latency penalty suppressing learning? |
+| **No cost** | 1.0 | 1.0 | -0.1L | 0 | -0.1D | Does token cost matter? |
+| **Schema only** | 1.0 | 0 | 0 | 0 | 0 | Pure structure learning signal |
+| **Accuracy only** | 0 | 1.0 | 0 | 0 | 0 | Pure task learning signal |
+| **Heavy latency** | 1.0 | 1.0 | -0.5L | -0.05C | -0.1D | Stress-test latency penalty |
+
+**Model selection**: One model below threshold, one above:
+- **Qwen3-4B** (4B) — best sub-threshold performer, shows learning on T3/Mixed
+- **Gemma-2-9B** (9B) — first above-threshold model, shows sustained learning
+
+**Task**: Mixed (T1-T5 interleaved) — maximizes signal because it's where forgetting matters most
+
+**Training**: 1000 steps per run, same LoRA config as P2 (rank 16, alpha 32, dropout 0.05)
+
+### Expected Outcomes
+
+1. **Latency penalty hypothesis**: If "No latency" dramatically improves small-model validity, the latency penalty is disproportionately punishing small models (which generate more tokens/slower) — a confound in P2's threshold claim
+2. **Schema-only signal**: If schema-only reward enables learning at 4B, the composite reward creates interference that masks small-model capability
+3. **Heavy latency**: If 5x latency penalty collapses even 9B learning, the threshold is partially an artifact of reward design, not pure capacity
+
+### Estimated Compute
+
+| Hardware | Time per run | Total (36 runs) |
+|----------|-------------|-----------------|
+| RTX 4090 | ~2h (4B), ~4h (9B) | ~108h (~4.5 days) |
+| M2 Max | ~8h (4B), ~14h (9B) | ~396h (~16.5 days) |
+
+**Recommendation**: Run on RTX 4090. Can be batched: 18 Qwen3-4B runs first (~36h), then 18 Gemma-2-9B runs (~72h).
+
+### Implementation
+
+```bash
+# New config presets needed in agent_stable_slo/train/config.py
+# Each ablation config inherits from base but overrides reward weights
+
+python -m agent_stable_slo.train.grpo_train_loop \
+  --config-preset ablation_no_latency \
+  --model qwen3-4b \
+  --steps 1000 \
+  --task Mixed \
+  --seed 42 \
+  --out out/p4_ablations/qwen3-4b_no_latency_seed42
+```
+
+### P4 Paper Integration
+
+Results feed directly into:
+- **Table 3** (RQ1): Component contribution with causal evidence
+- **Section 4.5** (new): "Reward Design as Confound" — discusses whether threshold is about capacity or reward structure
+- **Figure 5** (new): Validity curves with vs. without latency penalty, showing divergence point
+
+---
+
+## Paper 8: Distillation Experiments — "Train Large, Deploy Small"
+
+### Motivation
+
+The thesis arc implies a practical solution: if only large models (9B+) can learn structured output through RL, but small models (1-3B) are the only ones fast enough to meet production SLOs, then **knowledge distillation** bridges the gap. Train the teacher (Gemma-2-9B or Gemma-3-12B) with GRPO to learn SLO-aware structured output, then distill that capability into a student (Llama-3.2-1B or Qwen2.5-3B) that can serve at production latency.
+
+This is the culmination of the thesis arc: P1 identifies the gap, P2 shows why training alone can't close it for small models, P4 explains the mechanism, and P8 provides the solution.
+
+### Experimental Design
+
+**Phase 1: Teacher Training** (already done)
+- Gemma-2-9B: 18 GRPO runs, best achieving 73% Mixed validity at 1000 steps
+- Gemma-3-12B: 8 GRPO runs, best achieving 100% T1 validity
+
+**Phase 2: Distillation** (new)
+
+| Approach | Teacher | Student | Method | Expected VRAM |
+|----------|---------|---------|--------|---------------|
+| **Logit distillation** | Gemma-2-9B (GRPO-trained) | Llama-3.2-1B | KL divergence on teacher logits | ~16GB |
+| **Logit distillation** | Gemma-2-9B (GRPO-trained) | Qwen2.5-3B | KL divergence on teacher logits | ~18GB |
+| **Response distillation** | Gemma-3-12B (GRPO-trained) | Llama-3.2-3B | SFT on teacher-generated outputs | ~8GB |
+| **Two-stage** | Gemma-2-9B → Qwen3-4B | Llama-3.2-1B | Logit + SFT cascade | ~16GB |
+
+**Evaluation**: Same P1 evaluation suite (T1-T5, 3 SLO tiers), comparing:
+1. Student (baseline, no training)
+2. Student (GRPO-trained directly — known to fail for <9B)
+3. Student (distilled from teacher)
+
+### Key Hypotheses
+
+1. **Distilled 1B > GRPO-trained 1B**: A 1B model distilled from a 9B GRPO teacher should produce valid structured output where direct GRPO training fails
+2. **Distilled 1B matches 1B latency**: The distilled model retains the student's inference speed (1B parameters), so it meets 2s SLO
+3. **Success@SLO improvement**: If hypothesis 1+2 hold, the distilled model achieves meaningfully higher Success@SLO than either the baseline student or the GRPO-trained student
+4. **Response distillation sufficiency**: SFT on teacher outputs (simpler, cheaper) may be sufficient — logit distillation may not be needed
+
+### Implementation Requirements
+
+```python
+# New module: agent_stable_slo/distill/
+#
+# distill_logit.py  — KL divergence distillation from teacher logits
+# distill_response.py — SFT on teacher-generated structured outputs
+# generate_teacher_data.py — Generate training data from GRPO-trained teacher
+# evaluate_distilled.py — Run P1 evaluation suite on distilled models
+
+# Step 1: Generate teacher data (offline)
+python -m agent_stable_slo.distill.generate_teacher_data \
+  --teacher-model google/gemma-2-9b-it \
+  --teacher-adapter out/p2_training/gemma-2-9b_seed42_1000steps/adapter \
+  --tasks tasks/clinc_en.jsonl tasks/hotpot_dev.jsonl tasks/t3_tools.jsonl \
+  --n-samples 5000 \
+  --out data/distill/gemma-2-9b_teacher_5k.jsonl
+
+# Step 2: Distill (response-based, simpler)
+python -m agent_stable_slo.distill.distill_response \
+  --student-model meta-llama/Llama-3.2-1B-Instruct \
+  --teacher-data data/distill/gemma-2-9b_teacher_5k.jsonl \
+  --epochs 3 \
+  --out out/distill/llama-1b_from_gemma-9b
+
+# Step 3: Evaluate
+python scripts/eval_t_suite.py \
+  --models local:out/distill/llama-1b_from_gemma-9b \
+  --tasks tasks/clinc_en.jsonl tasks/hotpot_dev.jsonl tasks/t3_tools.jsonl \
+  --out-dir out/distill_eval/llama-1b_from_gemma-9b
+```
+
+### Estimated Compute
+
+| Phase | Hardware | Time |
+|-------|----------|------|
+| Teacher data generation | RTX 4090 | ~4h (5000 samples from 9B) |
+| Response distillation (4 configs) | RTX 4090 | ~8h total (SFT is fast) |
+| Logit distillation (4 configs) | RTX 4090 | ~24h total (requires both models loaded) |
+| Evaluation (8 distilled models) | LM Studio | ~16h |
+| **Total** | | **~52h (~2 days)** |
+
+### Success Criteria
+
+The distillation experiments succeed if:
+- [ ] At least one distilled student achieves >50% Success@SLO (batch tier) — proving the gap can be closed
+- [ ] Distilled student outperforms same-size GRPO-trained model by >20 points on any task
+- [ ] Inference latency of distilled student stays within 10% of baseline student (no speed regression)
+- [ ] Results hold across at least 2 teacher-student pairs
+
+### Paper Integration
+
+This work belongs in **P5 (Production Deployment)** or a dedicated **P8** if the results are strong enough for a standalone paper. The narrative:
+
+> "Paper 1 showed accuracy doesn't predict deployment success. Paper 2 showed small models can't learn to close this gap through RL. Paper 4 explained why. This paper shows how to close the gap anyway: train large, distill small, deploy fast."
+
+---
+
 *Plan created: January 2025*
-*Last updated: February 2, 2026 - Added SLO sensitivity analysis to P1 (2s/5s/10s thresholds). Added "Industry Validation: Adaptive Compute" section citing OpenAI's GPT-5 adaptive inference as validation of deployment gap thesis. Added alignment notes for P2-P6.*
+*Last updated: February 5, 2026 - Added P4 ablation runs (36 experiments) and distillation experiments sections. Updated task list with P4/P8 experimental designs, compute estimates, and success criteria.*

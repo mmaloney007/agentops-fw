@@ -54,7 +54,8 @@ def main():
         with open(eval_path, "w", encoding="utf-8") as fo:
             for i in range(args.steps):
                 row = ds[i % len(ds)]
-                schema = json.load(open(row["schema_path"], "r", encoding="utf-8"))
+                with open(row["schema_path"], "r", encoding="utf-8") as sf:
+                    schema = json.load(sf)
                 best = None
                 for _ in range(max(1, args.samples)):
                     out_json, lat_ms, ttft_ms, tokens = provider_generate(
