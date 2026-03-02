@@ -4,10 +4,6 @@ Usage:
     agentslo-bench baseline     Print built-in 13-model P1 results
     agentslo-bench leaderboard  Generate rankings from result files
     agentslo-bench run          Evaluate an endpoint against benchmark tasks
-
-Examples:
-    agentslo-bench run --model lmstudio:qwen2.5-3b-instruct --tier interactive
-    agentslo-bench run --endpoint http://localhost:1234/v1 --model my-model --tier batch
 """
 
 from __future__ import annotations
@@ -253,27 +249,11 @@ def _run_live_eval(
     return results
 
 
-def _resolve_model_endpoint(args: argparse.Namespace) -> None:
-    """Expand 'lmstudio:model-name' into endpoint + model fields in-place."""
-    if args.model.startswith("lmstudio:"):
-        model_name = args.model[len("lmstudio:") :]
-        args.endpoint = "http://localhost:1234/v1"
-        args.model = model_name
-
-
-def _get_display_tiers(tier_arg: str) -> list:
-    """Return the list of SLOTier objects to display based on --tier value."""
-    if tier_arg == "all":
-        return list(TIERS)
-    return [TIER_MAP[tier_arg]]
-
-
 def cmd_run(args: argparse.Namespace) -> None:
     """Run live evaluation against an LM Studio or OpenAI-compatible endpoint."""
-    print(f"AgentSLO-Bench Live Evaluation")
+    print("AgentSLO-Bench Live Evaluation")
     print(f"  Endpoint: {args.endpoint}")
     print(f"  Model: {args.model}")
-    print(f"  Tier: {args.tier}")
     print(f"  Tasks: {args.tasks}")
     print(f"  Samples per task: {args.samples}")
     print()
@@ -300,8 +280,8 @@ def cmd_run(args: argparse.Namespace) -> None:
             )
         )
 
-        # Print per-tier results (filtered by --tier)
-        for tier in display_tiers:
+        # Print per-tier results
+        for tier in TIERS:
             tr = tier_results[tier.name]
             print(
                 f"  {tier.name.title():12} ({tier.deadline_ms / 1000:.0f}s): "
@@ -310,10 +290,10 @@ def cmd_run(args: argparse.Namespace) -> None:
             )
         print()
 
-    # Summary (filtered by --tier)
+    # Summary
     if all_results:
         print("=== Summary ===")
-        for tier in display_tiers:
+        for tier in TIERS:
             total_count = 0
             total_slo = 0
             for br in all_results:
@@ -354,19 +334,10 @@ def main() -> None:
     p_run.add_argument(
         "--endpoint",
         default="http://localhost:1234/v1",
-        help="OpenAI-compatible API endpoint (overridden by lmstudio: prefix in --model)",
+        help="OpenAI-compatible API endpoint",
     )
     p_run.add_argument(
-        "--model",
-        default="local-model",
-        help="Model name for API calls. Use 'lmstudio:model-name' to auto-set "
-        "endpoint to http://localhost:1234/v1 and extract model name",
-    )
-    p_run.add_argument(
-        "--tier",
-        choices=["interactive", "standard", "batch", "all"],
-        default="all",
-        help="SLO tier to evaluate (default: all)",
+        "--model", default="local-model", help="Model name to use in API calls"
     )
     p_run.add_argument(
         "--tasks",

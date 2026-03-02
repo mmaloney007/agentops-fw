@@ -54,6 +54,25 @@ python -m agent_stable_slo.train.grpo_train_loop \
     --steps 500
 ```
 
+## New: Local LLM + Reasoning Stack
+
+This repo now includes a three-stage local training stack for building a base LM and then a reasoning model tuned with RL for structured JSON tasks.
+
+- CUDA path: from-scratch decoder-only Transformer (`PyTorch`) + GRPO-style RL optimization stage.
+- MLX path: practical local workflow via `mlx_lm` LoRA/fuse plus MLX GRPO stage script.
+
+Entry points:
+
+```bash
+python scripts/reasoning/run_reasoning_stack.py --config configs/reasoning_stack/cuda_tiny.yaml
+python scripts/reasoning/run_reasoning_stack.py --config configs/reasoning_stack/mlx_local.yaml
+```
+
+Architecture and setup docs:
+
+- `docs/reasoning_stack/README.md`
+- `docs/reasoning_stack/ARCHITECTURE.md`
+
 ## Tasks
 
 Five task types covering common agent workloads:

@@ -1,0 +1,38 @@
+{
+  "run_name": "mlx_eval_20260301_021513",
+  "models": [
+    "mlx-community/Qwen3.5-35B-A3B-4bit"
+  ],
+  "tasks": [
+    "tasks/clinc_en.jsonl",
+    "tasks/hotpot_dev.jsonl",
+    "tasks/t3_tools.jsonl",
+    "tasks/t4_bfcl.jsonl",
+    "tasks/t5_swebench.jsonl",
+    "tasks/public_gsm8k.jsonl"
+  ],
+  "hardware": {
+    "chip": "Apple M2 Max",
+    "core_count_total": "12",
+    "core_count_perf": "8",
+    "core_count_eff": "4",
+    "memory_gb": 64.0,
+    "macos_version": "26.3",
+    "macos_build": "arm64",
+    "python_version": "3.12.11",
+    "mlx_version": "unknown",
+    "mlx_lm_version": "0.30.7",
+    "timestamp": "2026-03-02T03:00:39.406249+00:00"
+  },
+  "results": [
+    {
+      "model": "mlx-community/Qwen3.5-35B-A3B-4bit",
+      "slug": "mlx-community_Qwen3.5-35B-A3B-4bit",
+      "status": "ok",
+      "returncode": 0,
+      "elapsed_s": 15976.9
+    }
+  ],
+  "total_elapsed_s": 15976.9,
+  "timestamp": "2026-03-02T07:27:01.559647+00:00"
+}

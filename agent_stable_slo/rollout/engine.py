@@ -132,6 +132,13 @@ def _provider_generate_raw(
         )
         # hf_local provider returns 6 values, add None for logprobs
         return (*result, None)
+    if backend in ("mlx", "mlx_local"):
+        from .providers.mlx_local import generate_raw
+
+        result = generate_raw(
+            prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+        )
+        return (*result, None)
     # Fallback: empty output
     return "", {}, 5.0, 5.0, -1, -1, None
 

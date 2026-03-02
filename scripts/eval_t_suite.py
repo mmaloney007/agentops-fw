@@ -331,6 +331,9 @@ def _set_provider_env(provider: str, model: str):
         os.environ["OLLAMA_MODEL"] = model
     elif provider == "vllm":
         os.environ["VLLM_MODEL"] = model
+    elif provider in ("mlx", "mlx_local"):
+        os.environ["AOFW_PROVIDER"] = "mlx_local"
+        os.environ["MLX_MODEL"] = model
 
 
 def main():

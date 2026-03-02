@@ -1,0 +1,565 @@
+{
+  "validity_comparison": {
+    "gemma-2-9b": {
+      "Mixed": {
+        "cuda_mean": 72.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 99.4,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 98.2,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 89.9,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 99.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 12.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "gemma-3-12b": {
+      "Mixed": {
+        "cuda_mean": 73.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 99.9,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 90.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 99.5,
+        "mlx_mean": null,
+        "cuda_n": 2,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "llama-3.1-8b": {
+      "Mixed": {
+        "cuda_mean": 51.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 99.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 96.8,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 0.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 98.4,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "llama-3.2-1b": {
+      "Mixed": {
+        "cuda_mean": 40.4,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 93.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 94.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 0.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 99.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.2,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "llama-3.2-3b": {
+      "Mixed": {
+        "cuda_mean": 42.7,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 97.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 95.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 0.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 98.6,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "ministral-8b": {
+      "Mixed": {
+        "cuda_mean": 63.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 99.7,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 98.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 62.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 99.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.2,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "mistral-7b-v0.3": {
+      "Mixed": {
+        "cuda_mean": 41.9,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 99.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 61.6,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 0.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 98.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "phi-3-mini": {
+      "Mixed": {
+        "cuda_mean": 49.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 97.8,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 1.7,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 0.6,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 98.2,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.6,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "qwen2.5-3b": {
+      "Mixed": {
+        "cuda_mean": 65.1,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 99.9,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 90.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 64.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 99.7,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.6,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "qwen3-4b": {
+      "Mixed": {
+        "cuda_mean": 84.6,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 99.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 99.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 98.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 99.8,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 37.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    },
+    "yi-1.5-6b": {
+      "Mixed": {
+        "cuda_mean": 30.2,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T1": {
+        "cuda_mean": 95.0,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T2": {
+        "cuda_mean": 87.5,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T3": {
+        "cuda_mean": 0.2,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T4": {
+        "cuda_mean": 96.4,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      },
+      "T5": {
+        "cuda_mean": 0.3,
+        "mlx_mean": null,
+        "cuda_n": 3,
+        "mlx_n": 0,
+        "delta": null
+      }
+    }
+  },
+  "capacity_thresholds": {
+    "cuda": {
+      "gemma-2-9b": {
+        "size_b": 9.0,
+        "mean_validity_pct": 78.6,
+        "sustained": true,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "gemma-3-12b": {
+        "size_b": 12.0,
+        "mean_validity_pct": 90.0,
+        "sustained": true,
+        "n_runs": 11,
+        "platform": "cuda"
+      },
+      "llama-3.1-8b": {
+        "size_b": 8.0,
+        "mean_validity_pct": 57.6,
+        "sustained": false,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "llama-3.2-1b": {
+        "size_b": 1.0,
+        "mean_validity_pct": 54.5,
+        "sustained": false,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "llama-3.2-3b": {
+        "size_b": 3.0,
+        "mean_validity_pct": 55.7,
+        "sustained": false,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "ministral-8b": {
+        "size_b": 8.0,
+        "mean_validity_pct": 70.5,
+        "sustained": true,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "mistral-7b-v0.3": {
+        "size_b": 7.0,
+        "mean_validity_pct": 50.3,
+        "sustained": false,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "phi-3-mini": {
+        "size_b": 3.8,
+        "mean_validity_pct": 41.3,
+        "sustained": false,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "qwen2.5-3b": {
+        "size_b": 3.0,
+        "mean_validity_pct": 69.9,
+        "sustained": true,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "qwen3-4b": {
+        "size_b": 4.0,
+        "mean_validity_pct": 86.5,
+        "sustained": true,
+        "n_runs": 18,
+        "platform": "cuda"
+      },
+      "yi-1.5-6b": {
+        "size_b": 6.0,
+        "mean_validity_pct": 51.6,
+        "sustained": false,
+        "n_runs": 18,
+        "platform": "cuda"
+      }
+    },
+    "mlx": {},
+    "cuda_threshold_b": 3.0,
+    "mlx_threshold_b": null,
+    "sustained_min_pct": 60.0
+  },
+  "wallclock_comparison": {},
+  "metadata": {
+    "cuda_n_runs": 191,
+    "mlx_n_runs": 0,
+    "sustained_threshold_pct": 60.0
+  }
+}

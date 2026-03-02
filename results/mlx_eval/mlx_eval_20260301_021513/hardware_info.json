@@ -1,0 +1,13 @@
+{
+  "chip": "Apple M2 Max",
+  "core_count_total": "12",
+  "core_count_perf": "8",
+  "core_count_eff": "4",
+  "memory_gb": 64.0,
+  "macos_version": "26.3",
+  "macos_build": "arm64",
+  "python_version": "3.12.11",
+  "mlx_version": "unknown",
+  "mlx_lm_version": "0.30.7",
+  "timestamp": "2026-03-02T03:00:39.406249+00:00"
+}

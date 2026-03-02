@@ -1,0 +1,143 @@
+\begin{thebibliography}{21}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Cobbe et~al.(2021)Cobbe, Kosaraju, Bavarian, Chen, Jun, Kaiser,
+  Plappert, Tworek, Hilton, Nakano, Hesse, and Schulman]{cobbe2021gsm8k}
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz
+  Kaiser, Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano,
+  Christopher Hesse, and John Schulman.
+\newblock Training verifiers to solve math word problems, 2021.
+
+\bibitem[Dai et~al.(2024)Dai, Deng, Zhao, Xu, Gao, Chen, Li, Zeng, Yu, Wu,
+  et~al.]{dai2024deepseekmoe}
+Damai Dai, Chengqi Deng, Chenggang Zhao, R.X. Xu, Huazuo Gao, Deli Chen, Jiashi
+  Li, Wangding Zeng, Xingkai Yu, Y.~Wu, et~al.
+\newblock {DeepSeekMoE}: Towards ultimate expert specialization in
+  mixture-of-experts language models, 2024.
+
+\bibitem[Fedus et~al.(2022)Fedus, Zoph, and Shazeer]{fedus2022switch}
+William Fedus, Barret Zoph, and Noam Shazeer.
+\newblock Switch transformers: Scaling to trillion parameter models with simple
+  and efficient sparsity.
+\newblock \emph{Journal of Machine Learning Research}, 23\penalty0
+  (120):\penalty0 1--39, 2022.
+
+\bibitem[Hannun et~al.(2023)Hannun, Digani, Katharopoulos, and
+  Collobert]{hannun2023mlx}
+Awni Hannun, Jagrit Digani, Angelos Katharopoulos, and Ronan Collobert.
+\newblock {MLX}: Efficient and flexible machine learning on {Apple} silicon.
+\newblock \url{https://github.com/ml-explore/mlx}, 2023.
+\newblock Apple's machine learning framework for unified memory architectures.
+
+\bibitem[Jiang et~al.(2024)Jiang, Sablayrolles, Roux, Mensch, Savary, Bamford,
+  Chaplot, Casas, Hanna, Bressand, et~al.]{jiang2024mixtral}
+Albert~Q. Jiang, Alexandre Sablayrolles, Antoine Roux, Arthur Mensch, Blanche
+  Savary, Chris Bamford, Devendra~Singh Chaplot, Diego de~las Casas, Emma~Bou
+  Hanna, Florian Bressand, et~al.
+\newblock Mixtral of experts, 2024.
+
+\bibitem[Jimenez et~al.(2024)Jimenez, Yang, Wettig, Yao, Pei, Press, and
+  Narasimhan]{jimenez2024swebench}
+Carlos~E. Jimenez, John Yang, Alexander Wettig, Shunyu Yao, Kexin Pei, Ofir
+  Press, and Karthik Narasimhan.
+\newblock {SWE-bench}: Can language models resolve real-world {GitHub} issues?
+\newblock In \emph{Proceedings of ICLR}, 2024.
+
+\bibitem[Larson et~al.(2019)]{larson2019clinc}
+Stefan Larson et~al.
+\newblock An evaluation dataset for intent classification and out-of-scope
+  prediction.
+\newblock In \emph{Proceedings of EMNLP-IJCNLP}, 2019.
+
+\bibitem[Lepikhin et~al.(2021)Lepikhin, Lee, Xu, Chen, Firat, Huang, Krikun,
+  Shazeer, and Chen]{lepikhin2021gshard}
+Dmitry Lepikhin, HyoukJoong Lee, Yuanzhong Xu, Dehao Chen, Orhan Firat, Yanping
+  Huang, Maxim Krikun, Noam Shazeer, and Zhifeng Chen.
+\newblock {GShard}: Scaling giant models with conditional computation and
+  automatic sharding, 2021.
+
+\bibitem[Maloney(2025{\natexlab{a}})]{maloney2025agentslobench}
+V.~Michael Maloney.
+\newblock {AgentSLO-Bench}: An {SLO}-aware benchmark for {LLM} agent
+  deployment.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{a}}.
+\newblock Paper~III of this series.
+
+\bibitem[Maloney(2025{\natexlab{b}})]{maloney2025capacity}
+V.~Michael Maloney.
+\newblock Capacity thresholds in schema-aware training: Why small models can't
+  close the deployment gap.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{b}}.
+\newblock Paper~II of this series.
+
+\bibitem[Maloney(2025{\natexlab{c}})]{maloney2025deploymentgap}
+V.~Michael Maloney.
+\newblock The deployment gap: Why benchmark accuracy fails to predict
+  production readiness.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{c}}.
+\newblock Paper~I of this series.
+
+\bibitem[Maloney(2025{\natexlab{d}})]{maloney2025dynamics}
+V.~Michael Maloney.
+\newblock Training dynamics of schema-aware reinforcement learning for {LLM}
+  agents: Reward decomposition, forgetting, and early prediction.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{d}}.
+\newblock Paper~IV of this series.
+
+\bibitem[{MLX Community}(2024)]{mlxcommunity2024}
+{MLX Community}.
+\newblock {MLX} community: Pre-quantized models for {Apple} silicon.
+\newblock \url{https://huggingface.co/mlx-community}, 2024.
+\newblock Community-maintained collection of MLX-compatible model weights.
+
+\bibitem[Patil et~al.(2023)Patil, Zhang, Wang, and Gonzalez]{patil2023gorilla}
+Shishir~G. Patil, Tianjun Zhang, Xin Wang, and Joseph~E. Gonzalez.
+\newblock Gorilla: Large language model connected with massive {APIs}, 2023.
+
+\bibitem[Patil et~al.(2025)Patil, Mao, Yan, Ji, Suresh, Stoica, and
+  Gonzalez]{berkeley2024bfcl}
+Shishir~G. Patil, Huanzhi Mao, Fanjia Yan, Charlie Cheng-Jie Ji, Vishnu Suresh,
+  Ion Stoica, and Joseph~E. Gonzalez.
+\newblock The {Berkeley} function calling leaderboard ({BFCL}): From tool use
+  to agentic evaluation of large language models.
+\newblock In \emph{Proceedings of the 42nd International Conference on Machine
+  Learning (ICML)}, volume 267 of \emph{PMLR}, pages 48371--48392, 2025.
+
+\bibitem[{Qwen Team}(2025)]{qwen2025qwen3}
+{Qwen Team}.
+\newblock Qwen3 technical report, 2025.
+
+\bibitem[Rajbhandari et~al.(2022)Rajbhandari, Li, Yao, Zhang, Aminabadi, Awan,
+  Rasley, and He]{rajbhandari2022deepspeedmoe}
+Samyam Rajbhandari, Conglong Li, Zhewei Yao, Minjia Zhang, Reza~Yazdani
+  Aminabadi, Ammar~Ahmad Awan, Jeff Rasley, and Yuxiong He.
+\newblock {DeepSpeed-MoE}: Advancing mixture-of-experts inference and training
+  to power next-generation {AI} scale, 2022.
+
+\bibitem[Shazeer et~al.(2017)Shazeer, Mirhoseini, Maziarz, Davis, Le, Hinton,
+  and Dean]{shazeer2017outrageously}
+Noam Shazeer, Azalia Mirhoseini, Krzysztof Maziarz, Andy Davis, Quoc~V. Le,
+  Geoffrey~E. Hinton, and Jeff Dean.
+\newblock Outrageously large neural networks: The sparsely-gated
+  mixture-of-experts layer, 2017.
+
+\bibitem[Xue et~al.(2024)Xue, Fu, Lu, Mai, and Marina]{xue2024moeinf}
+Leyang Xue, Yao Fu, Zhan Lu, Luo Mai, and Mahesh Marina.
+\newblock {MoE-Infinity}: Offloading-efficient {MoE} model serving, 2024.
+
+\bibitem[Yang et~al.(2018)]{yang2018hotpotqa}
+Zhilin Yang et~al.
+\newblock {HotpotQA}: A dataset for diverse, explainable multi-hop question
+  answering.
+\newblock In \emph{Proceedings of EMNLP}, 2018.
+
+\bibitem[Yi et~al.(2023)Yi, Guo, Wei, Zhou, Wang, and Xu]{yi2023edgemoe}
+Rongjie Yi, Liwei Guo, Shiyun Wei, Ao~Zhou, Shangguang Wang, and Mengwei Xu.
+\newblock {EdgeMoE}: Fast on-device inference of {MoE}-based large language
+  models, 2023.
+
+\end{thebibliography}

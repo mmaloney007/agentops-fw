@@ -1,0 +1,407 @@
+{
+  "hardware_ratios": {
+    "per_model": {
+      "llama-3.2-1b": {
+        "cuda_p50_ms": 3544.8,
+        "mlx_p50_ms": 398.3,
+        "ratio_mlx_over_cuda": 0.1124,
+        "total_params_b": 1.24,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 389.6,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 754.3,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 200.3,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 267.8,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 1173.4,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      },
+      "llama-3.2-3b": {
+        "cuda_p50_ms": 7476.5,
+        "mlx_p50_ms": 967.6,
+        "ratio_mlx_over_cuda": 0.1294,
+        "total_params_b": 3.21,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 948.5,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 1865.8,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 462.6,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 510.0,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 2672.9,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      },
+      "qwen2.5-3b": {
+        "cuda_p50_ms": 7416.5,
+        "mlx_p50_ms": 884.0,
+        "ratio_mlx_over_cuda": 0.1192,
+        "total_params_b": 3.09,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 878.7,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 2103.4,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 498.2,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 523.5,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 2742.1,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      },
+      "phi-3-mini": {
+        "cuda_p50_ms": 10875.9,
+        "mlx_p50_ms": 3042.3,
+        "ratio_mlx_over_cuda": 0.2797,
+        "total_params_b": 3.82,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 2182.1,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 5631.2,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 614.9,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 2836.6,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 4155.4,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      },
+      "qwen3-4b": {
+        "cuda_p50_ms": 12162.1,
+        "mlx_p50_ms": 4695.4,
+        "ratio_mlx_over_cuda": 0.3861,
+        "total_params_b": 4.02,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 4704.0,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 6438.3,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 3393.8,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 3461.7,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 4641.7,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      },
+      "mistral-7b": {
+        "cuda_p50_ms": 20316.5,
+        "mlx_p50_ms": 2644.8,
+        "ratio_mlx_over_cuda": 0.1302,
+        "total_params_b": 7.25,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 2593.5,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 5500.6,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 1227.8,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 1246.9,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 7339.4,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      },
+      "ministral-8b": {
+        "cuda_p50_ms": 18458.4,
+        "mlx_p50_ms": 2431.1,
+        "ratio_mlx_over_cuda": 0.1317,
+        "total_params_b": 8.02,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 2361.6,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 4816.9,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 1050.5,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 1115.1,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 7005.2,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      },
+      "gemma-2-9b": {
+        "cuda_p50_ms": 22869.1,
+        "mlx_p50_ms": 2944.9,
+        "ratio_mlx_over_cuda": 0.1288,
+        "total_params_b": 9.24,
+        "per_task_ratios": {
+          "T1": {
+            "mlx_p50_ms": 2911.7,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T2v": {
+            "mlx_p50_ms": 6399.1,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T3": {
+            "mlx_p50_ms": 1637.0,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T4": {
+            "mlx_p50_ms": 1634.2,
+            "note": "CUDA per-task p50 not stored separately"
+          },
+          "T5": {
+            "mlx_p50_ms": 8980.6,
+            "note": "CUDA per-task p50 not stored separately"
+          }
+        }
+      }
+    },
+    "normalization_factors": {
+      "mean_ratio": 0.1772,
+      "median_ratio": 0.1298,
+      "std_ratio": 0.1004,
+      "min_ratio": 0.1124,
+      "max_ratio": 0.3861,
+      "n_models": 8
+    }
+  },
+  "moe_cuda_estimates": {},
+  "mlx_slo_table": {
+    "gemma-2-9b": {
+      "accuracy": 0.5747,
+      "s_at_slo_interactive": 0.208,
+      "s_at_slo_standard": 0.268,
+      "s_at_slo_batch": 0.5747,
+      "total_params_b": 9.24,
+      "active_params_b": 9.24,
+      "is_moe": false,
+      "p50_ms": 2944.9
+    },
+    "llama-3.2-1b": {
+      "accuracy": 0.3783,
+      "s_at_slo_interactive": 0.3767,
+      "s_at_slo_standard": 0.3783,
+      "s_at_slo_batch": 0.3783,
+      "total_params_b": 1.24,
+      "active_params_b": 1.24,
+      "is_moe": false,
+      "p50_ms": 398.3
+    },
+    "llama-3.2-3b": {
+      "accuracy": 0.727,
+      "s_at_slo_interactive": 0.615,
+      "s_at_slo_standard": 0.727,
+      "s_at_slo_batch": 0.727,
+      "total_params_b": 3.21,
+      "active_params_b": 3.21,
+      "is_moe": false,
+      "p50_ms": 967.6
+    },
+    "ministral-8b": {
+      "accuracy": 0.567,
+      "s_at_slo_interactive": 0.2233,
+      "s_at_slo_standard": 0.419,
+      "s_at_slo_batch": 0.567,
+      "total_params_b": 8.02,
+      "active_params_b": 8.02,
+      "is_moe": false,
+      "p50_ms": 2431.1
+    },
+    "mistral-7b": {
+      "accuracy": 0.5557,
+      "s_at_slo_interactive": 0.2263,
+      "s_at_slo_standard": 0.315,
+      "s_at_slo_batch": 0.5557,
+      "total_params_b": 7.25,
+      "active_params_b": 7.25,
+      "is_moe": false,
+      "p50_ms": 2644.8
+    },
+    "phi-3-mini": {
+      "accuracy": 0.4813,
+      "s_at_slo_interactive": 0.179,
+      "s_at_slo_standard": 0.3413,
+      "s_at_slo_batch": 0.4813,
+      "total_params_b": 3.82,
+      "active_params_b": 3.82,
+      "is_moe": false,
+      "p50_ms": 3042.3
+    },
+    "qwen2.5-3b": {
+      "accuracy": 0.3857,
+      "s_at_slo_interactive": 0.281,
+      "s_at_slo_standard": 0.3857,
+      "s_at_slo_batch": 0.3857,
+      "total_params_b": 3.09,
+      "active_params_b": 3.09,
+      "is_moe": false,
+      "p50_ms": 884.0
+    },
+    "qwen3-4b": {
+      "accuracy": 0.4717,
+      "s_at_slo_interactive": 0.0057,
+      "s_at_slo_standard": 0.1413,
+      "s_at_slo_batch": 0.4717,
+      "total_params_b": 4.02,
+      "active_params_b": 4.02,
+      "is_moe": false,
+      "p50_ms": 4695.4
+    },
+    "qwen3.5-35b-a3b": {
+      "accuracy": 0.3113,
+      "s_at_slo_interactive": 0.0,
+      "s_at_slo_standard": 0.004,
+      "s_at_slo_batch": 0.3113,
+      "total_params_b": 0,
+      "active_params_b": 0,
+      "is_moe": false,
+      "p50_ms": 5112.4
+    }
+  },
+  "rank_correlations": {
+    "n_overlap": 8,
+    "models": [
+      "llama-3.2-1b",
+      "llama-3.2-3b",
+      "qwen2.5-3b",
+      "phi-3-mini",
+      "qwen3-4b",
+      "mistral-7b",
+      "ministral-8b",
+      "gemma-2-9b"
+    ],
+    "accuracy_rank_correlation": {
+      "rho": 0.619,
+      "ci_lower": -0.119,
+      "ci_upper": 1.0,
+      "p_value": 0.059,
+      "n": 8
+    },
+    "latency_rank_correlation": {
+      "rho": 0.6429,
+      "ci_lower": 0.0,
+      "ci_upper": 1.0,
+      "p_value": 0.0444,
+      "n": 8
+    },
+    "slo_rank_correlations": {
+      "interactive": {
+        "rho": 0.1845,
+        "ci_lower": -0.5357,
+        "ci_upper": 0.8214,
+        "p_value": 0.6528,
+        "n": 8
+      },
+      "standard": {
+        "rho": 0.494,
+        "ci_lower": -0.2143,
+        "ci_upper": 0.9286,
+        "p_value": 0.1734,
+        "n": 8
+      },
+      "batch": {
+        "rho": -0.2619,
+        "ci_lower": -0.9286,
+        "ci_upper": 0.6429,
+        "p_value": 0.5156,
+        "n": 8
+      }
+    }
+  },
+  "tiers": {
+    "interactive": 2000,
+    "standard": 5000,
+    "batch": 30000
+  },
+  "overlap_models": [
+    "llama-3.2-1b",
+    "llama-3.2-3b",
+    "qwen2.5-3b",
+    "phi-3-mini",
+    "qwen3-4b",
+    "mistral-7b",
+    "ministral-8b",
+    "gemma-2-9b"
+  ],
+  "all_mlx_models": [
+    "gemma-2-9b",
+    "llama-3.2-1b",
+    "llama-3.2-3b",
+    "ministral-8b",
+    "mistral-7b",
+    "phi-3-mini",
+    "qwen2.5-3b",
+    "qwen3-4b",
+    "qwen3.5-35b-a3b"
+  ]
+}

@@ -1,0 +1,44 @@
+backend: cuda
+run_name: cuda_reasoner_rl
+out_dir: ../../out/reasoning_stack
+seed: 17
+
+tokenizer_name: gpt2
+pretrain_text_files:
+  - ../../tasks/t1t5_natural.jsonl
+reasoning_task_files:
+  - ../../tasks/robust_eval_gold.jsonl
+eval_task_files:
+  - ../../tasks/robust_eval_gold.jsonl
+
+max_reasoning_examples: 4000
+max_eval_examples: 500
+
+sequence_length: 256
+micro_batch_size: 8
+grad_accum_steps: 4
+learning_rate: 0.0003
+weight_decay: 0.1
+warmup_steps: 100
+pretrain_steps: 2000
+reasoning_steps: 1200
+log_every: 25
+
+enable_rl_stage: true
+rl_steps: 900
+rl_group_size: 4
+rl_max_new_tokens: 128
+rl_temperature: 0.7
+rl_top_p: 0.95
+rl_log_every: 20
+lam_latency: 0.1
+mu_cost: 0.01
+gamma_stability: 0.05
+
+model_hidden_size: 640
+model_layers: 10
+model_heads: 10
+model_ffn_mult: 4
+model_dropout: 0.1
+
+dry_run: false

@@ -1,0 +1,155 @@
+\begin{thebibliography}{21}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[{Apple ML Explore}(2024)]{mlxlm2024}
+{Apple ML Explore}.
+\newblock {mlx-lm}: Language models on {Apple} silicon via {MLX}.
+\newblock
+  \url{https://github.com/ml-explore/mlx-examples/tree/main/llms/mlx_lm}, 2024.
+\newblock LoRA and QLoRA fine-tuning for MLX.
+
+\bibitem[Dao(2023)]{dao2023flashattention2}
+Tri Dao.
+\newblock Flashattention-2: Faster attention with better parallelism and work
+  partitioning, 2023.
+
+\bibitem[Dettmers et~al.(2023)Dettmers, Pagnoni, Holtzman, and
+  Zettlemoyer]{dettmers2023qlora}
+Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer.
+\newblock {QLoRA}: Efficient finetuning of quantized {LLMs}.
+\newblock \emph{arXiv preprint arXiv:2305.14314}, 2023.
+
+\bibitem[Frantar et~al.(2023)Frantar, Ashkboos, Hoefler, and
+  Alistarh]{frantar2023gptq}
+Elias Frantar, Saleh Ashkboos, Torsten Hoefler, and Dan Alistarh.
+\newblock {GPTQ}: Accurate post-training quantization for generative
+  pre-trained transformers.
+\newblock \emph{arXiv preprint arXiv:2210.17323}, 2023.
+
+\bibitem[Hannun et~al.(2023)Hannun, Digani, Katharopoulos, and
+  Collobert]{hannun2023mlx}
+Awni Hannun, Jagrit Digani, Angelos Katharopoulos, and Ronan Collobert.
+\newblock {MLX}: Efficient and flexible machine learning on {Apple} silicon.
+\newblock \url{https://github.com/ml-explore/mlx}, 2023.
+\newblock Apple MLX framework for on-device ML.
+
+\bibitem[Hu et~al.(2021)Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and
+  Chen]{hu2021lora}
+Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean
+  Wang, Lu~Wang, and Weizhu Chen.
+\newblock {LoRA}: Low-rank adaptation of large language models.
+\newblock \emph{arXiv preprint arXiv:2106.09685}, 2021.
+
+\bibitem[Larson et~al.(2019)Larson, Mahendran, Peper, Clarke, Lee, Hill,
+  Kummerfeld, Leach, Laurenzano, Tang, and Mars]{larson2019clinc150}
+Stefan Larson, Anish Mahendran, Joseph~J. Peper, Christopher Clarke, Andrew
+  Lee, Parker Hill, Jonathan~K. Kummerfeld, Kevin Leach, Michael~A. Laurenzano,
+  Lingjia Tang, and Jason Mars.
+\newblock An evaluation dataset for intent classification and out-of-scope
+  prediction.
+\newblock In \emph{Proceedings of the 2019 Conference on Empirical Methods in
+  Natural Language Processing (EMNLP)}, 2019.
+
+\bibitem[Maloney(2025{\natexlab{a}})]{maloney2025agentslobench}
+V.~Michael Maloney.
+\newblock {AgentSLO-Bench}: An {SLO}-aware benchmark for {LLM} agent
+  deployment.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{a}}.
+\newblock Paper~III of this series.
+
+\bibitem[Maloney(2025{\natexlab{b}})]{maloney2025capacity}
+V.~Michael Maloney.
+\newblock Capacity thresholds in schema-aware training: Why small models can't
+  close the deployment gap.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{b}}.
+\newblock Paper~II of this series.
+
+\bibitem[Maloney(2025{\natexlab{c}})]{maloney2025deploymentgap}
+V.~Michael Maloney.
+\newblock The deployment gap: Why benchmark accuracy fails to predict
+  production readiness.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{c}}.
+\newblock Paper~I of this series.
+
+\bibitem[Maloney(2025{\natexlab{d}})]{maloney2025dynamics}
+V.~Michael Maloney.
+\newblock Training dynamics of schema-aware reinforcement learning for {LLM}
+  agents: Reward decomposition, forgetting, and early prediction.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{d}}.
+\newblock Paper~IV of this series.
+
+\bibitem[Maloney(2025{\natexlab{e}})]{maloney2025moe}
+V.~Michael Maloney.
+\newblock Active parameters, not total parameters: {MoE} models and the
+  deployment gap.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{e}}.
+\newblock Paper~V of this series.
+
+\bibitem[Mangrulkar et~al.(2022)]{mangrulkar2022peft}
+Sourab Mangrulkar et~al.
+\newblock {PEFT}: Parameter-efficient fine-tuning of billion-scale models on
+  low-resource hardware.
+\newblock \url{https://github.com/huggingface/peft}, 2022.
+
+\bibitem[Mattson et~al.(2020)Mattson, Cheng, Diamos, Coleman, Micikevicius,
+  Patterson, Tang, Wei, Bailis, Bittorf, et~al.]{mattson2020mlperf}
+Peter Mattson, Christine Cheng, Gregory Diamos, Cody Coleman, Paulius
+  Micikevicius, David Patterson, Hanlin Tang, Gu-Yeon Wei, Peter Bailis, Victor
+  Bittorf, et~al.
+\newblock {MLPerf Training Benchmark}.
+\newblock In \emph{Proceedings of Machine Learning and Systems}, volume~2,
+  pages 336--349, 2020.
+
+\bibitem[Patterson et~al.(2021)Patterson, Gonzalez, Le, Liang, Munguia,
+  Rothchild, So, Texier, and Dean]{patterson2021carbon}
+David Patterson, Joseph Gonzalez, Quoc Le, Chen Liang, Lluis-Miquel Munguia,
+  Daniel Rothchild, David So, Maud Texier, and Jeff Dean.
+\newblock Carbon emissions and large neural network training.
+\newblock \emph{arXiv preprint arXiv:2104.10350}, 2021.
+
+\bibitem[Schulman et~al.(2017)Schulman, Wolski, Dhariwal, Radford, and
+  Klimov]{schulman2017ppo}
+John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov.
+\newblock Proximal policy optimization algorithms.
+\newblock \emph{arXiv preprint arXiv:1707.06347}, 2017.
+
+\bibitem[Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Bi, Zhang, Zhang, Li, Wu,
+  and Guo]{grpo}
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei
+  Zhang, Mingchuan Zhang, Y.K. Li, Y.~Wu, and Daya Guo.
+\newblock {DeepSeekMath}: Pushing the limits of mathematical reasoning in open
+  language models.
+\newblock \emph{arXiv preprint arXiv:2402.03300}, 2024.
+\newblock Introduces GRPO (Group Relative Policy Optimization).
+
+\bibitem[Strubell et~al.(2019)Strubell, Ganesh, and
+  McCallum]{strubell2019energy}
+Emma Strubell, Ananya Ganesh, and Andrew McCallum.
+\newblock Energy and policy considerations for deep learning in {NLP}.
+\newblock \emph{arXiv preprint arXiv:1906.02243}, 2019.
+
+\bibitem[Williams(1992)]{williams1992reinforce}
+Ronald~J. Williams.
+\newblock Simple statistical gradient-following algorithms for connectionist
+  reinforcement learning.
+\newblock \emph{Machine Learning}, 8\penalty0 (3-4):\penalty0 229--256, 1992.
+
+\bibitem[Yang et~al.(2018)Yang, Qi, Zhang, Bengio, Cohen, Salakhutdinov, and
+  Manning]{yang2018hotpotqa}
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio, William~W. Cohen, Ruslan
+  Salakhutdinov, and Christopher~D. Manning.
+\newblock {HotpotQA}: A dataset for diverse, explainable multi-hop question
+  answering.
+\newblock In \emph{Proceedings of the 2018 Conference on Empirical Methods in
+  Natural Language Processing (EMNLP)}, 2018.
+
+\bibitem[Zhuang et~al.(2023)Zhuang, Liu, Pan, He, Weng, and
+  Shen]{zhu2023survey}
+Bohan Zhuang, Jing Liu, Zizheng Pan, Haoyu He, Yuetian Weng, and Chunhua Shen.
+\newblock A survey on efficient training of transformers, 2023.
+
+\end{thebibliography}

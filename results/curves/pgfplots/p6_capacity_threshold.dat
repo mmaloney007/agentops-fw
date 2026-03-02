@@ -1,0 +1,12 @@
+model size_b cuda_validity mlx_validity cuda_sustained mlx_sustained
+gemma-2-9b 9.0 78.6 0.0 1 0
+gemma-3-12b 12.0 90.0 0.0 1 0
+llama-3.1-8b 8.0 57.6 0.0 0 0
+llama-3.2-1b 1.0 54.5 0.0 0 0
+llama-3.2-3b 3.0 55.7 0.0 0 0
+ministral-8b 8.0 70.5 0.0 1 0
+mistral-7b-v0.3 7.0 50.3 0.0 0 0
+phi-3-mini 3.8 41.3 0.0 0 0
+qwen2.5-3b 3.0 69.9 0.0 1 0
+qwen3-4b 4.0 86.5 0.0 1 0
+yi-1.5-6b 6.0 51.6 0.0 0 0

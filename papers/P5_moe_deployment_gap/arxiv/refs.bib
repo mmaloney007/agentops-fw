@@ -1,0 +1,201 @@
+% MoE Deployment Gap (Paper V) -- Bibliography
+% Clean version: only entries cited in main.tex
+
+% === Self-citations ===
+
+@article{maloney2025deploymentgap,
+  title        = {The Deployment Gap: Why Benchmark Accuracy Fails to Predict Production Readiness},
+  author       = {Maloney, V. Michael},
+  journal      = {arXiv preprint},
+  year         = {2025},
+  note         = {Paper~I of this series}
+}
+
+@article{maloney2025capacity,
+  title        = {Capacity Thresholds in Schema-Aware Training: Why Small Models Can't Close the Deployment Gap},
+  author       = {Maloney, V. Michael},
+  journal      = {arXiv preprint},
+  year         = {2025},
+  note         = {Paper~II of this series}
+}
+
+@article{maloney2025agentslobench,
+  title        = {{AgentSLO-Bench}: An {SLO}-Aware Benchmark for {LLM} Agent Deployment},
+  author       = {Maloney, V. Michael},
+  journal      = {arXiv preprint},
+  year         = {2025},
+  note         = {Paper~III of this series}
+}
+
+@article{maloney2025dynamics,
+  title        = {Training Dynamics of Schema-Aware Reinforcement Learning for {LLM} Agents: Reward Decomposition, Forgetting, and Early Prediction},
+  author       = {Maloney, V. Michael},
+  journal      = {arXiv preprint},
+  year         = {2025},
+  note         = {Paper~IV of this series}
+}
+
+% === MoE Architecture ===
+
+@article{fedus2022switch,
+  title        = {Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity},
+  author       = {Fedus, William and Zoph, Barret and Shazeer, Noam},
+  journal      = {Journal of Machine Learning Research},
+  volume       = {23},
+  number       = {120},
+  pages        = {1--39},
+  year         = {2022}
+}
+
+@misc{jiang2024mixtral,
+  title        = {Mixtral of Experts},
+  author       = {Jiang, Albert Q. and Sablayrolles, Alexandre and Roux, Antoine and Mensch, Arthur and Savary, Blanche and Bamford, Chris and Chaplot, Devendra Singh and Casas, Diego de las and Hanna, Emma Bou and Bressand, Florian and others},
+  year         = {2024},
+  eprint       = {2401.04088},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@misc{lepikhin2021gshard,
+  title        = {{GShard}: Scaling Giant Models with Conditional Computation and Automatic Sharding},
+  author       = {Lepikhin, Dmitry and Lee, HyoukJoong and Xu, Yuanzhong and Chen, Dehao and Firat, Orhan and Huang, Yanping and Krikun, Maxim and Shazeer, Noam and Chen, Zhifeng},
+  year         = {2021},
+  eprint       = {2006.16668},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@misc{shazeer2017outrageously,
+  title        = {Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer},
+  author       = {Shazeer, Noam and Mirhoseini, Azalia and Maziarz, Krzysztof and Davis, Andy and Le, Quoc V. and Hinton, Geoffrey E. and Dean, Jeff},
+  year         = {2017},
+  eprint       = {1701.06538},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@misc{dai2024deepseekmoe,
+  title        = {{DeepSeekMoE}: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models},
+  author       = {Dai, Damai and Deng, Chengqi and Zhao, Chenggang and Xu, R.X. and Gao, Huazuo and Chen, Deli and Li, Jiashi and Zeng, Wangding and Yu, Xingkai and Wu, Y. and others},
+  year         = {2024},
+  eprint       = {2401.06066},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+% === Qwen Models ===
+
+@misc{qwen2025qwen3,
+  title        = {Qwen3 Technical Report},
+  author       = {{Qwen Team}},
+  year         = {2025},
+  eprint       = {2505.09388},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@misc{qwen2025qwen35,
+  title        = {{Qwen3.5}: Towards Native Multimodal Agents},
+  author       = {{Qwen Team}},
+  year         = {2026},
+  howpublished = {\url{https://qwen.ai/blog?id=qwen3.5}},
+  note         = {Qwen3.5-35B-A3B: 35B total parameters, 3B active per token, GatedDeltaNet + MoE architecture}
+}
+
+% === Apple Silicon / MLX ===
+
+@misc{hannun2023mlx,
+  title        = {{MLX}: Efficient and Flexible Machine Learning on {Apple} Silicon},
+  author       = {Hannun, Awni and Digani, Jagrit and Katharopoulos, Angelos and Collobert, Ronan},
+  year         = {2023},
+  howpublished = {\url{https://github.com/ml-explore/mlx}},
+  note         = {Apple's machine learning framework for unified memory architectures}
+}
+
+@misc{mlxcommunity2024,
+  title        = {{MLX} Community: Pre-quantized Models for {Apple} Silicon},
+  author       = {{MLX Community}},
+  year         = {2024},
+  howpublished = {\url{https://huggingface.co/mlx-community}},
+  note         = {Community-maintained collection of MLX-compatible model weights}
+}
+
+% === MoE Deployment / Efficiency ===
+
+@misc{rajbhandari2022deepspeedmoe,
+  title        = {{DeepSpeed-MoE}: Advancing Mixture-of-Experts Inference and Training to Power Next-Generation {AI} Scale},
+  author       = {Rajbhandari, Samyam and Li, Conglong and Yao, Zhewei and Zhang, Minjia and Aminabadi, Reza Yazdani and Awan, Ammar Ahmad and Rasley, Jeff and He, Yuxiong},
+  year         = {2022},
+  eprint       = {2201.05596},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@misc{yi2023edgemoe,
+  title        = {{EdgeMoE}: Fast On-Device Inference of {MoE}-based Large Language Models},
+  author       = {Yi, Rongjie and Guo, Liwei and Wei, Shiyun and Zhou, Ao and Wang, Shangguang and Xu, Mengwei},
+  year         = {2023},
+  eprint       = {2308.14352},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@misc{xue2024moeinf,
+  title        = {{MoE-Infinity}: Offloading-Efficient {MoE} Model Serving},
+  author       = {Xue, Leyang and Fu, Yao and Lu, Zhan and Mai, Luo and Marina, Mahesh},
+  year         = {2024},
+  eprint       = {2401.14361},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+% === Benchmarks ===
+
+@inproceedings{larson2019clinc,
+  title        = {An Evaluation Dataset for Intent Classification and Out-of-Scope Prediction},
+  author       = {Larson, Stefan and others},
+  booktitle    = {Proceedings of EMNLP-IJCNLP},
+  year         = {2019}
+}
+
+@inproceedings{yang2018hotpotqa,
+  title        = {{HotpotQA}: A Dataset for Diverse, Explainable Multi-hop Question Answering},
+  author       = {Yang, Zhilin and others},
+  booktitle    = {Proceedings of EMNLP},
+  year         = {2018}
+}
+
+@inproceedings{berkeley2024bfcl,
+  title        = {The {Berkeley} Function Calling Leaderboard ({BFCL}): From Tool Use to Agentic Evaluation of Large Language Models},
+  author       = {Patil, Shishir G. and Mao, Huanzhi and Yan, Fanjia and Ji, Charlie Cheng-Jie and Suresh, Vishnu and Stoica, Ion and Gonzalez, Joseph E.},
+  booktitle    = {Proceedings of the 42nd International Conference on Machine Learning (ICML)},
+  year         = {2025},
+  series       = {PMLR},
+  volume       = {267},
+  pages        = {48371--48392}
+}
+
+@misc{patil2023gorilla,
+  title        = {Gorilla: Large Language Model Connected with Massive {APIs}},
+  author       = {Patil, Shishir G. and Zhang, Tianjun and Wang, Xin and Gonzalez, Joseph E.},
+  year         = {2023},
+  eprint       = {2305.15334},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@inproceedings{jimenez2024swebench,
+  title        = {{SWE-bench}: Can Language Models Resolve Real-World {GitHub} Issues?},
+  author       = {Jimenez, Carlos E. and Yang, John and Wettig, Alexander and Yao, Shunyu and Pei, Kexin and Press, Ofir and Narasimhan, Karthik},
+  booktitle    = {Proceedings of ICLR},
+  year         = {2024}
+}
+
+@misc{cobbe2021gsm8k,
+  title        = {Training Verifiers to Solve Math Word Problems},
+  author       = {Cobbe, Karl and Kosaraju, Vineet and Bavarian, Mohammad and Chen, Mark and Jun, Heewoo and Kaiser, Lukasz and Plappert, Matthias and Tworek, Jerry and Hilton, Jacob and Nakano, Reiichiro and Hesse, Christopher and Schulman, John},
+  year         = {2021},
+  eprint       = {2110.14168},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}

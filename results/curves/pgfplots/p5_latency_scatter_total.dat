@@ -1,0 +1,9 @@
+# model total_params mlx_p50_ms cuda_p50_ms
+gemma-2-9b 9.2 2944.9 22869.1
+llama-3.2-1b 1.2 398.3 3544.8
+llama-3.2-3b 3.2 967.6 7476.5
+ministral-8b 8.0 2431.1 18458.4
+mistral-7b 7.2 2644.8 20316.5
+phi-3-mini 3.8 3042.3 10875.9
+qwen2.5-3b 3.1 884.0 7416.5
+qwen3-4b 4.0 4695.4 12162.1

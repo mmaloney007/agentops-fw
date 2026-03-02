@@ -36,6 +36,7 @@ all = ["agentops-fw[train,eval,logging,dev]"]
 [project.scripts]
 agentops = "agentops_fw.cli:main"
 agentslo-bench = "agent_stable_slo.bench.cli:main"
+agentslo-reasoning-stack = "agent_stable_slo.reasoning_stack.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["agent_stable_slo*", "agentops_fw*"]
