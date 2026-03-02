@@ -201,8 +201,32 @@ P4 first draft made causal claims from observational analysis. RQ4 proposed mech
 - [ ] Expand model families (Ablation A3) — requires downloading new models
 - [ ] Per-step reward instrumentation — requires GRPO loop changes
 
-### Config Discrepancy Flag
-⚠️ `configs/grpo/4090_qwen3.yaml` has `lam_latency: 0.0` but paper states all training used λ=0.1. Verify which config was actually used for the P2 training runs. Check `out/p2_*/manifest.json` for the actual λ values. If λ=0.0 was used, the reward decomposition table needs recalculating.
+### Config Discrepancy Flag — RESOLVED (2026-03-02)
+✅ **Resolved.** The P2 paper cites `out/p2_training_20260124/` which used `p2_*.yaml` configs — all with `lam_latency: 0.1`, `mu_cost: 0.05`, `gamma_stability: 0.1`. The older `4090_qwen3.yaml` (λ=0.0) was from a different run set (`out/p2_full_20260114_161728/`) and is NOT cited by the paper. Paper line 623 had incorrect μ=0.01 and γ=0.2 — corrected to μ=0.05, γ=0.1 to match actual configs. Also added lam/mu/gamma/seed to `run_cfg` in `grpo_train_loop.py` manifest output for future auditability.
+
+---
+
+## Environment Upgrade (2026-03-02)
+
+Upgraded mamba base environment for Qwen3.5 MoE support:
+- transformers: 4.57.3 → 5.2.0 (adds `qwen3_5_moe` architecture)
+- peft: 0.18.0 → 0.18.1
+- bitsandbytes: 0.48.2 → 0.49.2
+- accelerate: 0.34.2 → 1.12.0 (required by transformers 5.x)
+- All 5 smoke tests pass after upgrade
+- Note: transformers 5.x deprecates `torch_dtype` in favor of `dtype` (still works, just warns)
+
+---
+
+## Qwen3.5-35B-A3B Setup (2026-03-02)
+
+- Config: `configs/grpo/p5_qwen35_35b.yaml`
+- Architecture: 35B total / 3B active, 256 experts (8 routed + 1 shared), DeltaNet + attention hybrid
+- Memory strategy: 4-bit NF4, gradient checkpointing, no KV cache, grad_accum=8, lora_rank=8
+- MoE gate freezing: added to `grpo_train_loop.py` (freezes router gates, keeps SwiGLU gate_proj trainable)
+- Model download: complete (67GB, 45 min)
+- **CUDA status: INFEASIBLE on single RTX 4090** — 4-bit NF4 + double quant requires ~22.3GB just for weights. With 23.5GB total and ~1.6GB overhead from other processes, the caching allocator warmup OOMs. Non-quantizable layers (embeddings 248K×2048 in bf16, 40 layers of norms) consume ~5GB on top of the 4-bit expert weights (~17GB).
+- **Recommendation**: MLX-only path on Apple Silicon, or dual-GPU setup for CUDA
 
 ---
 

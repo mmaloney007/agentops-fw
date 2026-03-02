@@ -620,7 +620,7 @@ T1 and T2 use production-representative data (incident triage, operational summa
     \item Training steps: 1{,}000 per task (uniform across all 6 tasks).
     \item Learning rate: $10^{-5}$, LoRA rank: 16, batch size: 1 (gradient accumulation 1--4).
     \item 4-bit NF4 quantization (BitsAndBytes) for all models.
-    \item Composite reward: $\lambda = 0.1$ (latency), $\mu = 0.01$ (cost), $\gamma = 0.2$ (stability), $\kappa_{\text{faith}} = 1.0$ (faithfulness).
+    \item Composite reward: $\lambda = 0.1$ (latency), $\mu = 0.05$ (cost), $\gamma = 0.1$ (stability), $\kappa_{\text{faith}} = 1.0$ (faithfulness).
     \item Stability samples: $k=3$ (multi-sample generation).
     \item Seeds: 42, 123, 456 (3 seeds per model--task configuration).
     \item Checkpoints saved every 100 steps for crash recovery.

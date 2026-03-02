@@ -206,14 +206,13 @@ def _build_model_and_tok(cfg, hw_rec: Dict[str, Any]):
     model_kwargs = {
         "torch_dtype": torch_dtype if quant_cfg is None else None,
         "device_map": "auto",
-        "quantization_config": quant_cfg,
         "trust_remote_code": True,
     }
+    if quant_cfg is not None:
+        model_kwargs["quantization_config"] = quant_cfg
 
-    # Handle use_cache for DynamicCache issues
-    use_cache = getattr(cfg, "use_cache", True)
-    if not use_cache:
-        model_kwargs["use_cache"] = False
+    # Note: use_cache is handled at generate() time, not in from_pretrained(),
+    # because some model constructors (e.g., Qwen3.5 MoE) don't accept it.
 
     # Handle attention implementation
     attn_impl = getattr(cfg, "attn_implementation", None)
@@ -246,6 +245,17 @@ def _build_model_and_tok(cfg, hw_rec: Dict[str, Any]):
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_cfg)
+
+    # Freeze MoE router gates — routing indices are not differentiable
+    if any("gate" in n for n, _ in model.named_modules()):
+        frozen_count = 0
+        for name, param in model.named_parameters():
+            if ".gate." in name or name.endswith(".gate.weight"):
+                param.requires_grad = False
+                frozen_count += 1
+        if frozen_count:
+            print(f"[moe] froze {frozen_count} router gate parameters")
+
     model.print_trainable_parameters()
     return model, tok
 
@@ -522,6 +532,10 @@ def train_loop(cfg: GRPOTrainConfig):
         "config_version": cfg.config_version,
         "rank": rank,
         "world": world,
+        "lam_latency": lam,
+        "mu_cost": mu,
+        "gamma_stability": gamma,
+        "seed": seed,
     }
 
     with (

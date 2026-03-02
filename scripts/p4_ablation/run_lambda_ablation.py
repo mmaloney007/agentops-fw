@@ -135,21 +135,23 @@ def build_command(
     Returns:
         Full command string with environment variables
     """
-    # Build environment variables
+    # Build environment variables for reward weights
     env_vars = {
         'LAMBDA_LATENCY': str(run_config['lambda_val']),
         'MU_COST': str(EXPERIMENT_CONFIG['fixed_weights']['MU_COST']),
         'GAMMA_STABILITY': str(EXPERIMENT_CONFIG['fixed_weights']['GAMMA_STABILITY']),
-        'SEED': str(run_config['seed'])
     }
 
     env_str = ' '.join([f"{k}={v}" for k, v in env_vars.items()])
 
-    # Build the training command
+    # Build the training command — pass seed and lam-latency via CLI args
+    # (env vars are also set for LAMBDA_LATENCY as belt-and-suspenders)
     cmd = (
         f"{env_str} python -m agent_stable_slo.train.grpo_train_loop "
         f"--config-preset {run_config['config_preset']} "
         f"--steps {steps} "
+        f"--seed {run_config['seed']} "
+        f"--lam-latency {run_config['lambda_val']} "
         f"--out {output_dir}"
     )
 
