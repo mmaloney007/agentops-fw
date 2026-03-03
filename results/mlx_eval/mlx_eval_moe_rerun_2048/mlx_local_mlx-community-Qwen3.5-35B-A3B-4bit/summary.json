@@ -1,0 +1,80 @@
+{
+  "json_valid": 0.6677,
+  "t3_tool_match": 0.744,
+  "t3_args_match": 0.434,
+  "t3_success": 0.434,
+  "t4_func_match": 0.892,
+  "t4_args_acc": 0.7338,
+  "t4_success": 0.498,
+  "t5_has_patch": 0.6033,
+  "t5_valid_diff": 0.6033,
+  "t5_patch_f1": 0.2121,
+  "t6_exact_match": 0.575,
+  "t6_numeric_match": 0.715,
+  "t6_success": 0.715,
+  "avg_latency_ms": 25055.17,
+  "avg_ttft_ms": 25055.17,
+  "count": 3000,
+  "model": "mlx-community/Qwen3.5-35B-A3B-4bit",
+  "provider": "mlx_local",
+  "decode_mode": "structured",
+  "tasks": [
+    "clinc_en.jsonl",
+    "hotpot_dev.jsonl",
+    "t3_tools.jsonl",
+    "t4_bfcl.jsonl",
+    "t5_swebench.jsonl",
+    "public_gsm8k.jsonl"
+  ],
+  "task_fingerprints": {
+    "clinc_en.jsonl": {
+      "tasks_path": "tasks/clinc_en.jsonl",
+      "sha256": "6f9eabba7394da97ef2fc45a0b6fe79a8788a96aa030ba420a45599d95ce868a",
+      "num_records": 500,
+      "schema_sha256": {
+        "tasks/schemas/clinc_nlu_schema.json": "1364305eaccb6ee066dbd4890ceda3702804faa615fb58bbbb2bdf50feaeaf1f"
+      }
+    },
+    "hotpot_dev.jsonl": {
+      "tasks_path": "tasks/hotpot_dev.jsonl",
+      "sha256": "ad793723af82291e4c13b758861f4272c097b8f7fe372a02db06bde49c1161d5",
+      "num_records": 1000,
+      "schema_sha256": {
+        "tasks/schemas/hotpot_explainer_schema.json": "1fa6568454bf06cf2a32a94983aad7d7fa470a51216d5430932f196b6fb904fc"
+      }
+    },
+    "t3_tools.jsonl": {
+      "tasks_path": "tasks/t3_tools.jsonl",
+      "sha256": "902c247c925f08637b1b814ffd63fc9fd5402dea589a5ab816cd49cc78af0743",
+      "num_records": 500,
+      "schema_sha256": {
+        "tasks/schemas/t3_tool_call_schema.json": "e7474d6d41d81851ac8a5cab2e0f5e4b934fb12aecc1632e8bc509dd9a55c2c1"
+      }
+    },
+    "t4_bfcl.jsonl": {
+      "tasks_path": "tasks/t4_bfcl.jsonl",
+      "sha256": "b4e5ab279f299f0d67b694017e015691532ac9e85808976673b093b2734d54f4",
+      "num_records": 500,
+      "schema_sha256": {
+        "tasks/schemas/t4_function_call_schema.json": "badc1756b8fe31a093c609cb70224e53614b335062fc07f1b1ab9a78e86f7678"
+      }
+    },
+    "t5_swebench.jsonl": {
+      "tasks_path": "tasks/t5_swebench.jsonl",
+      "sha256": "c6d470663df9fb2f820e9139874ec850f50ea6d717ff10e8b7ce9c4f07253f8f",
+      "num_records": 300,
+      "schema_sha256": {
+        "tasks/schemas/t5_patch_schema.json": "bd99ff21d3a64bf8d54d3fe75e648707530976edb787bf2f34f8ec6d9e3aa482"
+      }
+    },
+    "public_gsm8k.jsonl": {
+      "tasks_path": "tasks/public_gsm8k.jsonl",
+      "sha256": "f3575836f4a69c096dcd0ae6b7b58c48a837ef9d4a36c2cf6ad901ed354b9fde",
+      "num_records": 200,
+      "schema_sha256": {
+        "tasks/schemas/qa_schema.json": "fc9297b36be48befad9967d81b2517dfeff27b578299e1fa30b27ef2ed7a7b3f"
+      }
+    }
+  },
+  "stability_runs": 1
+}

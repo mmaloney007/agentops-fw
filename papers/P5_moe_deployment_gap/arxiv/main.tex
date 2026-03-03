@@ -1,9 +1,10 @@
 % Paper 5: Active Parameters, Not Total Parameters — MoE Models and the Deployment Gap
 %
 % =============================================================================
-% STATUS: REVISED DRAFT — All TBD values filled from actual experimental data
-% Last updated: 2026-03-02
-% KEY FINDING: MoE CATASTROPHICALLY FAILS — negative result, not success
+% STATUS: REVISED DRAFT — Corrected MoE results (2048-token limit rerun)
+% Last updated: 2026-03-03
+% KEY FINDING: MoE achieves competitive accuracy (55.0%, 6th/9) but at
+% catastrophic latency (25s median) — the deployment gap EXTENDS via verbosity
 % =============================================================================
 %
 % 9 models evaluated (8 dense + 1 MoE) via MLX on Apple Silicon
@@ -11,7 +12,8 @@
 % 3,000 prompts per model = 27,000 total evaluations
 % T1=500, T2=1000, T3=500, T4=500, T5=300, T6=200
 % Cross-hardware validation: CUDA (P1) vs MLX (this paper) on 8 overlapping dense models
-% KEY FINDING: MoE is SLOWEST (5112ms) and LEAST ACCURATE (31.1%), not 3B-class
+% KEY FINDING: MoE accuracy is competitive (55.0%) but latency is catastrophic (25055ms)
+% MoE generates ~1500 tokens avg (massive chain-of-thought) → 28x slower than Qwen2.5-3B
 % MLX is 3-9x FASTER than CUDA, not slower
 % =============================================================================
 \documentclass[11pt]{article}
@@ -84,7 +86,7 @@ Paper~I established that accuracy and deployment success are uncorrelated ($\rho
 
 We test this with Qwen3.5-35B-A3B, a 35-billion parameter MoE model that activates only 3 billion parameters per token. We evaluate it alongside 8 dense models (1B--9B) on Apple Silicon using MLX, running 3,000 prompts per model (27,000 total evaluations) across the same 6 structured output tasks under three SLO tiers.
 
-The hypothesis fails. The MoE model is not the fastest---it is the slowest, with a 5,112\,ms median latency, nearly six times slower than the active-parameter-matched Qwen2.5-3B (884\,ms). It is not the most accurate---it achieves 31.1\% task-averaged accuracy, the worst in the study. S@SLO at the Interactive tier (2s): 0.0\%. At the Standard tier (5s): 0.4\%.
+The hypothesis fails---but not the way we expected. The MoE model achieves 55.0\% task-averaged accuracy, competitive with dense 7B--9B models (6th of 9). The 35B knowledge \emph{is} accessible. But accessing it requires massive chain-of-thought output---approximately 1,500 tokens per response on average---producing a 25,055\,ms median latency, 28$\times$ slower than the active-parameter-matched Qwen2.5-3B (884\,ms). S@SLO at the Interactive tier (2s): 0.0\%. At the Standard tier (5s): 0.3\%.
 
 \begin{center}
 \small
@@ -99,14 +101,14 @@ Qwen3-4B         & Dense & 4.0B  & 47.2\% & 0.6\%  & 14.1\% \\
 Mistral-7B-v0.3  & Dense & 7.2B  & 55.6\% & 22.6\% & 31.5\% \\
 Gemma-2-9B       & Dense & 9.2B  & 57.5\% & 20.8\% & 26.8\% \\
 \midrule
-\textcolor{moepurple}{\textbf{Qwen3.5-35B-A3B}} & \textcolor{moepurple}{\textbf{MoE}} & \textcolor{moepurple}{\textbf{3.0B}} & \textcolor{moepurple}{\textbf{31.1\%}} & \textcolor{moepurple}{\textbf{0.0\%}} & \textcolor{moepurple}{\textbf{0.4\%}} \\
+\textcolor{moepurple}{\textbf{Qwen3.5-35B-A3B}} & \textcolor{moepurple}{\textbf{MoE}} & \textcolor{moepurple}{\textbf{3.0B}} & \textcolor{moepurple}{\textbf{55.0\%}} & \textcolor{moepurple}{\textbf{0.0\%}} & \textcolor{moepurple}{\textbf{0.3\%}} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-The failure is not total: on free-text QA (T2), the MoE achieves 92.6\%. The structured output tasks---intent classification, tool calling, function routing, code patching, math---return 0.0\%, 0.0\%, 0.4\%, 0.0\%, and 2.0\% respectively. MoE's routing overhead and hybrid attention architecture impose latency that dwarfs its active-parameter-class peers, while its structured output compliance collapses under the same complexity that makes structured output hard for any model.
+The failure is not about knowledge---it is about verbosity. On T2 (free-text QA), the MoE achieves 88.7\%. On T6 (math), 71.5\%. On T4 (function routing), 49.8\%. On T3 (tool calling), 43.4\%. The model \emph{can} produce correct answers---but it wraps them in extensive chain-of-thought reasoning that pushes every response past SLO deadlines. T1 (intent classification) remains catastrophic at 2.2\%: a task requiring brief outputs defeated by a model that generates thousands of tokens of reasoning.
 
-Two positive findings emerge. First, the deployment gap is confirmed as hardware-independent: it persists on Apple Silicon (Spearman $\rho = +0.333$, $p = 0.359$ for the 8 dense models). Second, Llama-3.2-3B---not the MoE---is the study's standout model: 72.7\% accuracy, 61.5\% S@SLO at the Interactive tier, 884\,ms median latency. It breaks the gap by being genuinely fast. A hardware normalization protocol reveals MLX is 3--9$\times$ faster than CUDA (geometric mean ratio $\bar{\alpha} = 0.177$).
+Two positive findings emerge. First, the deployment gap is confirmed as hardware-independent: it persists on Apple Silicon (Spearman $\rho = +0.067$, $p = 0.848$ at the Interactive tier for all 9 models including MoE). Second, Llama-3.2-3B---not the MoE---is the study's standout model: 72.7\% accuracy, 61.5\% S@SLO at the Interactive tier, 968\,ms median latency. It breaks the gap by being genuinely fast. A hardware normalization protocol reveals MLX is 3--9$\times$ faster than CUDA (geometric mean ratio $\bar{\alpha} = 0.177$).
 \end{abstract}
 
 % =============================================================================
@@ -126,7 +128,7 @@ An MoE model contains far more total parameters than it activates on any given t
 
 Consider Qwen3.5-35B-A3B, released in January 2026 by the Qwen team~\citep{qwen2025qwen3}. It has 35 billion total parameters spread across 256 experts per layer, but a top-$k$ routing mechanism activates only 3 billion parameters per token. On accuracy benchmarks, it competes with dense models in the 8B--9B range. On a compute budget, it should behave like a 3B model.
 
-That is the hypothesis. It does not survive contact with structured output evaluation under SLO constraints.
+That is the hypothesis. It does not survive contact with structured output evaluation under SLO constraints---though it fails differently than expected.
 
 \begin{figure}[t]
 \centering
@@ -138,7 +140,7 @@ That is the hypothesis. It does not survive contact with structured output evalu
     xlabel={Total Parameters (B)},
     ylabel={Median Latency (ms)},
     xmin=0, xmax=40,
-    ymin=0, ymax=6000,
+    ymin=0, ymax=28000,
     title={\small\textbf{(a) Total Parameters}},
     grid=both,
     grid style={line width=0.1pt, draw=gray!20},
@@ -150,12 +152,12 @@ That is the hypothesis. It does not survive contact with structured output evalu
     (1.2, 398) (3.2, 968) (3.1, 884) (3.8, 3042)
     (4.0, 4695) (7.2, 2645) (8.0, 2431) (9.2, 2945)
 };
-% MoE: high total params, also HIGH latency --- confirms total params
+% MoE: high total params, EXTREME latency --- generates ~1500 tokens of chain-of-thought
 \addplot[only marks, mark=diamond*, draw=moepurple, fill=moepurple!60, mark size=5pt] coordinates {
-    (35.2, 5112)
+    (35.2, 25055)
 };
-\node[anchor=south west, font=\scriptsize, text=moepurple] at (axis cs:26,5200) {Qwen3.5-MoE};
-\node[anchor=north, font=\scriptsize, text=moepurple] at (axis cs:35.2,4900) {SLOWEST};
+\node[anchor=south west, font=\scriptsize, text=moepurple] at (axis cs:22,25500) {Qwen3.5-MoE};
+\node[anchor=north, font=\scriptsize, text=moepurple] at (axis cs:35.2,24000) {25s median};
 \legend{Dense, MoE}
 \end{axis}
 
@@ -168,7 +170,7 @@ That is the hypothesis. It does not survive contact with structured output evalu
     xlabel={Active Parameters (B)},
     ylabel={},
     xmin=0, xmax=11,
-    ymin=0, ymax=6000,
+    ymin=0, ymax=28000,
     title={\small\textbf{(b) Active Parameters}},
     grid=both,
     grid style={line width=0.1pt, draw=gray!20},
@@ -179,15 +181,15 @@ That is the hypothesis. It does not survive contact with structured output evalu
     (1.2, 398) (3.2, 968) (3.1, 884) (3.8, 3042)
     (4.0, 4695) (7.2, 2645) (8.0, 2431) (9.2, 2945)
 };
-% MoE: active params = 3B, but MUCH HIGHER latency --- dramatic outlier ABOVE trend
+% MoE: active params = 3B, but CATASTROPHICALLY higher latency --- 28x above Qwen2.5-3B
 \addplot[only marks, mark=diamond*, draw=moepurple, fill=moepurple!60, mark size=5pt] coordinates {
-    (3.0, 5112)
+    (3.0, 25055)
 };
-\node[anchor=south, font=\scriptsize, text=moepurple] at (axis cs:3.0,5300) {Qwen3.5-35B-A3B};
-\node[anchor=north, font=\scriptsize, text=moepurple] at (axis cs:3.0,4800) {(outlier above)};
+\node[anchor=south, font=\scriptsize, text=moepurple] at (axis cs:3.0,25500) {Qwen3.5-35B-A3B};
+\node[anchor=north, font=\scriptsize, text=moepurple] at (axis cs:3.0,23500) {(28$\times$ above 3B trend)};
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{MoE latency does not scale with active parameters.} (a)~When plotted against total parameters, the MoE model (Qwen3.5-35B-A3B, purple diamond) is the slowest in the lineup---consistent with its 35B total count. (b)~When plotted against active parameters (3B), it is a dramatic \emph{upward} outlier---more than 5$\times$ slower than Qwen2.5-3B (3.1B active, 884\,ms). The hypothesis that active parameters predict MoE latency is falsified.}
+\caption{\textbf{MoE latency does not scale with active parameters.} (a)~When plotted against total parameters, the MoE model (Qwen3.5-35B-A3B, purple diamond) is catastrophically the slowest in the lineup at 25,055\,ms median---consistent with generating ${\sim}$1,500 tokens of chain-of-thought per response. (b)~When plotted against active parameters (3B), it is a dramatic \emph{upward} outlier---28$\times$ slower than Qwen2.5-3B (3.1B active, 884\,ms). The hypothesis that active parameters predict MoE latency is falsified.}
 \label{fig:total-vs-active}
 \end{figure}
 
@@ -199,9 +201,9 @@ It does. And along the way, we find something unexpected: MLX on Apple Silicon i
 Four things, in order of how much they change what you thought you knew:
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{MoE catastrophically fails under structured output SLO constraints.} Qwen3.5-35B-A3B scores 31.1\% overall accuracy (worst of 9 models), 5,112\,ms median latency (slowest of 9 models), 0.0\% S@SLO at the Interactive tier, and 0.4\% at Standard. The loophole is closed. MoE does not bypass the deployment gap---it extends it.
+    \item \textbf{MoE achieves competitive accuracy but at catastrophic latency.} Qwen3.5-35B-A3B scores 55.0\% overall accuracy (6th of 9 models, competitive with dense 7B--9B models), proving the 35B knowledge is accessible. But it achieves this through massive chain-of-thought output (${\sim}$1,500 tokens/response), producing 25,055\,ms median latency---28$\times$ slower than its active-parameter match Qwen2.5-3B (884\,ms). S@SLO at the Interactive tier: 0.0\%. At Standard: 0.3\%. The loophole is closed. MoE does not bypass the deployment gap---it extends it through verbosity.
 
-    \item \textbf{Cross-hardware replication of the deployment gap.} Same evaluation protocol as Paper~I, different hardware. The accuracy--deployment disconnect persists on Apple Silicon ($\rho = +0.333$, $p = 0.359$ for dense models on MLX, $\rho = 0.09$ on CUDA). The gap is not a CUDA artifact.
+    \item \textbf{Cross-hardware replication of the deployment gap.} Same evaluation protocol as Paper~I, different hardware. The accuracy--deployment disconnect persists on Apple Silicon ($\rho = +0.067$, $p = 0.848$ for all 9 models including MoE on MLX at the Interactive tier, $\rho = 0.09$ on CUDA). The gap is not a CUDA artifact.
 
     \item \textbf{MLX is faster than CUDA for this workload.} Contrary to expectations, Apple Silicon with MLX outperforms LM Studio on CUDA at matching quantization levels. Normalization factor $\bar{\alpha} = 0.177$ means models complete in 17.7\% of the time on MLX versus CUDA. This changes the hardware recommendation calculus.
 
@@ -231,18 +233,18 @@ Four things, in order of how much they change what you thought you knew:
 % MoE model path
 \node[font=\small\bfseries] at (3.2, 3.5) {MoE Models};
 \node[moebox] (moebig) at (3.2, 2.5) {More \emph{Total} Params};
-\node[moebox, fill=red!15] (moelow) at (3.2, 1.5) {Low Structured Acc.};
-\node[moebox, fill=red!15] (moeslow) at (3.2, 0.5) {High Routing Overhead};
-\node[moebox, fill=red!20] (moefail) at (3.2, -0.5) {SLO Failure (Worse)};
+\node[moebox, fill=green!15] (moehigh) at (3.2, 1.5) {Competitive Accuracy};
+\node[moebox, fill=red!15] (moeslow) at (3.2, 0.5) {Extreme Verbosity};
+\node[moebox, fill=red!20] (moefail) at (3.2, -0.5) {SLO Failure (25s)};
 
-\draw[arrow, red!70!black] (moebig) -- (moelow);
+\draw[arrow, green!50!black] (moebig) -- (moehigh);
 \draw[arrow, red!70!black] (moebig) -- (moeslow);
 \draw[arrow, red!70!black] (moeslow) -- (moefail);
 
 % Bottom note
-\node[font=\small\itshape, text=moepurple] at (0, -1.4) {The loophole is closed. MoE extends the deployment gap, not bypasses it.};
+\node[font=\small\itshape, text=moepurple] at (0, -1.4) {The loophole is closed. MoE achieves accuracy through verbosity, destroying SLO compliance.};
 \end{tikzpicture}
-\caption{\textbf{The MoE hypothesis, falsified.} The theoretical MoE advantage---many total parameters (accuracy) with few active parameters (speed)---does not survive structured output evaluation. Routing overhead and hybrid attention architecture push the MoE model to the worst latency in the study. Its structured output accuracy collapses to 31.1\%, worst of all models. The deployment gap is not bypassed.}
+\caption{\textbf{The MoE hypothesis, falsified.} The theoretical MoE advantage---many total parameters (accuracy) with few active parameters (speed)---partially works: accuracy is competitive (55.0\%, 6th of 9). But the model achieves this through massive chain-of-thought output (${\sim}$1,500 tokens/response), producing 25,055\,ms median latency---28$\times$ slower than its active-parameter match. The deployment gap is not bypassed; it is extended through verbosity.}
 \label{fig:moe-hypothesis}
 \end{figure}
 
@@ -379,7 +381,7 @@ We use the same six task types from Papers~I and~III:
     \item \textbf{T6: Mathematical Reasoning (GSM8K)}~\citep{cobbe2021gsm8k}. Solve grade-school math problems with structured step-by-step outputs. \textbf{200 prompts.}
 \end{itemize}
 
-That is 3,000 prompts per model, 27,000 individual measurements across all 9 models. Every output must conform to a task-specific JSON Schema contract. Fail validation, fail the request---regardless of whether the answer inside was correct. T1, T3, T4, T5, and T6 require structured JSON output. T2 (HotpotQA) accepts free-text answers. This distinction proves critical for understanding the MoE failure mode.
+That is 3,000 prompts per model, 27,000 individual measurements across all 9 models. Every output must conform to a task-specific JSON Schema contract. Fail validation, fail the request---regardless of whether the answer inside was correct. T1, T3, T4, T5, and T6 require structured JSON output. T2 (HotpotQA) accepts free-text answers. This distinction proves less critical than expected for the MoE failure mode: the MoE achieves reasonable accuracy on both free-text and structured tasks, but its extreme verbosity (${\sim}$1,500 tokens per response) destroys SLO compliance across all task types.
 
 \subsection{SLO Tiers}
 \label{sec:slo-tiers}
@@ -502,7 +504,7 @@ Gemma-2-9B      & 22.9 & 2.95 & 0.129 & 7.8$\times$ faster \\
 \end{tabular}
 \end{table}
 
-With $\bar{\alpha} = 0.177$ in hand, we can estimate what the MoE model would do on CUDA: $\hat{L}_{\text{CUDA}} = L_{\text{MLX}} / \bar{\alpha}$. The MoE P50 on MLX is 5,112\,ms; the estimated CUDA P50 is $5{,}112 / 0.177 \approx 28{,}881$\,ms---nearly 29 seconds. This is a rough estimate (MoE memory access patterns may not normalize like dense models), but it confirms that the MoE model would be completely nonviable on CUDA at any practical SLO tier.
+With $\bar{\alpha} = 0.177$ in hand, we can estimate what the MoE model would do on CUDA: $\hat{L}_{\text{CUDA}} = L_{\text{MLX}} / \bar{\alpha}$. The MoE P50 on MLX is 25,055\,ms; the estimated CUDA P50 is $25{,}055 / 0.177 \approx 141{,}554$\,ms---over two minutes per request. This is a rough estimate (MoE memory access patterns may not normalize like dense models), but it confirms that the MoE model would be completely nonviable on CUDA at any practical SLO tier.
 
 \subsection{Does the Deployment Gap Transfer?}
 \label{sec:gap-transfer}
@@ -540,24 +542,24 @@ Now the real question. Is the deployment gap a CUDA artifact, or does it follow 
     (55.6, 22.6) [winner]   % Mistral-7B
     (56.7, 22.3) [winner]   % Ministral-8B
     (57.5, 20.8) [winner]   % Gemma-2-9B
-    (31.1, 0.0)  [moe]      % MoE
+    (55.0, 0.0)  [moe]      % MoE — competitive accuracy, zero S@SLO
 };
 \node[anchor=south, font=\small, text=green!50!black] at (axis cs:37.8,39) {Llama-3.2-1B};
 \node[anchor=south west, font=\small, text=matchedorange] at (axis cs:72.7,63) {Llama-3.2-3B};
-\node[anchor=north east, font=\small, text=moepurple] at (axis cs:31.1,-1) {MoE (worst)};
+\node[anchor=north, font=\small, text=moepurple] at (axis cs:55.0,-1) {MoE (0\% S@SLO)};
 % Horizontal line at y=0
 \addplot[dashed, thick, red!60!black] coordinates {(30, 0) (80, 0)};
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{The deployment gap on Apple Silicon.} The gap persists: accuracy and S@SLO are weakly correlated ($\rho = +0.333$, $p = 0.359$ for dense models). Llama-3.2-3B (orange) is the standout: 72.7\% accuracy, 61.5\% S@SLO. The MoE model (purple diamond) occupies the worst position in both dimensions simultaneously---lowest accuracy, lowest S@SLO.}
+\caption{\textbf{The deployment gap on Apple Silicon.} The gap persists: accuracy and S@SLO are weakly correlated ($\rho = +0.067$, $p = 0.848$ for all 9 models at Interactive). Llama-3.2-3B (orange) is the standout: 72.7\% accuracy, 61.5\% S@SLO. The MoE model (purple diamond) achieves competitive accuracy (55.0\%) but zero S@SLO---it sits on the x-axis at the same accuracy level as dense 7B--9B models, proving the deployment gap extends to MoE architectures.}
 \label{fig:mlx-gap}
 \end{figure}
 
-Figure~\ref{fig:mlx-gap} shows the accuracy vs Success@SLO scatter for all 9 models on Apple Silicon. The deployment gap pattern holds: for the 8 dense models, Spearman $\rho = +0.333$ ($p = 0.359$)---positive but not significant, consistent with the weak correlation found in Paper~I ($\rho = +0.09$). Most models at moderate-to-high accuracy achieve moderate-to-low S@SLO. The coupling between accuracy and deployment is not the one you want.
+Figure~\ref{fig:mlx-gap} shows the accuracy vs Success@SLO scatter for all 9 models on Apple Silicon. The deployment gap pattern holds: for all 9 models (including MoE), Spearman $\rho = +0.067$ ($p = 0.848$) at the Interactive tier---effectively uncorrelated, consistent with Paper~I ($\rho = +0.09$). Most models at moderate-to-high accuracy achieve moderate-to-low S@SLO. The coupling between accuracy and deployment is not the one you want.
 
 Llama-3.2-3B is the exception. It occupies the upper right: high accuracy \emph{and} high S@SLO. It breaks the gap not through architectural novelty but through size. At 3.2B parameters it generates fast enough to beat the 2-second deadline for most requests, while being capable enough to produce correct structured outputs.
 
-The MoE model is the opposite of this. It occupies the lower left: worst accuracy, zero S@SLO. Adding it to the correlation calculation does not move the correlation meaningfully ($\rho = +0.333$ with or without MoE on the dense models; adding MoE: $\rho = +0.333$, $p = 0.359$). The MoE is not in a new region of the accuracy--latency space. It is in the worst existing region.
+The MoE model makes the deployment gap vivid in a new way. It sits on the x-axis at 55.0\% accuracy---competitive with Mistral-7B-v0.3 (55.6\%) and Gemma-2-9B (57.5\%)---but at 0.0\% S@SLO. The knowledge is there; the latency destroys it. Unlike the dense models where low S@SLO comes from moderate latency exceeding the 2s deadline, the MoE's zero comes from 25-second median latency driven by extreme verbosity. Adding MoE to the correlation pulls it toward zero because MoE has competitive accuracy but zero deployment success---the pure embodiment of the gap.
 
 \paragraph{Interpretation.}
 The deployment gap follows you everywhere. Different GPU architecture, different memory model, different quantization scheme, different serving stack---same gap. The gap is not about CUDA. It is not about GGUF. It is not about LM Studio. And---the new finding---it is not about dense architectures. MoE does not escape it.
@@ -573,11 +575,11 @@ The gap is real on Apple Silicon. Now we test whether MoE breaks it. It does not
 \subsection{RQ1: Does MoE Latency Scale with Active or Total Parameters?}
 \label{sec:rq1-latency}
 
-Straightforward test. If total parameters determine latency, Qwen3.5-35B-A3B should be the slowest model in our lineup---nearly 4$\times$ larger than Gemma-2-9B. If active parameters determine latency, it should sit between Llama-3.2-3B (3.2B) and Phi-3-mini (3.8B), around 1,000\,ms. Table~\ref{tab:latency-comparison} shows which prediction is correct.
+Straightforward test. If total parameters determine latency, Qwen3.5-35B-A3B should be the slowest model in our lineup---nearly 4$\times$ larger than Gemma-2-9B. If active parameters determine latency, it should sit between Llama-3.2-3B (3.2B) and Phi-3-mini (3.8B), around 1,000\,ms. Neither prediction is correct. The reality is worse than either: the model's chain-of-thought verbosity produces latency far beyond what even total parameter count would predict. Table~\ref{tab:latency-comparison} shows the results.
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Latency comparison: MoE vs matched dense models.} Models ordered by active parameter count. The MoE model should appear between Qwen2.5-3B and Phi-3-mini if active parameters determine latency. Instead, it appears at the bottom---slowest of all 9 models. Total parameters win.}
+\caption{\textbf{Latency comparison: MoE vs matched dense models.} Models ordered by active parameter count. The MoE model should appear between Qwen2.5-3B and Phi-3-mini if active parameters determine latency. Instead, it appears at the bottom at 25,055\,ms---28$\times$ slower than Qwen2.5-3B---driven by generating ${\sim}$1,500 tokens of chain-of-thought per response.}
 \label{tab:latency-comparison}
 \small
 \begin{tabular}{llcccccc}
@@ -594,14 +596,14 @@ Ministral-8B & Dense & 8.0B & 8.0B & 2,431 & 7,141 & 19.5 \\
 Gemma-2-9B & Dense & 9.2B & 9.2B & 2,945 & 9,263 & 13.9 \\
 \midrule
 \rowcolor{moepurple!8}
-\textbf{Qwen3.5-35B-A3B} & \textbf{MoE} & \textbf{35.2B} & \textbf{3.0B} & \textbf{5,112} & \textbf{7,324} & \textbf{50.1} \\
+\textbf{Qwen3.5-35B-A3B} & \textbf{MoE} & \textbf{35.2B} & \textbf{3.0B} & \textbf{25,055} & \textbf{---} & \textbf{${\sim}$50} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The MoE model's P50 latency: 5,112\,ms. That is the worst in the study. Qwen2.5-3B---its active-parameter match---achieves 884\,ms. The MoE model is 5.8$\times$ \emph{slower} than the model it was supposed to match. It is slower than Gemma-2-9B (2,945\,ms), which has one-quarter of the MoE's total parameters but three times its active count.
+The MoE model's P50 latency: 25,055\,ms. That is the worst in the study by a wide margin---5$\times$ slower than the next-slowest model (Qwen3-4B at 4,695\,ms). Qwen2.5-3B---its active-parameter match---achieves 884\,ms. The MoE model is 28$\times$ \emph{slower} than the model it was supposed to match. It is 8.5$\times$ slower than Gemma-2-9B (2,945\,ms), which has one-quarter of the MoE's total parameters but three times its active count.
 
-The tok/s number is interesting: 50.1 for MoE, 44.0 for Qwen2.5-3B. \emph{Per-token throughput is similar.} The problem is not token generation speed---it is total response time. The MoE model generates more tokens per response (because it uses verbose formats for tasks it cannot solve concisely), and its hybrid attention layers add constant overhead per forward pass that accumulates over longer outputs.
+The tok/s number explains why: approximately 50 tok/s for MoE, 44.0 for Qwen2.5-3B. \emph{Per-token throughput is similar.} The problem is not token generation speed---it is total output length. The MoE model generates approximately 1,500 tokens per response on average, wrapping correct answers in extensive chain-of-thought reasoning. At 50 tok/s, 1,500 tokens takes 30 seconds. Qwen2.5-3B generates approximately 39 tokens per response at 44 tok/s, taking under 1 second. The MoE model produces ${\sim}$38$\times$ more output tokens per request.
 
 \begin{figure}[t]
 \centering
@@ -612,7 +614,7 @@ The tok/s number is interesting: 50.1 for MoE, 44.0 for Qwen2.5-3B. \emph{Per-to
     xlabel={Active Parameters (B)},
     ylabel={P50 Latency (ms)},
     xmin=0, xmax=11,
-    ymin=0, ymax=6000,
+    ymin=0, ymax=28000,
     grid=both,
     grid style={line width=0.1pt, draw=gray!20},
     major grid style={line width=0.2pt, draw=gray!40},
@@ -623,34 +625,34 @@ The tok/s number is interesting: 50.1 for MoE, 44.0 for Qwen2.5-3B. \emph{Per-to
     (1.2, 398) (3.2, 968) (3.1, 884) (3.8, 3042)
     (4.0, 4695) (7.2, 2645) (8.0, 2431) (9.2, 2945)
 };
-% MoE model: active params = 3B but latency = 5112ms --- dramatic UPWARD outlier
+% MoE model: active params = 3B but latency = 25055ms --- extreme UPWARD outlier
 \addplot[only marks, mark=diamond*, draw=moepurple, fill=moepurple!60, mark size=5pt] coordinates {
-    (3.0, 5112)
+    (3.0, 25055)
 };
-\node[anchor=south west, font=\small, text=moepurple] at (axis cs:3.3,5200) {\textbf{Qwen3.5-35B-A3B}};
-\node[anchor=north west, font=\scriptsize, text=moepurple] at (axis cs:3.3,4900) {(outlier: 5.8$\times$ above 3B trend)};
-\legend{Dense, MoE (outlier above)}
+\node[anchor=south west, font=\small, text=moepurple] at (axis cs:3.3,25500) {\textbf{Qwen3.5-35B-A3B}};
+\node[anchor=north west, font=\scriptsize, text=moepurple] at (axis cs:3.3,24000) {(28$\times$ above 3B trend)};
+\legend{Dense, MoE (extreme outlier)}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{MoE latency does not follow the active-parameter trend.} Dense models (blue circles) show a roughly predictable relationship between active parameters and latency. The MoE model (purple diamond) is a dramatic \emph{upward} outlier at its active parameter count of 3B---5,112\,ms versus the 884--968\,ms range of the actual 3B dense models. Active parameters do not predict MoE deployment latency.}
+\caption{\textbf{MoE latency does not follow the active-parameter trend.} Dense models (blue circles) show a roughly predictable relationship between active parameters and latency. The MoE model (purple diamond) is an extreme \emph{upward} outlier at its active parameter count of 3B---25,055\,ms versus the 884--968\,ms range of the actual 3B dense models. The model generates ${\sim}$1,500 tokens of chain-of-thought per response at ${\sim}$50\,tok/s, producing latency 28$\times$ above its active-parameter match.}
 \label{fig:latency-vs-active}
 \end{figure}
 
-Figure~\ref{fig:latency-vs-active} makes this visually clear. Dense models follow an imperfect but discernible relationship between active parameters and latency. The MoE model is a dramatic upward outlier at its active parameter count of 3.0B. It should sit at roughly 900--1,000\,ms based on the dense trend. It is at 5,112\,ms---five times too slow.
+Figure~\ref{fig:latency-vs-active} makes this visually clear. Dense models follow an imperfect but discernible relationship between active parameters and latency. The MoE model is an extreme upward outlier at its active parameter count of 3.0B. It should sit at roughly 900--1,000\,ms based on the dense trend. It is at 25,055\,ms---28 times too slow.
 
 \paragraph{Why this matters.}
-Active parameters do not predict MoE deployment latency. Total parameters don't either---Gemma-2-9B has far fewer total parameters and is faster. The MoE model occupies its own latency class, driven by routing overhead and hybrid attention architecture costs that accumulate over complete response generation. Practitioners cannot use either parameter count as a proxy for MoE deployment latency. Direct measurement is necessary.
+Active parameters do not predict MoE deployment latency. Total parameters don't either---Gemma-2-9B has far fewer total parameters and is 8.5$\times$ faster. The MoE model occupies its own latency class, driven not by routing overhead alone but by \emph{verbosity}: the model generates ${\sim}$1,500 tokens of chain-of-thought reasoning per response. Its per-token speed (${\sim}$50 tok/s) is competitive with dense 3B models, but the sheer volume of output text makes every request take 25 seconds. Practitioners cannot use either parameter count as a proxy for MoE deployment latency. Output token count is the dominant factor, and it is task-dependent and unpredictable without direct measurement.
 
 \subsection{RQ2: Does MoE Accuracy Match Its Active or Total Parameter Class?}
 \label{sec:rq2-accuracy}
 
-Speed like a 3B model was already falsified. What about accuracy? Does the 35B of stored knowledge show up in the answers?
+Speed like a 3B model was already falsified---dramatically so. What about accuracy? Does the 35B of stored knowledge show up in the answers? Here the story is different.
 
 Table~\ref{tab:accuracy-comparison} breaks it down by task.
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Accuracy by task.} The MoE model (highlighted) scores 31.1\% overall---worst of all 9 models. The T2 (HotpotQA) exception is remarkable: 92.6\%, near the top. But T1, T3, T5, and T6 return 0.0\%, 0.0\%, 0.0\%, and 2.0\%---complete failures on structured output tasks.}
+\caption{\textbf{Accuracy by task.} The MoE model (highlighted) scores 55.0\% overall---6th of 9 models, competitive with dense 7B--9B models. T2 (88.7\%), T6 (71.5\%), T5 (60.3\%), and T4 (49.8\%) are solid. T3 (43.4\%) is mid-range. Only T1 intent classification (2.2\%) is catastrophic---a task requiring brief outputs defeated by a model that generates massive chain-of-thought.}
 \label{tab:accuracy-comparison}
 \small
 \begin{tabular}{ll cccccc c}
@@ -667,23 +669,23 @@ Ministral-8B & 8.0B & 64.0 & 100.0 & 55.0 & 53.0 & 13.2 & 16.0 & 56.7 \\
 Gemma-2-9B & 9.2B & 74.0 & 100.0 & 38.0 & 56.0 & 4.8 & 22.5 & 57.5 \\
 \midrule
 \rowcolor{moepurple!8}
-\textbf{Qwen3.5-35B-A3B} & \textbf{3.0B} & \textbf{0.0} & \textbf{92.6} & \textbf{0.0} & \textbf{0.4} & \textbf{0.0} & \textbf{2.0} & \textbf{31.1} \\
+\textbf{Qwen3.5-35B-A3B} & \textbf{3.0B} & \textbf{2.2} & \textbf{88.7} & \textbf{43.4} & \textbf{49.8} & \textbf{60.3} & \textbf{71.5} & \textbf{55.0} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Consider what this table says. On T2 (HotpotQA, free-text QA), the MoE achieves 92.6\%---near the top of the field, ahead of Llama-3.2-3B (93.7\%), better than Qwen2.5-3B (44.1\%). The knowledge is there. The model can reason. On free text, it performs like a large model.
+Consider what this table says. The corrected results (with the full 2,048-token output limit) tell a dramatically different story from the initial evaluation. The MoE model achieves 55.0\% task-averaged accuracy---6th of 9 models, competitive with Mistral-7B-v0.3 (55.6\%) and close to Gemma-2-9B (57.5\%). The 35B knowledge \emph{is} accessible.
 
-On T1 (intent classification): 0.0\%. On T3 (tool calling): 0.0\%. On T5 (code patching): 0.0\%. On T6 (math with structured output): 2.0\%. On T4 (function routing): 0.4\%.
+On T6 (math): 71.5\%, near the best in the study---only Gemma-2-9B (22.5\%) and Phi-3-mini (20.0\%) come close among dense models, and the MoE far exceeds them. On T5 (code patching): 60.3\%, substantially better than every dense model (Qwen2.5-3B at 15.1\% is the best dense result). On T4 (function routing): 49.8\%. On T3 (tool calling): 43.4\%. On T2 (free-text QA): 88.7\%, near the top.
 
-Not low. Zero. Or near zero.
+Only T1 (intent classification) is catastrophic at 2.2\%. T1 requires a brief, focused output---a single intent label. The MoE model generates thousands of tokens of reasoning before (or instead of) the label, overwhelming the schema validator. This is the one task where verbosity is purely destructive.
 
-The failure is specific to structured output. T2 accepts free-text answers---the model writes prose and gets credit. T1 requires a JSON-formatted intent label. T3 requires a JSON tool call. T5 requires a JSON-wrapped unified diff. T6 requires a JSON-structured solution. The MoE model appears incapable of reliably following JSON schema constraints under these evaluation conditions, despite having the knowledge to answer correctly in free text.
+The failure mode is now clear: it is not about knowledge or structured output compliance per se. It is about \emph{verbosity}. The model wraps correct answers in extensive chain-of-thought reasoning (${\sim}$1,500 tokens average output). When given enough output tokens, the answers are often correct. But the time to generate that output destroys SLO compliance.
 
-This is a finding about MoE under structured output SLO evaluation, not a general claim about MoE intelligence. The model might perform differently with chain-of-thought prompting, constrained decoding, or fine-tuning for structured output. But under the same evaluation protocol we apply to all models---unconstrained generation, post-hoc validation---it fails.
+This is a finding about MoE output behavior under unconstrained generation, not about MoE intelligence. The model's extensive chain-of-thought is likely a product of its training (thinking mode). Constrained decoding, output length limits, or fine-tuning for concise output might address the verbosity without sacrificing accuracy.
 
-\paragraph{Task-averaged accuracy: 31.1\%.}
-Weighted by task size (T2 has 1,000 prompts vs 200--500 for others), the T2 performance inflates the average. A simple task-level mean would be $(0.0 + 92.6 + 0.0 + 0.4 + 0.0 + 2.0) / 6 = 15.8\%$. Either way, the MoE model is the worst in the study.
+\paragraph{Task-averaged accuracy: 55.0\%.}
+Weighted by task size (T2 has 1,000 prompts vs 200--500 for others), the overall accuracy places the MoE model 6th of 9---solidly mid-range. A simple task-level mean would be $(2.2 + 88.7 + 43.4 + 49.8 + 60.3 + 71.5) / 6 = 52.7\%$. Either way, the MoE is competitive---not the catastrophic failure the initial (token-limited) evaluation suggested.
 
 \subsection{RQ3: Does MoE Achieve Non-Zero S@SLO at the Interactive Tier?}
 \label{sec:rq3-sslo}
@@ -692,7 +694,7 @@ This is the question that matters. S@SLO requires three things simultaneously: v
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Success@SLO (\%) across SLO tiers.} The core result table. Llama-3.2-3B is the standout: 61.5\% at Interactive, 72.7\% at Standard. The MoE model: 0.0\% at Interactive, 0.4\% at Standard. Note that S@SLO$_{30s}$ equals Accuracy for all models---all can finish within 30 seconds if accurate.}
+\caption{\textbf{Success@SLO (\%) across SLO tiers.} The core result table. Llama-3.2-3B is the standout: 61.5\% at Interactive, 72.7\% at Standard. The MoE model: 0.0\% at Interactive, 0.3\% at Standard, despite competitive 55.0\% accuracy. At Batch (30s), MoE achieves only 37.0\%---most of its correct answers arrive after the 30s deadline due to extreme verbosity.}
 \label{tab:sslo-tiers}
 \small
 \begin{tabular}{ll ccc ccc}
@@ -711,25 +713,25 @@ Ministral-8B & Dense & 22.3 & 41.9 & 56.7 & 56.7 & 73.4 & 7.14 \\
 Gemma-2-9B & Dense & 20.8 & 26.8 & 57.5 & 57.5 & 76.6 & 9.26 \\
 \midrule
 \rowcolor{moepurple!8}
-\textbf{Qwen3.5-35B-A3B} & \textbf{MoE} & \textbf{0.0} & \textbf{0.4} & \textbf{31.1} & \textbf{31.1} & \textbf{63.2} & \textbf{7.32} \\
+\textbf{Qwen3.5-35B-A3B} & \textbf{MoE} & \textbf{0.0} & \textbf{0.3} & \textbf{37.0} & \textbf{55.0} & \textbf{66.8} & \textbf{---} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-At the Interactive tier: 0.0\% S@SLO for the MoE model. Not low. Zero. Every single request either fails JSON validation, is incorrect, or exceeds 2 seconds. All three are true simultaneously for most requests.
+At the Interactive tier: 0.0\% S@SLO for the MoE model. Not low. Zero. With a 25,055\,ms median latency, not a single request finishes within 2 seconds, regardless of correctness.
 
-At the Standard tier (5s): 0.4\%. That's 108 requests out of 27,000 that succeed. A rounding error.
+At the Standard tier (5s): 0.3\%. Approximately 9 requests out of 3,000 succeed. A rounding error. With a 25-second median, only the very shortest responses have any chance of meeting a 5-second deadline.
 
-At the Batch tier (30s): 31.1\%, equal to overall accuracy. This confirms the architecture: if you give it enough time, the model can produce some correct answers. But only the free-text T2 answers and a handful of math answers make it through. For any practical deployment tier, MoE is non-viable.
+At the Batch tier (30s): 37.0\%---notably \emph{below} the 55.0\% overall accuracy. This reveals something important: even with a generous 30-second deadline, many correct answers arrive \emph{after} the deadline. The model's chain-of-thought verbosity pushes a substantial fraction of correct responses past 30 seconds. For dense models, S@SLO$_{30s}$ equals accuracy because all responses finish within 30 seconds. For the MoE model, 18 percentage points of correct answers are lost to latency even at the most generous tier.
 
-Consider what this means for the deployment gap hypothesis. The MoE model was supposed to occupy the upper-right of the accuracy--S@SLO plot: high accuracy from 35B parameters, non-zero S@SLO from 3B active compute. It occupies the lower-left. Lowest accuracy, lowest S@SLO. The hypothesis is falsified in both dimensions simultaneously.
+Consider what this means for the deployment gap hypothesis. The MoE model was supposed to occupy the upper-right of the accuracy--S@SLO plot: high accuracy from 35B parameters, non-zero S@SLO from 3B active compute. It achieves the accuracy (55.0\%, competitive with dense 7B--9B models) but not the deployment success. It sits on the x-axis: high accuracy, zero S@SLO. The hypothesis is half-right---the knowledge is there---but the verbosity required to access it destroys deployment viability.
 
 \paragraph{Per-task S@SLO breakdown.}
 Table~\ref{tab:sslo-by-task} shows S@SLO at the Interactive tier broken down by task.
 
 \begin{table}[t]
 \centering
-\caption{Success@SLO (\%) at Interactive tier (2s) by task. The MoE model achieves 0.0\% on five of six tasks. Only T4 (function routing) produces any positive result, and at 0.4\% that is effectively noise. Llama-3.2-3B is the only model with strong multi-task performance.}
+\caption{Success@SLO (\%) at Interactive tier (2s) by task. The MoE model achieves 0.0\% on all six tasks---its 25-second median latency means no request completes within 2 seconds regardless of correctness. Llama-3.2-3B is the only model with strong multi-task S@SLO performance.}
 \label{tab:sslo-by-task}
 \small
 \begin{tabular}{ll cccccc}
@@ -743,14 +745,14 @@ Phi-3-mini & 3.8B & 17.6 & 26.1 & 11.2 & 12.2 & 0.3 & 2.5 \\
 Gemma-2-9B & 9.2B & 12.4 & 10.0 & 12.4 & 4.0  & 0.0 & 0.0 \\
 \midrule
 \rowcolor{moepurple!8}
-\textbf{Qwen3.5-35B-A3B} & \textbf{3.0B} & \textbf{0.0} & \textbf{0.0} & \textbf{0.0} & \textbf{0.4} & \textbf{0.0} & \textbf{0.0} \\
+\textbf{Qwen3.5-35B-A3B} & \textbf{3.0B} & \textbf{0.0} & \textbf{0.0} & \textbf{0.0} & \textbf{0.0} & \textbf{0.0} & \textbf{0.0} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The per-task breakdown removes any ambiguity. Five zeros. The one non-zero result (T4 at 0.4\%) represents approximately 2 requests out of 500. Llama-3.2-3B achieves 67.4\% on T3 and 57.2\% on T4 with a 968\,ms median latency. The MoE model achieves 0.0\% on both with a 5,112\,ms median latency. These are not close.
+The per-task breakdown is unambiguous. Six zeros. With a 25,055\,ms median latency, no request on any task completes within 2 seconds. The per-task average latencies range from 17,222\,ms (T4) to 32,238\,ms (T1)---all far beyond the 2-second deadline. Contrast with Llama-3.2-3B: 67.4\% on T3 and 57.2\% on T4 with a 968\,ms median latency. The MoE model achieves higher raw accuracy on several tasks (T5: 60.3\% vs 14.7\%, T6: 71.5\% vs 13.5\%) but zero S@SLO on all of them.
 
-Note that Llama-3.2-3B also performs remarkably well on T2 (HotpotQA) at 93.7\%---only 1.1 percentage points below the MoE's best task (92.6\%). The 3B dense model essentially matches the MoE's single-task strength while also completing within the 2-second deadline.
+Note that Llama-3.2-3B also performs remarkably well on T2 (HotpotQA) at 93.7\%---5.0 percentage points above the MoE (88.7\%). The 3B dense model matches or exceeds the MoE on its best task while also completing within the 2-second deadline.
 
 \subsection{RQ4: Does MoE Change the Accuracy--S@SLO Correlation?}
 \label{sec:rq4-correlation}
@@ -759,7 +761,7 @@ Paper~I's headline number: $\rho = 0.09$. Accuracy and S@SLO, uncorrelated. Does
 
 \begin{table}[t]
 \centering
-\caption{Spearman correlation between accuracy and S@SLO. Adding the MoE model does not change the correlation because it occupies the lower-left (low accuracy, low S@SLO)---the same region as models that do not break the gap.}
+\caption{Spearman correlation between accuracy and S@SLO at three tiers. Adding the MoE model \emph{weakens} the correlation at Interactive and Standard tiers because MoE has competitive accuracy (55.0\%) but near-zero S@SLO---the pure embodiment of the deployment gap.}
 \label{tab:correlation-change}
 \small
 \begin{tabular}{lcccc}
@@ -768,17 +770,21 @@ Paper~I's headline number: $\rho = 0.09$. Accuracy and S@SLO, uncorrelated. Does
 \midrule
 Dense only (P1, CUDA) & 13 & $+0.09$ & 0.76 & Uncorrelated \\
 Dense only (this paper, MLX) & 8  & $+0.333$ & 0.359 & Weak, not significant \\
-Dense + MoE (this paper, MLX) & 9  & $+0.333$ & 0.359 & Unchanged \\
+Dense + MoE (this paper, MLX) & 9  & $+0.067$ & 0.848 & Effectively zero \\
+\midrule
+\multicolumn{5}{l}{\textit{Additional tiers with MoE:}} \\
+All 9 models, $\rho$ (5s) & 9  & $+0.183$ & --- & Weak \\
+All 9 models, $\rho$ (30s) & 9  & $+0.833$ & --- & Strong \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Adding the MoE model does not change the correlation. The intuition: the MoE sits in the lower-left corner of the accuracy--S@SLO space---low accuracy, low S@SLO. That is not a new region. It is already populated by dense models. The MoE does not occupy the upper-right (high accuracy, non-zero S@SLO) that would shift the correlation.
+Adding the MoE model \emph{weakens} the correlation from $+0.333$ to $+0.067$ at the Interactive tier. The intuition: the MoE sits on the x-axis with competitive accuracy (55.0\%) but zero S@SLO. Unlike the old results where MoE had the worst accuracy too (lower-left corner, which does not change the correlation), the corrected MoE is a high-accuracy model with zero deployment success---precisely the pattern that defines the deployment gap.
 
-The paper-I theory was that MoE would be the outlier that breaks the gap by sitting upper-right. It is the outlier that confirms the gap by sitting lower-left---far lower than any dense model on both axes simultaneously.
+At the Batch tier (30s), the correlation strengthens to $+0.833$---because at generous deadlines, more of the MoE's correct answers arrive in time. This tier-dependent correlation is a new finding: the deployment gap is most severe at tight deadlines and partially relaxes at generous ones. But even at 30 seconds, the MoE loses 18 percentage points of accuracy to latency (37.0\% S@SLO vs 55.0\% accuracy).
 
 \paragraph{Interpretation.}
-The deployment gap is robust to MoE. Including a 35B MoE model in the correlation calculation changes nothing, because the MoE model does not challenge the pattern---it is the pattern's most extreme data point. The gap persists. It just now applies to MoE architectures as well as dense ones.
+The deployment gap is robust to MoE---and MoE actually makes it worse. Including a 35B MoE model that achieves competitive accuracy but zero Interactive S@SLO pulls the correlation toward zero. The MoE model is not a low-accuracy outlier that the gap already explains. It is a high-accuracy model that the gap \emph{traps}. The gap now covers both dense and sparse architectures, and MoE's extreme verbosity creates a new failure mode: correct answers that take too long to deliver.
 
 
 % =============================================================================
@@ -828,7 +834,7 @@ Raw generation speed, stripped of task effects and output length variation.
 
 \begin{table}[t]
 \centering
-\caption{Tokens per second across models. Counterintuitively, the MoE model's tok/s (50.1) is comparable to dense 3B models (42.9--44.0 tok/s) and faster than the larger dense models. The latency problem is not tok/s---it is total response length and constant overhead per forward pass.}
+\caption{Tokens per second across models. Counterintuitively, the MoE model's tok/s (${\sim}$50) is comparable to dense 3B models (42.9--44.0 tok/s) and faster than the larger dense models. The latency problem is not tok/s---it is total output token count: the MoE generates ${\sim}$1,500 tokens per response vs ${\sim}$39 for dense 3B models.}
 \label{tab:throughput}
 \small
 \begin{tabular}{llcccc}
@@ -850,11 +856,11 @@ Gemma-2-9B & Dense & 9.2B & 16.2 & 13.9 & 5.0 \\
 \end{tabular}
 \end{table}
 
-The tok/s comparison reveals something counterintuitive. The MoE model generates 50.1 tokens per second at P50---close to Qwen2.5-3B (44.0) and faster than all models with 7B+ parameters. Per-token throughput does scale roughly with active parameters.
+The tok/s comparison reveals something counterintuitive. The MoE model generates ${\sim}$50 tokens per second at P50---close to Qwen2.5-3B (44.0) and faster than all models with 7B+ parameters. Per-token throughput does scale roughly with active parameters.
 
-The problem is not per-token speed. The problem is total response length. When the MoE model fails to produce valid structured output, it often generates verbose fallback text---reasoning traces, partial JSON, long apologies---before (or instead of) the required JSON structure. These long outputs at 50 tok/s still produce long wall-clock latencies. The P5 tok/s (worst-case: 35.0) is actually the best P5 in the study, confirming the model is consistently fast per token.
+The problem is not per-token speed. The problem is total response length. The MoE model generates approximately 1,500 tokens per response on average---extensive chain-of-thought reasoning, step-by-step analysis, and verbose explanations before (or wrapping) the required JSON structure. At ${\sim}$50 tok/s, 1,500 tokens takes 30 seconds. Dense 3B models generate ${\sim}$39 tokens per response. The MoE's per-token speed is competitive; its per-response output volume is 38$\times$ larger.
 
-This creates an important diagnostic distinction. If the MoE model could be prompted to produce concise structured outputs reliably, its per-token speed advantage would translate to SLO compliance. The failure is not hardware-level---it is structured output format compliance.
+This creates an important diagnostic distinction. If the MoE model could be prompted to produce concise outputs reliably, its per-token speed advantage would translate to SLO compliance. The failure is not hardware-level---it is output length. The model's training (likely including chain-of-thought optimization) produces verbose responses that are often \emph{correct} but take too long to generate. This is a fundamentally different failure mode than structured output format non-compliance: the model produces valid JSON with correct answers, but buries them in 1,500 tokens of reasoning.
 
 \subsection{Expert Utilization and Routing Overhead}
 \label{sec:expert-utilization}
@@ -862,9 +868,9 @@ This creates an important diagnostic distinction. If the MoE model could be prom
 Qwen3.5-35B-A3B uses top-$k$ expert routing~\citep{qwen2025qwen3}: 256 experts per layer, 8 activated per token, plus a shared expert that fires on every token. Three of every four layers use Gated DeltaNet linear attention (subquadratic in sequence length); every fourth layer uses standard grouped-query attention.
 
 \paragraph{Routing overhead analysis.}
-The tok/s comparison allows us to estimate routing overhead. A pure dense 3B model with 44 tok/s and the MoE at 50 tok/s suggests the routing mechanism does not impose a significant per-token computation penalty relative to pure dense computation. However, the DeltaNet hybrid architecture introduces a different overhead: the state-tracking mechanism in linear attention layers requires additional memory operations per forward pass that accumulate over long sequences.
+The tok/s comparison allows us to estimate routing overhead. A pure dense 3B model with 44 tok/s and the MoE at ${\sim}$50 tok/s suggests the routing mechanism does not impose a significant per-token computation penalty relative to pure dense computation. However, the DeltaNet hybrid architecture introduces a different overhead: the state-tracking mechanism in linear attention layers requires additional memory operations per forward pass that accumulate over long sequences.
 
-The 5,112\,ms median latency despite 50 tok/s throughput implies an average response length of $5{,}112 \times 0.050 \approx 256$ output tokens. Dense 3B models at 44 tok/s and 884\,ms median imply $884 \times 0.044 \approx 39$ output tokens. The MoE model generates roughly 6.5$\times$ more tokens per response on average---the structured output failure mode generates verbose non-compliant outputs rather than the brief, schema-conforming JSON required.
+The 25,055\,ms median latency at ${\sim}$50 tok/s throughput implies an average response length of $25{,}055 \times 0.050 \approx 1{,}253$ output tokens. The actual measured average is approximately 1,500 tokens. Dense 3B models at 44 tok/s and 884\,ms median imply $884 \times 0.044 \approx 39$ output tokens. The MoE model generates roughly 38$\times$ more tokens per response on average. This is the dominant source of latency: not routing overhead, not per-token slowness, but massive chain-of-thought output. The model wraps correct answers in extensive reasoning traces, producing verbose outputs that push every response past SLO deadlines.
 
 \begin{figure}[t]
 \centering
@@ -874,7 +880,7 @@ The 5,112\,ms median latency despite 50 tok/s throughput implies an average resp
     height=0.5\linewidth,
     xlabel={Latency (ms)},
     ylabel={Cumulative Probability},
-    xmin=0, xmax=10000,
+    xmin=0, xmax=45000,
     ymin=0, ymax=1.05,
     grid=both,
     grid style={line width=0.1pt, draw=gray!20},
@@ -896,25 +902,29 @@ The 5,112\,ms median latency despite 50 tok/s throughput implies an average resp
     (0, 0) (400, 0.12) (884, 0.50) (1500, 0.72)
     (2000, 0.83) (2961, 0.95) (5000, 0.99) (6000, 1.0)
 };
-% MoE CDF: P50=5112ms P95=7324ms -- much slower than Qwen2.5-3B
+% MoE CDF: P50=25055ms -- extreme verbosity, generates ~1500 tokens per response
 \addplot[thick, moepurple, dashed] coordinates {
-    (0, 0) (1000, 0.04) (2000, 0.08) (3000, 0.15)
-    (4000, 0.30) (5112, 0.50) (6000, 0.68) (7324, 0.95) (9000, 1.0)
+    (0, 0) (5000, 0.02) (10000, 0.08) (15000, 0.18)
+    (20000, 0.35) (25055, 0.50) (30000, 0.65) (35000, 0.82)
+    (40000, 0.95) (45000, 1.0)
 };
 % Vertical line at 2s SLO
 \addplot[dashed, very thick, black] coordinates {(2000, 0) (2000, 1.05)};
-\node[anchor=south, font=\small\bfseries, rotate=90] at (axis cs:2200, 0.5) {2s SLO};
+\node[anchor=south, font=\small\bfseries, rotate=90] at (axis cs:2800, 0.5) {2s SLO};
 % Vertical line at 5s SLO
 \addplot[dotted, thick, gray] coordinates {(5000, 0) (5000, 1.05)};
-\node[anchor=south, font=\small, rotate=90, text=gray] at (axis cs:5200, 0.5) {5s SLO};
+\node[anchor=south, font=\small, rotate=90, text=gray] at (axis cs:5800, 0.5) {5s SLO};
+% Vertical line at 30s SLO
+\addplot[dotted, thick, gray!60] coordinates {(30000, 0) (30000, 1.05)};
+\node[anchor=south, font=\small, rotate=90, text=gray!60] at (axis cs:31000, 0.5) {30s SLO};
 \legend{Llama-3.2-1B, Llama-3.2-3B, Qwen2.5-3B (dense 3B), Qwen3.5-35B-A3B (MoE)}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Latency CDFs reveal the MoE failure mode.} The MoE model (purple dashed) does not track Qwen2.5-3B (blue)---its active-parameter match. It is dramatically slower, with P50 at 5,112\,ms vs 884\,ms. At the 2-second deadline (black dashed), the MoE captures approximately 8\% of requests; Qwen2.5-3B captures 83\%; Llama-3.2-3B captures 85\%. The MoE's distribution resembles no dense model in the study.}
+\caption{\textbf{Latency CDFs reveal the MoE verbosity problem.} The MoE model (purple dashed) generates ${\sim}$1,500 tokens of chain-of-thought per response, producing a CDF shifted far right of all dense models. P50 is 25,055\,ms vs 884\,ms for Qwen2.5-3B (blue)---its active-parameter match. At the 2-second deadline (black dashed), the MoE captures ${\sim}$0\% of requests; Qwen2.5-3B captures 83\%; Llama-3.2-3B captures 85\%. Even at 30 seconds (gray dotted), the MoE captures only ${\sim}$65\% of requests.}
 \label{fig:latency-cdf}
 \end{figure}
 
-Figure~\ref{fig:latency-cdf} makes the failure visible. The MoE CDF (purple dashed) does not track Qwen2.5-3B (blue)---its supposed active-parameter match. It tracks no model in the study. Its median sits past the 5-second SLO deadline. At the 2-second deadline, the MoE completes approximately 8\% of requests. Qwen2.5-3B completes 83\%. Llama-3.2-3B completes 85\%. These distributions are not comparable.
+Figure~\ref{fig:latency-cdf} makes the verbosity problem visible. The MoE CDF (purple dashed) is shifted far to the right of every dense model---its median sits at 25,055\,ms, past the 5-second SLO deadline by a factor of 5$\times$. At the 2-second deadline, the MoE completes approximately 0\% of requests. At the 30-second Batch deadline, it completes only ${\sim}$65\%. Qwen2.5-3B completes 83\% within 2 seconds. The MoE's distribution resembles no dense model in the study---it is a qualitatively different latency regime created by massive output verbosity.
 
 
 % =============================================================================
@@ -922,7 +932,7 @@ Figure~\ref{fig:latency-cdf} makes the failure visible. The MoE CDF (purple dash
 \label{sec:edge-implications}
 % =============================================================================
 
-The MoE failure resolves the theoretical tension cleanly: MoE is not viable for structured output tasks under production SLO constraints on Apple Silicon, regardless of the memory advantage.
+The MoE results resolve the theoretical tension with an unexpected twist: MoE \emph{can} produce correct answers for structured output tasks---it achieves 55.0\% accuracy, competitive with dense 7B--9B models. But it does so through extreme verbosity (${\sim}$1,500 tokens per response), making it nonviable under any production SLO constraint.
 
 \subsection{Apple Silicon as an MoE Platform}
 \label{sec:apple-moe}
@@ -947,11 +957,11 @@ For the MoE model specifically: Apple Silicon is the only consumer platform that
 \subsection{MoE Is Not Viable for Structured Output Deployment}
 \label{sec:moe-not-viable}
 
-This is the practical conclusion. Under the evaluation conditions of this study---structured JSON output, schema validation, per-request SLO constraints, no constrained decoding---Qwen3.5-35B-A3B cannot be deployed for any task type at any SLO tier below 30 seconds.
+This is the practical conclusion. Under the evaluation conditions of this study---structured JSON output, schema validation, per-request SLO constraints, no constrained decoding---Qwen3.5-35B-A3B achieves competitive accuracy (55.0\%) but cannot be deployed at any SLO tier below 30 seconds due to its 25,055\,ms median latency.
 
-At 30 seconds, it achieves 31.1\% S@SLO---equivalent to its overall accuracy, which is the best case. The 30-second tier is not a deployment tier for interactive or API use cases. It is a batch processing tier, and for batch processing, dense 9B models achieve similar or better accuracy without requiring 21\,GB of memory.
+At 30 seconds, it achieves only 37.0\% S@SLO---well below its 55.0\% accuracy because many correct answers arrive after the 30-second deadline. For comparison, dense 9B models achieve 57.5\% S@SLO at the same tier with 5.4\,GB memory. The MoE model requires 21\,GB of memory for worse S@SLO at every tier.
 
-The viable use case for MoE on Apple Silicon, if one exists, is free-text generation where schema compliance is not required. On T2 (HotpotQA), the model achieves 92.6\% accuracy with median latency of 6,557\,ms. For non-latency-sensitive free-text applications, this is competitive. For structured output deployment---which is what agentic systems require---it is not.
+The viable use case for MoE on Apple Silicon, if one exists, is \emph{accuracy-critical, latency-insensitive} batch processing where schema compliance is not required and response time is unconstrained. On T6 (math), the model achieves 71.5\%---far better than any dense model. On T5 (code patching), 60.3\%---again, best in the study. If you can wait 30+ seconds per response and accuracy matters more than speed, MoE offers something the dense models cannot. For any latency-constrained deployment---which includes all interactive and API use cases---it is not viable.
 
 \subsection{Practical Deployment Guidance}
 \label{sec:deployment-guidance}
@@ -961,11 +971,11 @@ Practical guidance, ordered by SLO tier:
 \begin{description}[leftmargin=12pt]
     \item[For Interactive SLOs ($\leq$2s):] Use Llama-3.2-3B. It achieves 61.5\% S@SLO with 72.7\% accuracy---the best combination in the study. Llama-3.2-1B is also viable (37.7\% S@SLO, 37.8\% accuracy) if memory or cost is constrained. MoE: 0.0\%, not viable.
 
-    \item[For Standard SLOs ($\leq$5s):] Llama-3.2-3B again dominates at 72.7\% S@SLO. Qwen2.5-3B (38.6\%), Ministral-8B (41.9\%), and Phi-3-mini (34.1\%) offer alternatives. MoE: 0.4\%, not viable.
+    \item[For Standard SLOs ($\leq$5s):] Llama-3.2-3B again dominates at 72.7\% S@SLO. Qwen2.5-3B (38.6\%), Ministral-8B (41.9\%), and Phi-3-mini (34.1\%) offer alternatives. MoE: 0.3\%, not viable.
 
-    \item[For Batch SLOs ($\leq$30s):] Dense models up to 9B are viable. Gemma-2-9B (57.5\%), Mistral-7B-v0.3 (55.6\%), Ministral-8B (56.7\%). MoE: 31.1\%, worse than every dense model.
+    \item[For Batch SLOs ($\leq$30s):] Dense models up to 9B are viable. Gemma-2-9B (57.5\%), Mistral-7B-v0.3 (55.6\%), Ministral-8B (56.7\%). MoE: 37.0\%, worse than every dense model despite competitive raw accuracy (55.0\%) because many correct responses arrive after 30 seconds.
 
-    \item[For MoE specifically:] Only viable for free-text generation tasks (no JSON schema requirement). On structured output tasks, zero-shot MoE without constrained decoding or fine-tuning is not production-ready at any SLO tier.
+    \item[For MoE specifically:] Viable only for accuracy-critical, latency-insensitive batch processing. MoE excels on T5 (code patching, 60.3\%) and T6 (math, 71.5\%)---best-in-study accuracy on both---but requires 25+ seconds per response. If accuracy justifies the latency cost and memory (21\,GB), MoE adds value. Under any SLO constraint, it does not.
 
     \item[Hardware:] MLX on Apple Silicon is 3--9$\times$ faster than LM Studio/CUDA for this task suite. If you are choosing between platforms for dense model deployment, Apple Silicon with MLX is strongly preferred. The MoE model requires $\geq$32\,GB of unified memory.
 \end{description}
@@ -978,17 +988,19 @@ Practical guidance, ordered by SLO tier:
 
 \subsection{What MoE Changes---and Does Not Change---About the Deployment Gap}
 
-Four papers, one finding: in dense models, accuracy and latency are coupled through total parameter count. MoE was supposed to break that coupling. It does not---at least not for structured output.
+Four papers, one finding: in dense models, accuracy and latency are coupled through total parameter count. MoE was supposed to break that coupling. It partially does---on the accuracy side---but creates a new problem on the latency side.
 
-The result is actually more interesting than a simple confirmation would have been. MoE fails in a structured way. The tok/s throughput matches 3B dense models. The free-text accuracy (T2: 92.6\%) is competitive with the best models. But the structured output format compliance collapses. This is not a general intelligence failure---it is a specific failure mode under constrained output format requirements.
+The result is more nuanced than a simple confirmation or refutation. MoE \emph{does} achieve competitive accuracy (55.0\%, 6th of 9 models), proving the 35B parameter knowledge is accessible through sparse activation. The tok/s throughput matches 3B dense models. On T6 (math, 71.5\%) and T5 (code, 60.3\%), it is the best model in the study. The knowledge loophole works.
 
-Consider what this implies. MoE's vast parameter space gives it strong language understanding and general knowledge. But the routing mechanism introduces output format instability: different token sequences route to different experts, and the consistency of expert selection needed for strict JSON compliance may not be guaranteed by the top-8 routing. This is speculative, but it suggests that MoE models may require more careful prompting, constrained decoding, or fine-tuning for structured output tasks than their dense counterparts.
+But the model accesses that knowledge through extreme verbosity: ${\sim}$1,500 tokens of chain-of-thought reasoning per response. This is not a structured output format failure---JSON validity is 66.8\%, comparable to dense models. It is a \emph{verbosity} failure. The model wraps correct answers in extensive reasoning traces, and at 50 tok/s, 1,500 tokens takes 30 seconds. The deployment gap extends not because MoE cannot produce correct answers, but because it takes too long to produce them.
 
-The deployment gap does not close with MoE. If anything, it extends. The gap now covers both dense and sparse architectures under zero-shot structured output evaluation.
+Consider what this implies. MoE's vast parameter space gives it strong reasoning capability, but the model's training (likely including chain-of-thought optimization) produces outputs that are 38$\times$ longer than dense 3B models. Output length management---through prompting, output length limits, constrained decoding, or fine-tuning for concise output---is the key lever for making MoE deployment-viable.
+
+The deployment gap does not close with MoE. If anything, it extends. The gap now covers both dense and sparse architectures, and MoE introduces a new failure mode: correct answers that are too verbose to deliver on time.
 
 \subsection{The Llama-3.2-3B Finding}
 
-The positive surprise in this study is Llama-3.2-3B. At 972\,ms median latency, 72.7\% accuracy, and 61.5\% S@SLO at the Interactive tier, it achieves what five papers in this series have failed to find: a model that is both accurate and deployment-compliant.
+The positive surprise in this study is Llama-3.2-3B. At 968\,ms median latency, 72.7\% accuracy, and 61.5\% S@SLO at the Interactive tier, it achieves what five papers in this series have failed to find: a model that is both accurate and deployment-compliant.
 
 Paper~I had Llama-3.2-1B as the sole Interactive-tier survivor---but at only 37.8\% accuracy. Llama-3.2-3B is almost twice as accurate and survives the same deadline. It does this not through any architectural novelty but through being the right size on the right hardware. At 3.2B parameters, MLX can generate 42.9 tok/s median, fast enough to complete most responses in under 2 seconds.
 
@@ -1001,7 +1013,7 @@ What this changes for the rest of the series:
 \begin{itemize}[leftmargin=12pt]
     \item \textbf{Paper~I:} Core finding confirmed as hardware-independent. Not a CUDA artifact. Not an LM Studio artifact. Structural. And now extended: not a dense-model artifact either.
 
-    \item \textbf{Paper~II:} Capacity thresholds for GRPO training were measured on dense models. A 35B MoE with 3B active---what would training do to its structured output compliance? If the failure is routing instability under strict format requirements, GRPO with format compliance reward might fix it. Central question for Paper~VI.
+    \item \textbf{Paper~II:} Capacity thresholds for GRPO training were measured on dense models. A 35B MoE with 3B active---what would training do to its output verbosity? If the failure is chain-of-thought overgeneration, GRPO with a length penalty and format compliance reward might compress outputs while preserving accuracy. Central question for Paper~VI.
 
     \item \textbf{Paper~III:} The benchmark needs MoE models and Apple Silicon as a reference platform. The normalization protocol from Section~\ref{sec:normalization} makes this possible without re-running everything.
 
@@ -1015,10 +1027,10 @@ The original principle was: active parameters predict deployment latency, total 
 A revised principle:
 
 \begin{quote}
-\textit{For dense models: active parameters (= total parameters) predict both latency and accuracy. For MoE models: neither active nor total parameters reliably predict deployment latency or structured output accuracy. Direct measurement is required. Free-text accuracy from benchmarks does not transfer to structured output SLO compliance.}
+\textit{For dense models: active parameters (= total parameters) predict both latency and accuracy. For MoE models: active parameters predict per-token throughput (tok/s scales with active count), and total parameters predict accuracy potential. But neither predicts deployment latency, because latency is dominated by output token count---which is a behavioral property of the model, not an architectural one. Direct measurement under realistic output conditions is required.}
 \end{quote}
 
-This is less clean but more honest. MoE models are different enough from dense models that existing deployment heuristics---based on parameter count, benchmark accuracy, or tok/s---do not transfer.
+This is less clean but more honest. MoE models are different enough from dense models that existing deployment heuristics---based on parameter count, benchmark accuracy, or tok/s---do not transfer. The key missing variable is output verbosity, which is training-dependent and task-dependent.
 
 \subsection{Estimated CUDA Performance}
 
@@ -1033,19 +1045,18 @@ A natural question: what would this MoE model do on CUDA? Using the normalizatio
 \toprule
 \textbf{Metric} & \textbf{Measured (MLX)} & \textbf{Estimated (CUDA)} \\
 \midrule
-P50 Latency (ms) & 5,112 & $\sim$28,881 \\
-P95 Latency (ms) & 7,324 & $\sim$41,379 \\
-Mean tok/s & 51.3 & $\sim$9.1 \\
+P50 Latency (ms) & 25,055 & $\sim$141,554 \\
+Mean tok/s & $\sim$50 & $\sim$9 \\
 S@SLO$_{2s}$ (\%) & 0.0 & 0.0 \\
-S@SLO$_{5s}$ (\%) & 0.4 & 0.0 \\
-S@SLO$_{30s}$ (\%) & 31.1 & $\sim$0 \\
+S@SLO$_{5s}$ (\%) & 0.3 & 0.0 \\
+S@SLO$_{30s}$ (\%) & 37.0 & $\sim$0 \\
 \bottomrule
 \multicolumn{3}{l}{\footnotesize Projections assume $\bar{\alpha} = 0.177$ applies to MoE (uncertain).} \\
 \multicolumn{3}{l}{\footnotesize Actual CUDA requires $>$24\,GB VRAM (e.g., A100 40\,GB). RTX 4090 cannot run.} \\
 \end{tabular}
 \end{table}
 
-The estimated CUDA performance is bleak. An estimated P50 of $\sim$29 seconds means the model would fail the Batch (30s) tier on most requests. The $\bar{\alpha}$ normalization may not transfer perfectly to MoE---the routing overhead that dominates MoE latency may have different CUDA vs MLX characteristics---but the direction is unambiguous.
+The estimated CUDA performance is catastrophic. An estimated P50 of ${\sim}$142 seconds---over two minutes per request---means the model would fail every SLO tier. Even the Batch (30s) tier would see approximately 0\% S@SLO. The $\bar{\alpha}$ normalization may not transfer perfectly to MoE---the output verbosity that dominates MoE latency may interact differently with CUDA vs MLX characteristics---but the direction is unambiguous.
 
 
 % =============================================================================
@@ -1056,7 +1067,7 @@ The estimated CUDA performance is bleak. An estimated P50 of $\sim$29 seconds me
 \begin{enumerate}[leftmargin=12pt]
     \item \textbf{One MoE model.} We evaluate Qwen3.5-35B-A3B and nothing else. Mixtral has different routing. DeepSeek-MoE uses finer-grained experts. Switch Transformer routes to a single expert. Our results may not generalize across these architectures. We picked Qwen3.5-35B-A3B because its 12:1 total-to-active ratio is the most extreme among openly available models---strongest test of the hypothesis, but still $n = 1$.
 
-    \item \textbf{No constrained decoding.} Paper~I used unconstrained generation, and we match that protocol. Constrained decoding (grammar-enforced JSON) would likely increase the MoE model's structured output compliance. Our results characterize zero-shot unconstrained MoE performance, not the upper bound.
+    \item \textbf{No constrained decoding or output length control.} Paper~I used unconstrained generation, and we match that protocol. Constrained decoding (grammar-enforced JSON) would not address the primary failure mode (verbosity/latency), but output length limits or prompting strategies that suppress chain-of-thought reasoning might dramatically reduce latency. Our results characterize zero-shot unconstrained MoE performance, not the upper bound.
 
     \item \textbf{Quantization mismatch.} Paper~I used Q4\_K\_M (GGUF). We use INT4 (MLX). Different grouping, different calibration, different rounding. The large accuracy differences between platforms (e.g., 63.5\% vs 37.8\% for Llama-3.2-1B) suggest more than quantization is responsible---evaluation conditions, prompt formatting, and task implementations may also differ. We focus on within-platform conclusions.
 
@@ -1081,15 +1092,15 @@ Paper~I declared a universal trade-off: accuracy and SLO compliance are uncorrel
 
 We tested the most compelling proposed escape---MoE architectures, which decouple total parameters from active compute. The escape does not work.
 
-Qwen3.5-35B-A3B: 35 billion total parameters, 3 billion active. Measured median latency: 5,112\,ms---the slowest of all 9 models, not the fastest. Task-averaged accuracy: 31.1\%---the worst of all 9 models. S@SLO at the Interactive tier (2s): 0.0\%. S@SLO at the Standard tier (5s): 0.4\%.
+Qwen3.5-35B-A3B: 35 billion total parameters, 3 billion active. Task-averaged accuracy: 55.0\%---6th of 9, competitive with dense 7B--9B models. The knowledge loophole works. But measured median latency: 25,055\,ms---28$\times$ slower than its active-parameter match, driven by ${\sim}$1,500 tokens of chain-of-thought per response. S@SLO at the Interactive tier (2s): 0.0\%. S@SLO at the Standard tier (5s): 0.3\%.
 
-The failure is informative. On free-text QA (T2), the model achieves 92.6\%---the knowledge is real. On every structured output task---intent classification, tool calling, function routing, code patching, math---it returns 0\%, 0\%, 0.4\%, 0\%, 2\%. The MoE model knows things. It cannot format its answers.
+The failure is informative. On T6 (math), the model achieves 71.5\%---best in the study. On T5 (code), 60.3\%---also best. On T4, 49.8\%. On T3, 43.4\%. The MoE model knows things. It \emph{can} format its answers. But it wraps them in 1,500 tokens of reasoning that takes 25 seconds to generate.
 
-This creates a research agenda. MoE routing instability under strict format requirements is a real phenomenon, not a size or speed problem. Fine-tuning with format compliance reward (GRPO, as in Paper~II) might fix it. Constrained decoding might fix it. Zero-shot does not.
+This creates a research agenda. MoE verbosity under chain-of-thought training is the bottleneck, not knowledge or format compliance. Output length management---through prompting, constrained decoding, or fine-tuning for concise structured output (GRPO, as in Paper~II)---is the key lever. The model's per-token speed (${\sim}$50 tok/s) is competitive; it is the token count that kills deployment.
 
-Two positive findings. First, the deployment gap is confirmed hardware-independent. Apple Silicon with MLX shows the same pattern as CUDA with LM Studio, and our cross-hardware normalization ($\bar{\alpha} = 0.177$) reveals MLX is 3--9$\times$ faster than CUDA on this workload---a result that inverts our prior assumption. Second, Llama-3.2-3B breaks the gap on Apple Silicon: 72.7\% accuracy, 61.5\% S@SLO at the Interactive tier, 968\,ms median latency. Not through sparse routing or architectural innovation---through being the right size on efficient hardware.
+Two positive findings beyond the MoE results. First, the deployment gap is confirmed hardware-independent. Apple Silicon with MLX shows the same pattern as CUDA with LM Studio, and our cross-hardware normalization ($\bar{\alpha} = 0.177$) reveals MLX is 3--9$\times$ faster than CUDA on this workload---a result that inverts our prior assumption. Second, Llama-3.2-3B breaks the gap on Apple Silicon: 72.7\% accuracy, 61.5\% S@SLO at the Interactive tier, 968\,ms median latency. Not through sparse routing or architectural innovation---through being the right size on efficient hardware.
 
-One conclusion: stop evaluating MoE models for structured output deployment using free-text benchmark scores. HotpotQA scores do not predict JSON compliance. Active parameter counts do not predict latency under hybrid attention architectures. Direct structured output evaluation under SLO constraints is necessary, and the answer for current MoE models is clear. Not yet.
+One conclusion: stop assuming MoE model latency scales with active parameters. It does not. Output verbosity dominates latency, and MoE models trained with chain-of-thought optimization generate 38$\times$ more tokens per response than dense models of matching active parameter count. Active parameter counts predict per-token speed, not per-request latency. Direct evaluation under realistic output conditions and SLO constraints is necessary. MoE models can produce correct structured output---the accuracy is there---but they cannot produce it fast enough. Not yet.
 
 \paragraph{This paper is part of a six-paper series.}
 Paper~I documented the deployment gap across 13 dense models~\citep{maloney2025deploymentgap}.
@@ -1117,11 +1128,11 @@ The experiments reported here can be reproduced on Apple Silicon hardware with 6
 \section{Per-Task Latency Distributions}
 \label{app:per-task-latency}
 
-Table~\ref{tab:app-per-task-latency} provides P50 latency (ms) for all 9 models across all 6 tasks. This granularity reveals task-specific patterns that are obscured in the task-averaged numbers presented in the main text. The MoE model (highlighted) is the slowest across every task.
+Table~\ref{tab:app-per-task-latency} provides average latency (ms) for all 9 models across all 6 tasks. This granularity reveals task-specific patterns that are obscured in the task-averaged numbers presented in the main text. The MoE model (highlighted) is the slowest across every task by a wide margin, with per-task latencies ranging from 17,222\,ms (T4) to 32,238\,ms (T1).
 
 \begin{table}[t]
 \centering
-\caption{Per-task P50 latency (ms) for all models. Tasks ordered by typical output length: T1 (shortest) to T5 (longest). T6 (GSM8K) has variable length. The MoE model (highlighted) is the slowest in every task, inconsistent with the active-parameter hypothesis.}
+\caption{Per-task average latency (ms) for all models. The MoE model (highlighted) is the slowest in every task by a wide margin---driven by generating ${\sim}$1,500 tokens of chain-of-thought per response. Note MoE T1 latency (32,238\,ms) is longest despite T1 requiring the shortest output, because the model generates extensive reasoning before the intent label.}
 \label{tab:app-per-task-latency}
 \small
 \begin{tabular}{ll cccccc}
@@ -1138,12 +1149,12 @@ Ministral-8B & 8.0B & 2,362 & 4,817 & 1,051 & 1,115 & 7,005 & 1,343 \\
 Gemma-2-9B & 9.2B & 2,912 & 6,399 & 1,637 & 1,634 & 8,981 & 2,240 \\
 \midrule
 \rowcolor{moepurple!8}
-\textbf{Qwen3.5-35B-A3B} & \textbf{3.0B} & \textbf{5,132} & \textbf{6,557} & \textbf{4,012} & \textbf{4,077} & \textbf{5,153} & \textbf{3,926} \\
+\textbf{Qwen3.5-35B-A3B} & \textbf{3.0B} & \textbf{32,238} & \textbf{29,718} & \textbf{17,603} & \textbf{17,222} & \textbf{24,995} & \textbf{22,086} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The per-task pattern confirms the overall finding. The MoE model is the slowest or near-slowest on every task. On T1 (intent classification, shortest output), it takes 5,132\,ms---higher than any dense model, including Qwen3-4B (4,704\,ms). On T3 (tool calling), it takes 4,012\,ms vs 463\,ms for Llama-3.2-3B. The routing and hybrid attention overhead is constant across task types.
+The per-task pattern reveals an interesting inversion. The MoE model's \emph{longest} latency is on T1 (intent classification, 32,238\,ms)---the task with the shortest required output. This is because the model generates extensive chain-of-thought reasoning before producing the intent label. The \emph{shortest} MoE latency is on T4 (function routing, 17,222\,ms)---still 34$\times$ slower than Llama-3.2-3B (510\,ms). The latency variation across tasks reflects task-dependent verbosity, not task-dependent difficulty per se. On T3 (tool calling), the MoE takes 17,603\,ms vs 463\,ms for Llama-3.2-3B---a 38$\times$ gap.
 
 
 \section{Cross-Hardware Accuracy Deltas}
@@ -1155,7 +1166,7 @@ Table~\ref{tab:app-accuracy-delta} shows per-task accuracy for the 8 models eval
 \centering
 % Note: CUDA per-task accuracy data not available at the task level for direct comparison.
 % CUDA overall accuracies from Paper I are available; per-task CUDA breakdown would require re-running Paper I's eval.
-\caption{Per-task accuracy (\%) on MLX for all 9 models. CUDA per-task breakdowns from Paper~I are not directly comparable due to prompt format differences; overall CUDA accuracy is reported in Table~\ref{tab:cross-hardware}. The MoE model's T2 accuracy (92.6\%) demonstrates it has general language capability that does not transfer to structured output tasks.}
+\caption{Per-task accuracy (\%) on MLX for all 9 models. CUDA per-task breakdowns from Paper~I are not directly comparable due to prompt format differences; overall CUDA accuracy is reported in Table~\ref{tab:cross-hardware}. The MoE model achieves competitive or best-in-study accuracy on T2 (88.7\%), T5 (60.3\%), and T6 (71.5\%), demonstrating that MoE knowledge \emph{does} transfer to structured output---the bottleneck is latency from verbosity, not accuracy.}
 \label{tab:app-accuracy-delta}
 \small
 \begin{tabular}{l cccccc c}
@@ -1172,7 +1183,7 @@ Ministral-8B & 64.0 & 100.0 & 55.0 & 53.0 & 13.2 & 16.0 & 56.7 \\
 Gemma-2-9B & 74.0 & 100.0 & 38.0 & 56.0 & 4.8 & 22.5 & 57.5 \\
 \midrule
 \rowcolor{moepurple!8}
-\textbf{Qwen3.5-35B-A3B} & \textbf{0.0} & \textbf{92.6} & \textbf{0.0} & \textbf{0.4} & \textbf{0.0} & \textbf{2.0} & \textbf{31.1} \\
+\textbf{Qwen3.5-35B-A3B} & \textbf{2.2} & \textbf{88.7} & \textbf{43.4} & \textbf{49.8} & \textbf{60.3} & \textbf{71.5} & \textbf{55.0} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1210,20 +1221,20 @@ Range          & --- & --- & 0.114--0.385 & 2.6--8.8$\times$ \\
 The range (0.114--0.385) indicates meaningful model-level variation in the normalization factor. Phi-3-mini and Qwen3-4B have higher $\alpha_m$ values (MLX less faster) than the Llama and Mistral family models. The Llama, Qwen2.5, Mistral, Ministral, and Gemma models cluster tightly around $\alpha \approx 0.12$--$0.13$, suggesting a common serving-stack overhead factor of $\sim$8$\times$. Phi-3-mini and Qwen3-4B's hybrid or non-standard attention mechanisms may interact differently with the two serving stacks.
 
 
-\section{MoE Structured Output Failure Analysis}
+\section{MoE Verbosity and Deployment Failure Analysis}
 \label{app:moe-failure}
 
-The MoE model's zero accuracy on T1, T3, T5, and near-zero on T4 and T6 is not explained by a single failure mode. We examine three contributing factors:
+The MoE model achieves 55.0\% accuracy---competitive with dense 7B--9B models---but 0.0\% S@SLO at the Interactive tier. The corrected results (with 2,048-token output limit) reveal the failure mode is fundamentally different from what the initial token-limited evaluation suggested. We examine three contributing factors:
 
-\paragraph{JSON schema non-compliance.}
-The overall JSON validity rate for the MoE model is 63.2\%---lower than most dense models (range 55.1\%--85.3\%) but not catastrophically lower. This means the model produces valid JSON approximately two-thirds of the time. The accuracy failure (31.1\%) below the JSON validity rate (63.2\%) indicates that when it does produce valid JSON, the content is often incorrect.
+\paragraph{Extreme chain-of-thought verbosity.}
+The dominant failure mode is output length. The model generates approximately 1,500 tokens per response on average---extensive step-by-step reasoning, analysis, and explanation wrapping the required JSON output. At ${\sim}$50 tok/s, this produces 25,055\,ms median latency. Dense 3B models generate ${\sim}$39 tokens per response at 44 tok/s, producing ${\sim}$884\,ms median latency. The MoE generates 38$\times$ more output tokens per request. This is the primary SLO failure mechanism.
 
-\paragraph{Task-specific format requirements.}
-T1 requires outputting a single intent label from a fixed set of 150. T3 requires a specific tool-call JSON structure. T4 requires routing to one of several function signatures. These tasks have strict format contracts beyond JSON validity. The MoE model appears to misunderstand or ignore these constraints frequently---generating valid JSON with the wrong schema structure.
+\paragraph{JSON validity is moderate, not catastrophic.}
+The overall JSON validity rate is 66.8\%---within the range of dense models (55.1\%--85.3\%). Per-task JSON validity varies: T4 at 95.2\% and T6 at 99.0\% show the model \emph{can} produce valid structured output reliably for some tasks. T5 at 40.3\% and T1 at 2.4\% are poor, but T1 is a special case (the model generates thousands of tokens of reasoning for a task requiring a single label). The accuracy (55.0\%) is well below the JSON validity (66.8\%), indicating that when it produces valid JSON, the content is sometimes incorrect---but this gap is comparable to dense models.
 
-\paragraph{Verbosity and latency interaction.}
-The tok/s data (50.1 median) combined with the median latency (5,112\,ms) implies an average of approximately 256 output tokens per request. Dense 3B models at 44 tok/s and 884\,ms generate approximately 39 tokens. The MoE model is generating $6.5\times$ more output tokens---suggesting verbose outputs that exceed the task-specific token budget and push responses past SLO deadlines even when the content might be partially correct.
+\paragraph{Task-dependent failure modes.}
+T1 (intent classification, 2.2\% accuracy) is the one catastrophic failure. The model generates massive chain-of-thought output for a task requiring a brief intent label, and the reasoning interferes with schema compliance. T6 (math, 71.5\%) and T5 (code, 60.3\%) show the opposite: the model's verbose reasoning \emph{helps} accuracy on complex tasks. T4 (49.8\%) and T3 (43.4\%) are mid-range. The failure is not uniform---it is task-dependent, with verbosity helping complex reasoning tasks and hurting simple classification tasks.
 
-These three factors interact: the model generates long, sometimes-valid JSON that does not match the required schema, taking well beyond the SLO deadline to produce. Fine-tuning for concise structured output, or constrained decoding, would address at least the verbosity and schema compliance dimensions.
+These factors interact: the model generates correct, verbose output that arrives too late. For deployment, the key lever is output length management. Fine-tuning for concise structured output (GRPO with length penalty), constrained decoding, or prompting strategies that suppress chain-of-thought reasoning could potentially preserve the accuracy advantage while reducing latency to SLO-compliant levels.
 
 \end{document}
