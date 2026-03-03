@@ -139,6 +139,13 @@ def _provider_generate_raw(
             prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
         )
         return (*result, None)
+    if backend in ("ane", "ane_local"):
+        from .providers.ane_local import generate_raw
+
+        result = generate_raw(
+            prompt, schema, mode=mode, temperature=temperature, max_tokens=max_tokens
+        )
+        return (*result, None)
     # Fallback: empty output
     return "", {}, 5.0, 5.0, -1, -1, None
 
