@@ -16,24 +16,9 @@
   "lofo": {
     "aggregate_accuracy": 0.9476439790575916,
     "by_family": {
-      "phi": {
-        "accuracy": 0.8333333333333334,
-        "correct": 15,
-        "total": 18
-      },
       "qwen": {
         "accuracy": 0.9722222222222222,
         "correct": 35,
-        "total": 36
-      },
-      "llama": {
-        "accuracy": 0.9444444444444444,
-        "correct": 51,
-        "total": 54
-      },
-      "mistral": {
-        "accuracy": 0.9444444444444444,
-        "correct": 34,
         "total": 36
       },
       "yi": {
@@ -41,10 +26,25 @@
         "correct": 18,
         "total": 18
       },
+      "mistral": {
+        "accuracy": 0.9444444444444444,
+        "correct": 34,
+        "total": 36
+      },
+      "llama": {
+        "accuracy": 0.9444444444444444,
+        "correct": 51,
+        "total": 54
+      },
       "gemma": {
         "accuracy": 0.9655172413793104,
         "correct": 28,
         "total": 29
+      },
+      "phi": {
+        "accuracy": 0.8333333333333334,
+        "correct": 15,
+        "total": 18
       }
     }
   },

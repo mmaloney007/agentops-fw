@@ -144,7 +144,7 @@ What we actually built:
     On complex tasks (tool calling, code patching), only models at 4B+ (with the right architecture) or 9B+ (reliably) sustain learning.
     Multi-task training reveals catastrophic forgetting in smaller models.
     Faithfulness improves by 0.12 points. Output stability improves by 60\%.
-    These are real numbers from 185 training runs on a single RTX 4090.
+    These are real numbers from 237 training runs on a single RTX 4090.
 \end{itemize}
 
 Figure~\ref{fig:training-loop} illustrates the training loop.
@@ -823,6 +823,13 @@ Three patterns emerge from Table~\ref{tab:forgetting}:
 
 The forgetting analysis has direct practical implications: if you plan to deploy a single model across diverse tasks, you need a model that passes the multi-task threshold (Qwen3-4B or 9B+), not just the single-task threshold. Alternatively, you can train task-specific adapters and swap them at inference time, avoiding the multi-task pressure entirely.
 
+\paragraph{The mechanism is format collapse, not task confusion.}
+To understand \emph{why} multi-task training degrades, we classify every invalid output into three categories: \emph{format collapse} (output is not JSON at all), \emph{wrong schema} (valid JSON but wrong structure), and \emph{partial JSON} (truncated or malformed). Across the 11 models on Mixed training, the dominant failure mode varies systematically.
+
+For the most severely affected models---Yi-1.5-6B (34.5\% format collapse), Mistral-7B (33.2\%), and Llama-3.2-3B (31.1\%)---the primary failure is format collapse: the model stops producing JSON entirely, regressing to free-text responses. This is not task confusion (producing the wrong task's schema) but a more fundamental loss: the model forgets the syntactic constraint itself. In contrast, models that resist forgetting show lower format collapse rates: Qwen3-4B (11.2\%), Phi-3-mini (10.4\%), and Qwen2.5-3B (10.6\%), with their errors concentrated in wrong-schema or partial-JSON categories.
+
+The temporal pattern confirms this: Yi-1.5-6B starts Mixed training at 54\% early validity but drops to 0\% in the final 50 steps. The model initially learns JSON format, then actively \emph{unlearns} it under multi-task gradient pressure. This suggests that format knowledge is stored in shared parameters that get overwritten when the model adapts to heterogeneous task objectives.
+
 \subsection{Task-Dependent Capacity Thresholds}
 \label{sec:task-thresholds}
 
@@ -880,22 +887,61 @@ The entire training campaign cost approximately \$112 in compute and ran over 9.
 \paragraph{Per-model economics.} Training a single model on a single task (1{,}000 steps, 3 seeds) costs \$2--5 depending on model size. This enables rapid iteration: a practitioner can explore 20+ model-task combinations for under \$100. The democratization argument from Section~\ref{sec:implementation} is not merely philosophical---commodity hardware makes this research economically feasible for individual researchers and small teams.
 
 \subsection{Ablation Studies}
+\label{sec:ablation}
 
-We ablate each reward component by setting its weight to zero and retraining:
+We ablate each reward component by recomputing rewards from the 237 training runs with each penalty weight set to zero in turn. Table~\ref{tab:ablation} summarizes the reward deltas.
+
+\begin{table}[t]
+\centering
+\caption{Reward ablation: mean change in composite reward when each penalty is removed ($\Delta = R_{\text{no-penalty}} - R_{\text{baseline}}$), averaged across all tasks and seeds per model. Positive $\Delta$ means the penalty was actively reducing reward during training.}
+\label{tab:ablation}
+\begin{tabular}{@{}l r r r r@{}}
+\toprule
+\textbf{Model} & $\Delta_{\text{no-}\lambda}$ & $\Delta_{\text{no-}\mu}$ & $\Delta_{\text{no-}\gamma}$ & \textbf{Lat.\ (ms)} \\
+\midrule
+Qwen3-4B      & $+0.585$ & $+0.006$ & $+0.000$ & 5{,}852 \\
+Llama-3.1-8B  & $+0.501$ & $+0.006$ & $+0.000$ & 5{,}011 \\
+Gemma-3-12B   & $+0.446$ & $+0.004$ & $+0.000$ & 4{,}454 \\
+Mistral-7B    & $+0.387$ & $+0.005$ & $+0.000$ & 3{,}873 \\
+Yi-1.5-6B     & $+0.364$ & $+0.006$ & $+0.000$ & 3{,}642 \\
+Phi-3-mini    & $+0.344$ & $+0.005$ & $+0.000$ & 3{,}445 \\
+Ministral-8B  & $+0.337$ & $+0.004$ & $+0.000$ & 3{,}365 \\
+Gemma-2-9B    & $+0.318$ & $+0.003$ & $+0.000$ & 3{,}177 \\
+Llama-3.2-3B  & $+0.316$ & $+0.005$ & $+0.000$ & 3{,}156 \\
+Qwen2.5-3B    & $+0.309$ & $+0.003$ & $+0.000$ & 3{,}089 \\
+Llama-3.2-1B  & $+0.154$ & $+0.005$ & $+0.000$ & 1{,}540 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three findings emerge:
+
+\textbf{Latency dominates the penalty budget.} Removing $\lambda$ increases mean reward by $+0.15$ to $+0.59$, linearly correlated with inference latency ($r = 0.94$). Qwen3-4B---the slowest model at 5.9s per inference---pays the largest latency tax. In contrast, the 1B Llama model runs at 1.5s and loses only 0.15 reward points to the latency term. This confirms that $\lambda$ is the primary lever for trading off output quality against deployment speed.
+
+\textbf{Cost penalty is negligible at current weights.} Removing $\mu$ produces deltas of $+0.003$ to $+0.006$---effectively zero. At $\mu = 0.05$ with outputs averaging 30--60 tokens, the cost term contributes less than 0.01 to the reward signal. Higher $\mu$ values or longer outputs would be needed for cost to materially influence policy.
+
+\textbf{Stability penalty has zero effect.} Removing $\gamma$ produces exactly $\Delta = 0.000$ for all 11 models, because the training loop uses \texttt{stability\_samples=1}---a single sample has zero disagreement with itself. The $\gamma D$ term in the reward is structurally inert during training. This is a design limitation we did not detect until post-hoc analysis; it means the stability improvements reported in Table~\ref{tab:faithfulness-stability} arise from indirect effects of format convergence, not from the explicit penalty. Future work should use $k \geq 3$ stability samples per step to activate this mechanism, at the cost of 3$\times$ inference per training step.
+
+\subsection{Learning Curve Taxonomy}
+\label{sec:curve-taxonomy}
+
+We classify each of the 237 training runs (11 models $\times$ 6 tasks $\times$ 3 seeds, plus Gemma-3-12B partial) into three categories based on validity trajectory:
 \begin{itemize}[leftmargin=12pt]
-    \item $\kappa_{\text{faith}} = 0$: Faithfulness drops by 0.15 points.
-    \item $\gamma = 0$: Disagreement@3 increases from 0.09 to 0.22.
-    \item $\lambda = 0$: \pninetyfive latency increases by 35\%.
+    \item \textbf{Sustained} (122 runs, 51.5\%): Validity rises above 50\% and stays above 50\% through the final 50 steps. Indicates stable learning.
+    \item \textbf{Transient} (27 runs, 11.4\%): Validity rises above 50\% at some point but drops below 50\% by the end. Indicates learning followed by forgetting or instability.
+    \item \textbf{Flat} (88 runs, 37.1\%): Validity never exceeds 50\%. The model does not learn the task meaningfully.
 \end{itemize}
 
-This confirms that each component contributes meaningfully to the final policy.
+The distribution varies sharply by model: Qwen3-4B produces 15 sustained, 3 transient, and 3 flat runs; Gemma-2-9B produces 16 sustained and only 2 flat. At the other extreme, Falcon-Mamba-7B produces 18 flat runs (zero sustained), and Mistral-7B has 10 flat and only 8 sustained. The Llama family shows intermediate behavior with substantial transient fractions (3/21 runs for both 1B and 3B).
+
+\textbf{Early prediction.} A run's classification is largely predictable from the first 50 steps: runs that reach 50\% validity within 50 steps almost always end as sustained (positive predictive value $>90$\%). Runs still below 20\% validity at step 50 almost always end as flat. The transient class is the hardest to predict, as these runs initially resemble sustained ones. This suggests a practical early-stopping criterion: terminate any run still below 20\% validity at step 50, saving the remaining 950 steps of compute ($\sim$47 GPU-minutes per terminated run on an RTX 4090). Across our 88 flat runs, this would have saved approximately 69 GPU-hours.
 
 \subsection{Relationship to Companion Papers}
 \label{sec:companion}
 
 This paper establishes \emph{what} the capacity thresholds are and documents their task dependence. Two questions it does not answer: \emph{how should the community measure these thresholds reproducibly?} and \emph{why do the thresholds exist mechanistically?}
 
-Paper~III (AgentSLO-Bench) addresses the first question by formalizing the evaluation protocol into a reusable benchmark with tiered SLO deadlines and per-request measurement. Paper~IV (Training Dynamics) addresses the second by decomposing the composite reward into its competing components, building a full model~$\times$~task forgetting matrix, and classifying the 185 training curves into a taxonomy that predicts final outcomes from the first 50 steps. Papers~V and~VI will validate the framework in production deployment and propose community standards, respectively. Together, these six papers provide a complete arc: discovery (I), training (II), measurement (III), mechanism (IV), deployment (V), and standardization (VI).
+Paper~III (AgentSLO-Bench) addresses the first question by formalizing the evaluation protocol into a reusable benchmark with tiered SLO deadlines and per-request measurement. Paper~IV (Training Dynamics) addresses the second by decomposing the composite reward into its competing components, building a full model~$\times$~task forgetting matrix, and classifying the 237 training curves into a taxonomy that predicts final outcomes from the first 50 steps. Papers~V and~VI will validate the framework in production deployment and propose community standards, respectively. Together, these six papers provide a complete arc: discovery (I), training (II), measurement (III), mechanism (IV), deployment (V), and standardization (VI).
 
 \subsection{Analysis: What the Model Actually Learns}
 
@@ -918,10 +964,7 @@ The model has learned the "shape" of good outputs; further gains require more da
 We see slight overfitting risk here---reward continues improving but may not generalize.
 
 \paragraph{What the model does NOT learn.}
-Stability improvement is modest.
-The disagreement penalty helps, but the model can still produce different outputs for identical inputs at similar probability.
-True determinism would require either temperature=0 (which hurts diversity) or explicit self-consistency mechanisms (which add latency).
-This tension remains unresolved.
+The stability penalty ($\gamma D$) has zero direct effect on training, because our implementation uses a single generation sample per step (\texttt{stability\_samples=1}), yielding disagreement${}=0$ at every step (Section~\ref{sec:ablation}). Any observed stability improvements are side effects of format convergence---models that learn to produce consistent JSON structure naturally produce more consistent content. True output determinism would require either multi-sample disagreement estimation ($k \geq 3$), temperature${}=0$ decoding, or explicit self-consistency mechanisms, each with its own cost-quality tradeoff.
 
 \subsection{Reward Design Rationale}
 
@@ -941,9 +984,11 @@ $R_{\text{success}}$ & Wrong answers waste user time & Binary; task-dependent im
 $\kappa_{\text{faith}} \cdot f$ & Hallucinations cause bad decisions & Scaled 0--1; higher for grounded tasks \\
 $-\lambda L$ & Slow responses frustrate users & $\lambda \approx 0.01$--$0.1$ per 100ms \\
 $-\mu C$ & Verbose outputs cost money & $\mu \approx 0.001$--$0.01$ per token \\
-$-\gamma D$ & Inconsistent outputs confuse users & $\gamma \approx 0.1$--$0.5$ per disagreement \\
+$-\gamma D$ & Inconsistent outputs confuse users & $\gamma \approx 0.1$--$0.5$ per disagreement\textsuperscript{$\dagger$} \\
 \bottomrule
 \end{tabular}
+\par\smallskip
+{\footnotesize $\dagger$ Structurally inert in our training setup (\texttt{stability\_samples=1}); see Section~\ref{sec:ablation}.}
 \end{table}
 
 The weights encode priorities.
@@ -985,7 +1030,7 @@ Adaptive scheduling or Lagrangian methods could do this automatically, but we ha
 
 \paragraph{Reward decomposition (Paper~IV).}
 The 6-component reward contains competing signals---most notably, the latency penalty that grows with model size and consumes up to 25\% of the maximum reward for 8B models.
-Paper~IV~\citep{maloney2025dynamics} decomposes these interactions systematically, builds a full model~$\times$~task forgetting matrix, classifies the 185 training curves into a sustained/transient/flat taxonomy, and demonstrates that 50-step early prediction can save 8--12 GPU-hours per campaign by terminating hopeless runs.
+Paper~IV~\citep{maloney2025dynamics} decomposes these interactions systematically, builds a full model~$\times$~task forgetting matrix, classifies the 237 training curves into a sustained/transient/flat taxonomy, and demonstrates that 50-step early prediction can save 8--12 GPU-hours per campaign by terminating hopeless runs.
 See Section~\ref{sec:companion} for the full companion paper summary.
 
 \paragraph{PPO would probably work better.}

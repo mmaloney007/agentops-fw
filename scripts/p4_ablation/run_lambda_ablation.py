@@ -50,12 +50,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# Task name -> task file mapping
+TASK_FILES = {
+    'T1': 'tasks/t1_expanded.jsonl',
+    'T2': 'tasks/t2_expanded.jsonl',
+    'T3': 'tasks/t3_tools.jsonl',
+    'T4': 'tasks/t4_bfcl.jsonl',
+    'T5': 'tasks/t5_swebench.jsonl',
+    'Mixed': 'tasks/t1t5_balanced.jsonl',
+}
+
 # Experiment Configuration
 EXPERIMENT_CONFIG = {
     'models': [
         {
             'name': 'qwen3_4b',
-            'config_preset': 'p2_qwen3_4b',
+            'config_preset': 'p4_qwen3_4b_ablation',
             'task': 'T5',
             'description': 'Transient latency spikes'
         },
@@ -144,11 +154,15 @@ def build_command(
 
     env_str = ' '.join([f"{k}={v}" for k, v in env_vars.items()])
 
-    # Build the training command — pass seed and lam-latency via CLI args
+    # Resolve task file from task name
+    task_file = TASK_FILES[run_config['task']]
+
+    # Build the training command — pass seed, lam-latency, and tasks via CLI args
     # (env vars are also set for LAMBDA_LATENCY as belt-and-suspenders)
     cmd = (
         f"{env_str} python -m agent_stable_slo.train.grpo_train_loop "
         f"--config-preset {run_config['config_preset']} "
+        f"--tasks {task_file} "
         f"--steps {steps} "
         f"--seed {run_config['seed']} "
         f"--lam-latency {run_config['lambda_val']} "
@@ -221,7 +235,6 @@ def run_experiment(
                 result = subprocess.run(
                     cmd,
                     shell=True,
-                    cwd=output_dir,
                     capture_output=False
                 )
 

@@ -230,4 +230,55 @@ Upgraded mamba base environment for Qwen3.5 MoE support:
 
 ---
 
+## P2 Analysis Deep Dive (2026-03-02)
+
+Three new analysis scripts produced data-backed findings now integrated into the P2 paper:
+
+### 1. Learning Curve Taxonomy (`scripts/p2_analysis/learning_curves.py`)
+- Classified 237 training runs: 122 sustained (51.5%), 27 transient (11.4%), 88 flat (37.1%)
+- Per-model highlights: Qwen3-4B 15/21 sustained, Gemma-2-9B 16/18 sustained, Falcon-Mamba-7B 0/18 sustained (all flat)
+- Early stopping criterion: runs below 20% validity at step 50 almost always end flat → could save ~69 GPU-hours
+- Output: `results/p2_analysis/learning_curves_summary.json`
+
+### 2. Mixed Training Failure Analysis (`scripts/p2_analysis/mixed_failure_analysis.py`)
+- **Key finding**: Multi-task collapse is format collapse, not task confusion
+- Yi-1.5-6B: 34.5% format collapse (stops producing JSON entirely), early validity 54% → final 0%
+- Qwen3-4B: only 11.2% format collapse, errors concentrated in wrong-schema/partial categories
+- Output: `results/p2_analysis/mixed_failure_analysis.json`
+
+### 3. Reward Ablation (`scripts/p2_analysis/reward_ablation.py`)
+- **Latency dominates**: Δ(no-λ) = +0.15 (1B) to +0.59 (4B), linearly correlated with inference time (r=0.94)
+- **Cost negligible**: Δ(no-μ) = +0.003 to +0.006 across all models
+- **Stability INERT**: Δ(no-γ) = 0.000 for ALL models — `stability_samples=1` means disagreement_rate is always 0
+- Output: `results/p2_analysis/reward_ablation.json`
+
+### P2 Paper Updates (2026-03-03)
+- Expanded ablation section (§4.5) with proper data table (11 models × 4 conditions)
+- Added format collapse mechanism paragraph after forgetting analysis (§4.4)
+- Added learning curve taxonomy subsection (§4.6)
+- Fixed stability claims: "helps" → "structurally inert with stability_samples=1"
+- Added footnote to reward rationale table marking γD as inert
+- Updated run count 185 → 237 throughout
+
+---
+
+## P4 λ Ablation Progress (2026-03-02 – ongoing)
+
+### Status
+- **Yi-1.5-6B (Mixed)**: 8/12 complete, 4 remaining (running overnight)
+- **Phi-3-mini (T2)**: 0/12 complete (queued after Yi)
+- **Qwen3-4B (T5)**: 0/12 — all OOM'd with `p2_qwen3_4b` config (`load_in_4bit: false`)
+  - Created `configs/grpo/p4_qwen3_4b_ablation.yaml` with `load_in_4bit: true`, `max_prompt_len: 512`, `max_new_tokens: 64`
+  - Will re-run with `--resume` after current batch completes
+
+### Completed runs (as of 2026-03-03 07:00)
+| Model | λ | Seeds done | Steps each |
+|-------|---|------------|------------|
+| Yi-1.5-6B | 0.0 | 42, 123, 456 | 1000 |
+| Yi-1.5-6B | 0.05 | 42, 123, 456 | 1000 |
+| Yi-1.5-6B | 0.1 | 42 | 1000 |
+| Yi-1.5-6B | 0.1 | 123 | ~913 (in progress) |
+
+---
+
 ## Run Log
