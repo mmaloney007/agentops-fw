@@ -318,14 +318,14 @@
       "p50_ms": 4695.4
     },
     "qwen3.5-35b-a3b": {
-      "accuracy": 0.3113,
+      "accuracy": 0.5497,
       "s_at_slo_interactive": 0.0,
-      "s_at_slo_standard": 0.004,
-      "s_at_slo_batch": 0.3113,
+      "s_at_slo_standard": 0.003,
+      "s_at_slo_batch": 0.3703,
       "total_params_b": 0,
       "active_params_b": 0,
       "is_moe": false,
-      "p50_ms": 5112.4
+      "p50_ms": 28897.3
     }
   },
   "rank_correlations": {
