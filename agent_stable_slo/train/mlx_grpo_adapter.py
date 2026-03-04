@@ -219,33 +219,39 @@ class MLXGRPOTrainer:
         # Enable training mode (triggers stop_gradient on MoE routing indices)
         self.model.train()
 
-        n_params = sum(p.size for _, p in self.model.trainable_parameters())
-        n_total = sum(p.size for _, p in self.model.parameters())
+        trainable = nn.utils.tree_flatten(self.model.trainable_parameters())
+        lora_params = [(k, v) for k, v in trainable if "lora" in k]
+        n_params = sum(p.size for _, p in lora_params)
+        n_total = sum(p.size for _, p in nn.utils.tree_flatten(self.model.parameters()))
         print(f"[model] Trainable: {n_params:,} / {n_total:,} ({100*n_params/max(1,n_total):.2f}%)")
 
         self._ref_model = None  # KL computed against base (LoRA=0 baseline)
 
     @staticmethod
     def _patch_qwen35_sanitizer() -> None:
-        """Patch qwen3_5_moe sanitizer to drop vision_tower weights."""
-        try:
-            from mlx_lm.models.qwen3_5_moe import Model as Qwen35MoE
+        """Patch qwen3_5 and qwen3_5_moe sanitizers to drop vision_tower weights."""
+        _vl_keys = ("vision_tower", "visual")
 
-            _orig = Qwen35MoE.sanitize
-
+        def _make_patched(orig_sanitize):
             def _patched(self, weights):
                 weights = {
-                    k: v
-                    for k, v in weights.items()
-                    if "vision_tower" not in k and "visual" not in k
+                    k: v for k, v in weights.items()
+                    if not any(vk in k for vk in _vl_keys)
                 }
-                return _orig(self, weights)
+                return orig_sanitize(self, weights)
+            _patched._patched = True  # type: ignore[attr-defined]
+            return _patched
 
-            if not getattr(Qwen35MoE.sanitize, "_patched", False):
-                Qwen35MoE.sanitize = _patched
-                Qwen35MoE.sanitize._patched = True  # type: ignore[attr-defined]
-        except ImportError:
-            pass  # mlx-lm version without Qwen3.5 support
+        # Patch dense Qwen3.5
+        for module_path in ("mlx_lm.models.qwen3_5", "mlx_lm.models.qwen3_5_moe"):
+            try:
+                import importlib
+                mod = importlib.import_module(module_path)
+                cls = mod.Model
+                if not getattr(cls.sanitize, "_patched", False):
+                    cls.sanitize = _make_patched(cls.sanitize)
+            except (ImportError, AttributeError):
+                pass
 
     def _apply_lora(self) -> None:
         """Apply LoRA adapters to the last cfg.lora_layers transformer layers."""
@@ -268,6 +274,28 @@ class MLXGRPOTrainer:
         )
         return f"{schema_hint}{task_prompt}\n\nJSON:"
 
+    def _apply_chat_template(self, prompt: str) -> str:
+        """Apply chat template with thinking disabled for structured output."""
+        if not hasattr(self.tokenizer, "apply_chat_template"):
+            return prompt
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            return self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True,
+                enable_thinking=False,
+            )
+        except TypeError:
+            # Tokenizer doesn't support enable_thinking kwarg
+            return self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True,
+            )
+
+    @staticmethod
+    def _strip_thinking(text: str) -> str:
+        """Remove <think>...</think> blocks from model output."""
+        import re
+        return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
+
     def _generate_one(self, prompt: str) -> Tuple[str, float, int]:
         """Generate a single completion and return (text, latency_ms, tokens_out)."""
         t0 = time.time()
@@ -275,12 +303,14 @@ class MLXGRPOTrainer:
             temp=self.cfg.temperature if self.cfg.temperature > 0 else 0.0,
             top_p=self.cfg.top_p if self.cfg.temperature > 0 else 0.0,
         )
+        # Apply chat template (disables thinking for Qwen3.5)
+        formatted = self._apply_chat_template(prompt)
         # Switch to eval mode for generation (avoids stop_gradient in SwitchGLU)
         self.model.eval()
         response = mlx_generate(
             self.model,
             self.tokenizer,
-            prompt=prompt,
+            prompt=formatted,
             max_tokens=self.cfg.max_tokens,
             sampler=sampler,
         )
@@ -289,6 +319,8 @@ class MLXGRPOTrainer:
         lat_ms = (time.time() - t0) * 1000.0
         # mlx_generate returns the generated text string
         text = response.strip() if isinstance(response, str) else str(response).strip()
+        # Strip any thinking blocks that slipped through
+        text = self._strip_thinking(text)
         # Estimate token count from text length (rough)
         tokens_out = max(1, len(text.split()))
         return text, lat_ms, tokens_out
@@ -557,8 +589,9 @@ class MLXGRPOTrainer:
 
         # Save only LoRA parameters
         weights = {}
-        for name, param in self.model.trainable_parameters():
-            weights[name] = param
+        for name, param in nn.utils.tree_flatten(self.model.trainable_parameters()):
+            if "lora" in name:
+                weights[name] = param
         mx.savez(str(ckpt_dir / "adapters.npz"), **weights)
 
         # Save metadata

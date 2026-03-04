@@ -1,0 +1,44 @@
+[
+  {
+    "model_dir": "models/ane/llama-3.2-1b",
+    "model_name": "anemll-meta-llama-Llama-3.2-1B-Instruct-ctx1024",
+    "architecture": "llama",
+    "cpu_only": false,
+    "load_time_s": 1.1,
+    "status": "PASS",
+    "text": "2 + 2 = 4",
+    "tokens_in": 47,
+    "tokens_out": 8,
+    "ttft_ms": 1217.5,
+    "decode_ms": 229.6,
+    "total_ms": 1447.2,
+    "tok_per_sec": 30.5
+  },
+  {
+    "model_dir": "models/ane/qwen2.5-0.5b",
+    "model_name": "anemll-Qwen-Qwen2.5-0.5B-Instruct-ctx2048-monolithic",
+    "architecture": "qwen2",
+    "cpu_only": false,
+    "load_time_s": 0.4,
+    "status": "PASS",
+    "text": "2 + 2 equals 4.",
+    "tokens_in": 40,
+    "tokens_out": 9,
+    "ttft_ms": 650.2,
+    "decode_ms": 146.0,
+    "total_ms": 796.2,
+    "tok_per_sec": 54.8
+  },
+  {
+    "model_dir": "models/ane/qwen3.5-0.8b",
+    "model_name": "qwen3.5-0.8b",
+    "status": "ERROR",
+    "error": "{\n    NSLocalizedDescription = \"The model is not found at URL: models/ane/qwen3.5-0.8b/qwen_embeddings.mlmodelc -- file:///Users/maloney/Documents/GitHub/agentops-fw/\";\n}"
+  },
+  {
+    "model_dir": "models/ane/qwen3.5-deltanet",
+    "model_name": "qwen3.5-deltanet",
+    "status": "ERROR",
+    "error": "Cannot find tokenizer for models/ane/qwen3.5-deltanet"
+  }
+]

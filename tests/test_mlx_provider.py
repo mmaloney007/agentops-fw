@@ -298,11 +298,22 @@ class TestModelCache:
 
             mock_model = MagicMock()
             mock_tok = MagicMock()
+            mock_config = {"eos_token_id": 0}
 
-            mock_load = MagicMock(return_value=(mock_model, mock_tok))
+            mock_load_model = MagicMock(return_value=(mock_model, mock_config))
+            mock_load_tokenizer = MagicMock(return_value=mock_tok)
+            mock_download = MagicMock(return_value="/tmp/fake")
+            mock_utils = MagicMock(
+                load_model=mock_load_model,
+                load_tokenizer=mock_load_tokenizer,
+                _download=mock_download,
+            )
             with patch.dict(
                 "sys.modules",
-                {"mlx_lm": MagicMock(load=mock_load)},
+                {
+                    "mlx_lm": MagicMock(),
+                    "mlx_lm.utils": mock_utils,
+                },
             ):
                 from agent_stable_slo.rollout.providers import mlx_local
 

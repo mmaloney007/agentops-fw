@@ -413,7 +413,7 @@ class TestCausalMask:
         from agent_stable_slo.rollout.providers.ane_local import _make_causal_mask
         import numpy as np
 
-        mask = _make_causal_mask(length=4, start=0)
+        mask = _make_causal_mask(context_length=4)
         assert mask.shape == (1, 1, 4, 4)
         assert mask.dtype == np.float16
 
@@ -422,7 +422,7 @@ class TestCausalMask:
         from agent_stable_slo.rollout.providers.ane_local import _make_causal_mask
         import numpy as np
 
-        mask = _make_causal_mask(length=3, start=0)
+        mask = _make_causal_mask(context_length=3)
         m = mask[0, 0]  # (3, 3)
         # Diagonal and below should be 0
         assert m[0, 0] == 0.0
@@ -435,13 +435,15 @@ class TestCausalMask:
         assert m[0, 2] < -1000
         assert m[1, 2] < -1000
 
-    def test_mask_with_start_offset(self):
+    def test_mask_slice_for_single_position(self):
+        """Slicing mask[pos:pos+1, :] gives correct shape for decode."""
         from agent_stable_slo.rollout.providers.ane_local import _make_causal_mask
         import numpy as np
 
-        mask = _make_causal_mask(length=2, start=3)
-        # Shape: (1, 1, 2, 5) — total cols = start + length
-        assert mask.shape == (1, 1, 2, 5)
+        mask = _make_causal_mask(context_length=8)
+        # Slice for position 3 (single token decode)
+        single = mask[:, :, 3:4, :]
+        assert single.shape == (1, 1, 1, 8)
 
 
 # ---------------------------------------------------------------------------

@@ -38,6 +38,12 @@ MODEL_REGISTRY: Dict[str, str] = {
     "mistral-7b": "mlx-community/Mistral-7B-Instruct-v0.3-4bit",
     "ministral-8b": "mlx-community/Ministral-8B-Instruct-2410-4bit",
     "gemma-2-9b": "mlx-community/gemma-2-9b-it-4bit",
+    # Qwen3.5 dense family (Gated DeltaNet, released Mar 2 2026)
+    "qwen3.5-0.8b": "mlx-community/Qwen3.5-0.8B-4bit",
+    "qwen3.5-2b": "mlx-community/Qwen3.5-2B-4bit",
+    "qwen3.5-4b": "mlx-community/Qwen3.5-4B-4bit",
+    "qwen3.5-9b": "mlx-community/Qwen3.5-9B-4bit",
+    # Qwen3.5 MoE family
     "qwen3-30b-moe": "mlx-community/Qwen3-30B-A3B-4bit",
     "qwen3.5-35b-moe": "mlx-community/Qwen3.5-35B-A3B-4bit",
 }

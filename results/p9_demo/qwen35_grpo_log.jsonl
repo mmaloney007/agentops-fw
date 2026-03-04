@@ -1,0 +1,1 @@
+{"step": 0, "reward": 1.8103590826416016, "mean_reward": 1.766, "advantage": 0.0444, "json_valid": 1, "latency_ms": 1895.809, "tokens_out": 6, "loss": -1.460279, "step_ms": 324815.6, "group_rewards": [1.8104, 1.7216], "schema_path": "tasks/schemas/clinc_nlu_schema.json", "source_task": "/Users/maloney/Documents/GitHub/agentops-fw/tasks/clinc_en.jsonl"}

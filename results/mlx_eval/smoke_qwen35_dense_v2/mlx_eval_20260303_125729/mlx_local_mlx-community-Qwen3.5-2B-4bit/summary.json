@@ -1,0 +1,23 @@
+{
+  "json_valid": 0.0,
+  "avg_latency_ms": 780.5,
+  "avg_ttft_ms": 780.5,
+  "count": 5,
+  "model": "mlx-community/Qwen3.5-2B-4bit",
+  "provider": "mlx_local",
+  "decode_mode": "structured",
+  "tasks": [
+    "clinc_en.jsonl"
+  ],
+  "task_fingerprints": {
+    "clinc_en.jsonl": {
+      "tasks_path": "tasks/clinc_en.jsonl",
+      "sha256": "6f9eabba7394da97ef2fc45a0b6fe79a8788a96aa030ba420a45599d95ce868a",
+      "num_records": 500,
+      "schema_sha256": {
+        "tasks/schemas/clinc_nlu_schema.json": "1364305eaccb6ee066dbd4890ceda3702804faa615fb58bbbb2bdf50feaeaf1f"
+      }
+    }
+  },
+  "stability_runs": 1
+}

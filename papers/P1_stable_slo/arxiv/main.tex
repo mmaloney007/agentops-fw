@@ -153,9 +153,10 @@ The consequences are practical. An engineering team evaluates models on MMLU, se
     (68.8, 0.0) [loser]
 };
 \node[anchor=south, font=\small, text=green!50!black] at (axis cs:49.8,10) {Llama-3.2-1B};
-\node[anchor=north, font=\small, text=red!70!black] at (axis cs:73.8,-1) {Llama-3.1-8B};
-\node[anchor=north, font=\small, text=red!70!black] at (axis cs:71.0,-1) {Mistral-7B};
-\node[anchor=north, font=\small, text=red!70!black] at (axis cs:68.8,-1) {GPT-OSS-20B};
+\node[anchor=south, font=\scriptsize, text=red!70!black] at (axis cs:73.8,1.8) {Llama-3.1-8B};
+\draw[thin, red!40!black] (axis cs:73.8,0.2) -- (axis cs:73.8,1.7);
+\node[anchor=south, font=\scriptsize, text=red!70!black] at (axis cs:71.0,0.5) {Mistral-7B};
+\node[anchor=north, font=\scriptsize, text=red!70!black] at (axis cs:68.8,-1.3) {GPT-OSS-20B};
 % Horizontal line at y=0 to emphasize the cliff
 \addplot[dashed, thick, red!60!black] coordinates {(0, 0) (80, 0)};
 \node[align=center, font=\small\itshape] at (axis cs:60,12) {12 models at \textbf{exactly 0\%}};
@@ -208,10 +209,10 @@ Three things, in order of how much they will change your workflow:
     arrow/.style={-Latex, thick}
 ]
 % Traditional benchmarks column
-\node[font=\small\bfseries] at (-3, 3.2) {Traditional Benchmarks};
-\node[measured] (acc) at (-3, 2.4) {Accuracy};
-\node[measured] (know) at (-3, 1.6) {Knowledge};
-\node[measured] (reason) at (-3, 0.8) {Reasoning};
+\node[font=\small\bfseries] at (-4, 3.2) {Traditional Benchmarks};
+\node[measured] (acc) at (-4, 2.4) {Accuracy};
+\node[measured] (know) at (-4, 1.6) {Knowledge};
+\node[measured] (reason) at (-4, 0.8) {Reasoning};
 
 % What they miss column
 \node[font=\small\bfseries] at (0, 3.2) {What They Miss};
@@ -221,9 +222,9 @@ Three things, in order of how much they will change your workflow:
 \node[missed] (stab) at (0, 0) {Stability};
 
 % Success@SLO column
-\node[font=\small\bfseries] at (3.2, 3.2) {Success@SLO};
-\node[box, fill=blue!20, minimum height=2.8cm, minimum width=2.4cm] (slo) at (3.2, 1.2) {};
-\node[font=\footnotesize, align=center] at (3.2, 1.2) {Quality Gates\\$\wedge$\\Deadline\\Compliance};
+\node[font=\small\bfseries] at (4.2, 3.2) {Success@SLO};
+\node[box, fill=blue!20, minimum height=2.8cm, minimum width=2.4cm] (slo) at (4.2, 1.2) {};
+\node[font=\footnotesize, align=center] at (4.2, 1.2) {Quality Gates\\$\wedge$\\Deadline\\Compliance};
 
 % Arrows
 \draw[arrow, gray] (acc.east) -- (lat.west);
@@ -236,8 +237,8 @@ Three things, in order of how much they will change your workflow:
 \draw[arrow] (stab.east) -- (slo.west);
 
 % Legend
-\node[font=\footnotesize, align=left] at (-3, -0.7) {\textcolor{green!50!black}{Measured} by benchmarks};
-\node[font=\footnotesize, align=left] at (0, -0.7) {\textcolor{red!50!black}{Ignored} by benchmarks};
+\node[font=\footnotesize, align=left] at (-2.5, -0.7) {\textcolor{green!50!black}{\rule{0.6em}{0.6em}} Measured by benchmarks};
+\node[font=\footnotesize, align=left] at (2.5, -0.7) {\textcolor{red!50!black}{\rule{0.6em}{0.6em}} Ignored by benchmarks};
 \end{tikzpicture}
 \caption{\textbf{What benchmarks miss.} Traditional LLM benchmarks measure accuracy, knowledge, and reasoning. They ignore latency, structural validity, faithfulness, and stability---exactly the factors that determine production success. Success@SLO captures the full picture.}
 \label{fig:what-benchmarks-miss}
@@ -456,12 +457,12 @@ Operationally, this means a faster configuration is rejected if it breaks contra
 \node[process, below=1cm of tasks] (compiler) {Spec Compiler};
 
 % Backend outputs
-\node[block, below left=0.8cm and 0.3cm of compiler, minimum width=1.6cm] (native) {Native\\Schema};
-\node[block, below=0.8cm of compiler, minimum width=1.6cm] (tools) {Tool\\Schemas};
-\node[block, below right=0.8cm and 0.3cm of compiler, minimum width=1.6cm] (gbnf) {GBNF\\Grammar};
+\node[block, below left=0.9cm and 0.5cm of compiler, minimum width=1.6cm] (native) {Native\\Schema};
+\node[block, below=0.9cm of compiler, minimum width=1.6cm] (tools) {Tool\\Schemas};
+\node[block, below right=0.9cm and 0.5cm of compiler, minimum width=1.6cm] (gbnf) {GBNF\\Grammar};
 
 % Serving wrapper
-\node[process, below=2.8cm of tasks, minimum width=5.5cm] (wrapper) {Serving Wrapper (Parse $\to$ Validate $\to$ Retry)};
+\node[process, below=3.6cm of tasks, minimum width=5.5cm] (wrapper) {Serving Wrapper (Parse $\to$ Validate $\to$ Retry)};
 
 % Metric families
 \node[process, below=0.7cm of wrapper, minimum width=5.5cm] (metrics) {Metric Families (Structure $\to$ Accuracy $\to$ Faith $\to$ \ldots)};
@@ -1134,50 +1135,26 @@ No single model dominates on every dimension, but the overall picture is clear: 
 
 \subsection{Architecture Effects on Latency}
 
-Our results reveal clear patterns in how model architecture affects inference speed under structured output workloads.
+Our results reveal that architecture choices have measurable effects on inference speed under structured output workloads, though none overcome the fundamental deployment gap.
 
-\paragraph{Grouped-Query Attention (GQA) enables speed.}
-Models using GQA (Llama family, Gemma family) achieve better latency characteristics.
-At comparable sizes:
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Llama-3.2-1B} (GQA, 1B): P95 = 9,473ms, Success@SLO = 9.3\%
-    \item \textbf{Llama-3.2-3B} (GQA, 3B): P95 = 26,757ms, Success@SLO = 0.0\%
-    \item \textbf{Llama-3.1-8B} (GQA, 8B): P95 = 50,944ms, Success@SLO = 0.0\%
-\end{itemize}
+Grouped-Query Attention (GQA), used by the Llama and Gemma families, produces the best latency characteristics in our evaluation. The Llama-3.2 series illustrates the scaling curve within a single architecture: the 1B variant achieves a P95 of 9,473ms and is the only model with nonzero Success@SLO (9.3\%), the 3B variant reaches 26,757ms, and the 8B variant hits 50,944ms. GQA's reduced KV-cache overhead matters most at the small end of the size range, where every millisecond counts against a 2-second deadline.
 
-\paragraph{Sliding Window Attention (SWA) adds latency overhead.}
-Mistral models use SWA, which provides long-context quality but adds inference overhead:
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Mistral-7B-v0.3} (SWA, 7B): P95 = 56,090ms, Success@SLO = 0.0\%
-\end{itemize}
+Sliding Window Attention tells a different story. Mistral-7B-v0.3 uses SWA to maintain long-context quality, but the inference cost is visible: its P95 of 56,090ms is slower than Llama-3.1-8B (50,944ms) despite being a smaller model. The quality-latency tradeoff that SWA represents is invisible to accuracy benchmarks, which is precisely the problem.
 
-\paragraph{State Space Models (SSM) struggle with structured output.}
-Falcon-Mamba-7B uses a Mamba/SSM architecture instead of transformers:
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Falcon-Mamba-7B} (SSM, 7B): P95 = 77,052ms, Success@SLO = 0.0\%, Accuracy = 0.0\%
-\end{itemize}
-Despite theoretical advantages in sequence modeling, the SSM architecture achieves both the worst latency and worst accuracy in our evaluation, suggesting transformers remain dominant for structured output tasks.
+The most striking architectural result comes from Falcon-Mamba-7B, which uses a Mamba/SSM architecture instead of a transformer. Despite SSMs' theoretical advantages in sequence modeling---linear scaling with sequence length, no quadratic attention cost---Falcon-Mamba achieves both the worst latency (P95 = 77,052ms) and worst accuracy (0\% on tool calling) in our evaluation. Whatever advantages SSMs offer for long-sequence language modeling do not transfer to structured output generation, at least not yet.
 
-\paragraph{Mixture-of-Experts (MoE) doesn't help latency.}
-GPT-OSS-20B uses MoE with only 3.6B active parameters per token (out of 20B total):
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{GPT-OSS-20B} (MoE, 20B/3.6B active): P95 = 72,568ms, Success@SLO = 0.0\%
-\end{itemize}
-Despite low active parameter count, the routing overhead and memory footprint still result in poor latency characteristics.
+Finally, Mixture-of-Experts does not deliver the latency savings its active parameter count would suggest. GPT-OSS-20B activates only 3.6B of its 20B parameters per token, yet its P95 of 72,568ms places it among the slowest models we tested. The routing overhead, larger memory footprint, and expert-loading costs eat whatever savings come from sparse activation. We revisit this MoE latency puzzle in detail in Paper~V.
 
 \subsection{The Latency Trap}
 The most likely explanation is architectural: some model designs trade inference speed for accuracy.
 Mistral models historically use sliding window attention and other techniques that can improve quality at the cost of throughput.
 The result is a model that looks great on benchmarks and fails in production.
 
-This creates a trap for practitioners (Figure~\ref{fig:latency-trap}):
-\begin{enumerate}[leftmargin=12pt]
-    \item You evaluate models on accuracy benchmarks (MMLU, HELM, etc.)
-    \item You select the highest-scoring model that fits your memory budget
-    \item You deploy it
-    \item You discover it cannot meet your SLOs
-    \item You scramble to switch models, losing weeks of integration work
-\end{enumerate}
+This creates a trap for practitioners (Figure~\ref{fig:latency-trap}).
+You evaluate models on accuracy benchmarks---MMLU, HELM, whatever leaderboard your team trusts.
+You pick the highest-scoring option that fits your VRAM budget, spend two weeks on integration and prompt engineering, deploy with confidence, and then watch 99\% of production requests time out.
+The scramble to swap models costs another two weeks, plus whatever trust you burned with your users in the meantime.
+The benchmarks never warned you because they never measured the thing that mattered.
 
 \begin{figure}[t]
 \centering
@@ -1244,16 +1221,9 @@ Rather than shipping a single model optimized for accuracy, OpenAI implemented \
 GPT-5's architecture includes: (1) an efficient model for quick responses, (2) a deeper reasoning model for harder problems, and (3) a real-time router that decides which to use.
 Users can also manually select thinking duration: Light, Standard, Extended, or Heavy presets.
 
-This design directly addresses the deployment gap we identify:
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Quick/Instant mode} targets tight SLOs (our 2s tier)---fast answers, less reasoning
-    \item \textbf{Standard mode} balances latency and depth (our 5s tier)
-    \item \textbf{Extended/Heavy mode} allows thorough reasoning (our 10s tier)
-\end{itemize}
+This design maps directly onto the deployment gap we identify. Their Quick/Instant mode targets the tight SLO regime where our 2-second results apply---fast answers, less reasoning, accept the accuracy tradeoff. Standard mode corresponds roughly to our 5-second tier, and Extended/Heavy mode to 10 seconds and beyond.
 
-The fact that a leading lab built SLO tiers directly into their product architecture validates our core claim: \textbf{accuracy alone is insufficient}.
-OpenAI's solution is essentially Success@SLO-aware inference---spending compute only when the SLO budget allows.
-Our multi-threshold analysis (Table~\ref{tab:slo-correlation}) provides the evaluation framework such systems need: measuring performance at each tier rather than assuming one accuracy number applies everywhere.
+The fact that a leading lab built SLO tiers directly into their product architecture validates our core claim: \textbf{accuracy alone is insufficient}. OpenAI's solution is essentially Success@SLO-aware inference---spending compute only when the deadline budget allows it. Our multi-threshold analysis (Table~\ref{tab:slo-correlation}) provides the evaluation framework such systems need. A single accuracy number tells you nothing about a model that dynamically adjusts its reasoning depth; you need per-tier measurements, which is exactly what Success@SLO at multiple thresholds provides.
 
 \subsection{When Does This Matter?}
 
@@ -1298,16 +1268,12 @@ Async/batch processing & 60s+ & $<$5\% & All tasks \\
 \end{table}
 
 \paragraph{Task complexity determines SLO requirements.}
-Different tasks have structurally different latency profiles, independent of model choice:
+Different tasks have structurally different latency profiles, independent of model choice.
+Simple classification (T1) has a median of 3.9 seconds and the gap closes around 10--20s.
+Function calling and routing (T3, T4) sit at 5--6 seconds median, requiring 20--30s to close the gap.
+The picture gets worse from there: multi-hop QA (T2) has a 26-second median and needs 60 seconds or more, while code generation (T5) at 30 seconds median never fully closes the gap even at a minute-long deadline.
 
-\begin{itemize}[leftmargin=12pt]
-    \item \textbf{Simple classification (T1):} P50 = 3.9s. Gap closes at 10--20s SLO.
-    \item \textbf{Function calling (T3, T4):} P50 = 5--6s. Gap closes at 20--30s SLO.
-    \item \textbf{Complex reasoning (T2 QA):} P50 = 26s. Gap closes at 60s+ SLO.
-    \item \textbf{Code generation (T5 SWE):} P50 = 30s. Gap persists even at 60s SLO.
-\end{itemize}
-
-This means task selection is as important as model selection.
+The upshot is that task selection matters as much as model selection.
 If your application requires interactive latency (2s), you cannot deploy complex reasoning tasks regardless of model choice---not because the models are bad, but because the task inherently requires more compute.
 
 \paragraph{The agentic pipeline problem.}
@@ -1332,17 +1298,9 @@ At a 3-second per-step SLO:
 The probability of the full pipeline succeeding is roughly $0.29 \times 0.12 \times 0.08 = 0.3\%$---even though each individual task shows near-perfect accuracy.
 
 \paragraph{Implications for system design.}
-This analysis suggests three strategies for agentic systems:
+The multiplicative SLO pressure on agentic pipelines points toward several design responses. The most obvious is parallelization: independent LLM calls should run concurrently rather than sequentially, which does not reduce total compute but can dramatically improve user-perceived latency. Less obvious but equally important is non-uniform SLO budgeting---allocating more deadline headroom to complex steps like reasoning or code generation and tightening the budget on simple steps like classification and routing, rather than splitting the total budget evenly. Perhaps the most impactful strategy is a hybrid architecture: fast small models for latency-critical steps (intent classification, tool routing) paired with larger models only for steps where accuracy dominates and the SLO budget can absorb the cost.
 
-\begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Parallelize where possible.} Independent LLM calls should run concurrently, not sequentially. This doesn't reduce total compute but can dramatically improve user-perceived latency.
-
-    \item \textbf{Use task-appropriate SLO budgets.} Don't apply a uniform SLO across all agent steps. Allocate more budget to complex steps (reasoning, code generation) and less to simple steps (classification, routing).
-
-    \item \textbf{Consider hybrid architectures.} Use fast small models for latency-critical steps (intent classification, tool routing) and larger models only for steps where accuracy dominates (final answer generation in async contexts).
-\end{enumerate}
-
-The deployment gap, properly understood, isn't just about ``models are slow.''
+The deployment gap, properly understood, is not just about ``models are slow.''
 It's about the mismatch between how we evaluate models (accuracy on isolated tasks with unlimited time) and how we deploy them (chained calls with strict budgets).
 A model that's ``99\% accurate'' might be perfect for overnight batch processing, viable for backend workflows, and completely useless for interactive chat---all at the same time.
 

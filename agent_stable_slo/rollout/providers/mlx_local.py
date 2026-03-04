@@ -13,39 +13,29 @@ from typing import Any, Dict, Optional, Tuple
 _MODEL_CACHE: Dict[str, Tuple[Any, Any]] = {}
 
 
-def _patch_qwen35_sanitizer() -> None:
-    """Patch qwen3_5_moe sanitizer to drop vision_tower weights."""
-    try:
-        from mlx_lm.models.qwen3_5_moe import Model as Qwen35MoE
-
-        _orig = Qwen35MoE.sanitize
-
-        def _patched(self, weights):
-            weights = {
-                k: v
-                for k, v in weights.items()
-                if "vision_tower" not in k and "visual" not in k
-            }
-            return _orig(self, weights)
-
-        if not getattr(Qwen35MoE.sanitize, "_patched", False):
-            Qwen35MoE.sanitize = _patched
-            Qwen35MoE.sanitize._patched = True  # type: ignore[attr-defined]
-    except ImportError:
-        pass
-
-
 def _get_model_and_tokenizer(model_path: str):
-    """Load or retrieve cached model and tokenizer via mlx-lm."""
+    """Load or retrieve cached model and tokenizer via mlx-lm.
+
+    Uses strict=False for Qwen3.5 models whose weight files include
+    vision_tower parameters that the text-only architecture doesn't need.
+    """
     if model_path in _MODEL_CACHE:
         return _MODEL_CACHE[model_path]
 
-    _patch_qwen35_sanitizer()
-
-    from mlx_lm import load
+    from mlx_lm.utils import _download, load_model, load_tokenizer
 
     print(f"[mlx_local] Loading model: {model_path}")
-    model, tokenizer = load(model_path)
+    local_path = _download(model_path)
+
+    # Qwen3.5 checkpoints ship with vision_tower weights even for
+    # text-only use.  strict=False lets mlx ignore the extra keys.
+    needs_loose = "qwen3.5" in model_path.lower() or "qwen3_5" in model_path.lower()
+    model, config = load_model(local_path, strict=not needs_loose)
+
+    tokenizer = load_tokenizer(
+        local_path, eos_token_ids=config.get("eos_token_id", None)
+    )
+
     _MODEL_CACHE[model_path] = (model, tokenizer)
     return model, tokenizer
 
@@ -148,8 +138,12 @@ def generate_raw(
     # Apply chat template
     if hasattr(tokenizer, "apply_chat_template"):
         messages = [{"role": "user", "content": full_prompt}]
+        # Disable Qwen3.5 thinking mode for structured JSON output
+        # (controlled via MLX_ENABLE_THINKING env var, default off)
+        enable_think = os.getenv("MLX_ENABLE_THINKING", "0") == "1"
         formatted = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
+            messages, tokenize=False, add_generation_prompt=True,
+            enable_thinking=enable_think,
         )
     else:
         formatted = full_prompt
@@ -195,5 +189,9 @@ def generate_raw(
                     parsed[req] = []
                 elif typ == "object":
                     parsed[req] = {}
+                elif typ == "boolean":
+                    parsed[req] = False
+                elif typ in ("number", "integer"):
+                    parsed[req] = 0
 
     return raw_text, parsed, lat_ms, ttft_ms, tokens_in, tokens_out
