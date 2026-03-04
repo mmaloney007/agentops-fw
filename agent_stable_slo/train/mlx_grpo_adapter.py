@@ -450,9 +450,12 @@ class MLXGRPOTrainer:
                         "tokens_out": out["tokens_out"],
                     })
 
-                # Compute advantages (reward - group mean)
+                # Compute advantages (reward - group mean), normalised by std
                 mean_reward = sum(rewards) / max(1, len(rewards))
                 advantages = [r - mean_reward for r in rewards]
+                adv_std = (sum(a ** 2 for a in advantages) / max(1, len(advantages))) ** 0.5
+                if adv_std > 1e-8:
+                    advantages = [a / adv_std for a in advantages]
 
                 # Select best completion for logging
                 best_idx = rewards.index(max(rewards))
@@ -477,8 +480,39 @@ class MLXGRPOTrainer:
                 self._current_gen_tokens_list = gen_tokens_list
                 self._current_advantages = advantages
 
-                # Compute loss and gradients
+                # Compute loss and gradients (with clipping)
                 loss_val, grads = loss_and_grad(self.model)
+
+                # Clip gradient norm to prevent explosions in RL
+                grads, grad_norm = optim.clip_grad_norm(grads, max_norm=1.0)
+
+                # Skip NaN/Inf gradients entirely
+                mx.eval(grad_norm)
+                gn_val = float(grad_norm)
+                if math.isnan(gn_val) or math.isinf(gn_val):
+                    print(f"  [step {step}] NaN/Inf grad norm — skipping update")
+                    mx.eval(loss_val)
+                    mx.eval(self.model.parameters())
+                    step_ms = (time.time() - step_t0) * 1000.0
+                    log_rec = {
+                        "step": step,
+                        "reward": best["reward"],
+                        "mean_reward": round(mean_reward, 4),
+                        "advantage": round(advantages[best_idx], 4),
+                        "json_valid": best["json_valid"],
+                        "latency_ms": round(best["latency_ms"], 3),
+                        "tokens_out": best["tokens_out"],
+                        "loss": float("nan"),
+                        "step_ms": round(step_ms, 1),
+                        "group_rewards": [round(r, 4) for r in rewards],
+                        "schema_path": row.get("schema_path", ""),
+                        "source_task": row.get("_source_task", ""),
+                    }
+                    log_file.write(json.dumps(log_rec) + "\n")
+                    log_file.flush()
+                    step_rewards.append(mean_reward)
+                    continue
+
                 optimizer.update(self.model, grads)
 
                 # Force evaluation to free memory

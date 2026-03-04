@@ -143,17 +143,37 @@ def load_hybrid_grpo_log() -> List[Dict[str, Any]]:
     return records
 
 
-def load_mlx_grpo_log() -> List[Dict[str, Any]]:
-    """Load Qwen3.5 MLX GRPO training log if it exists."""
-    log_path = PROJECT_ROOT / "results" / "p9_demo" / "qwen35_grpo_log.jsonl"
-    if not log_path.exists():
-        return []
-    records = []
-    with open(log_path) as f:
-        for line in f:
-            if line.strip():
-                records.append(json.loads(line))
-    return records
+def load_mlx_grpo_logs() -> Dict[str, List[Dict[str, Any]]]:
+    """Load all Qwen3.5 MLX GRPO training logs (keyed by model size)."""
+    demo_dir = PROJECT_ROOT / "results" / "p9_demo"
+    logs: Dict[str, List[Dict[str, Any]]] = {}
+
+    # Look for model-specific logs: qwen35_0.8b_grpo_log.jsonl, qwen35_2b_grpo_log.jsonl
+    for log_path in sorted(demo_dir.glob("qwen35_*_grpo_log.jsonl")):
+        # Extract size label from filename (e.g. "0.8b", "2b")
+        stem = log_path.stem  # e.g. "qwen35_0.8b_grpo_log"
+        parts = stem.replace("qwen35_", "").replace("_grpo_log", "")
+        label = parts.upper()  # "0.8B", "2B"
+        records = []
+        with open(log_path) as f:
+            for line in f:
+                if line.strip():
+                    records.append(json.loads(line))
+        if records:
+            logs[label] = records
+
+    # Also check generic log (backwards compat)
+    generic = demo_dir / "qwen35_grpo_log.jsonl"
+    if generic.exists() and not logs:
+        records = []
+        with open(generic) as f:
+            for line in f:
+                if line.strip():
+                    records.append(json.loads(line))
+        if records:
+            logs["0.8B"] = records
+
+    return logs
 
 
 def model_short_name(model_id: str) -> str:
@@ -450,19 +470,23 @@ def chart_model_zoo(
 
 def chart_grpo_training(
     hybrid_log: List[Dict],
-    mlx_grpo_log: List[Dict],
+    mlx_grpo_logs: Dict[str, List[Dict]],
+    qwen25_log: List[Dict],
     out_dir: Path,
 ) -> Optional[Path]:
-    """Training curves: loss, reward, and timing breakdown."""
+    """Training curves: loss, reward, validity comparison, and timing breakdown."""
     has_hybrid = len(hybrid_log) > 1
-    has_mlx = len(mlx_grpo_log) > 1
+    has_mlx = any(len(v) > 1 for v in mlx_grpo_logs.values())
+    has_qwen25 = len(qwen25_log) > 1
 
-    if not has_hybrid and not has_mlx:
+    if not has_hybrid and not has_mlx and not has_qwen25:
         return None
 
-    n_rows = 2
-    n_cols = 2
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 10))
+    # Color cycle for model sizes
+    MLX_COLORS = {"0.8B": "#4ECDC4", "2B": "#3498DB", "MoE": "#9B59B6"}
+    QWEN25_COLOR = "#2ECC71"  # Green for Qwen2.5 (the stable one)
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("GRPO Training Dynamics on Apple Silicon", y=0.98)
 
     # Top-left: Loss curves
@@ -472,15 +496,23 @@ def chart_grpo_training(
         losses = [r["loss"] for r in hybrid_log]
         ax.plot(steps, losses, "o-", color=COLORS["ane"], linewidth=2,
                 markersize=6, label="Hybrid ANE+MLX\n(Qwen2.5-0.5B)")
-    if has_mlx:
-        steps = [r["step"] for r in mlx_grpo_log]
-        losses = [r["loss"] for r in mlx_grpo_log]
-        ax.plot(steps, losses, "s-", color=COLORS["mlx"], linewidth=2,
-                markersize=5, label="MLX-only\n(Qwen3.5-0.8B)")
+    for size, log in sorted(mlx_grpo_logs.items()):
+        if len(log) < 2:
+            continue
+        steps = [r["step"] for r in log]
+        losses = [r["loss"] for r in log]
+        c = MLX_COLORS.get(size, COLORS["mlx"])
+        ax.plot(steps, losses, "s-", color=c, linewidth=2,
+                markersize=5, label=f"Qwen3.5-{size}")
+    if has_qwen25:
+        steps = [r["step"] for r in qwen25_log]
+        losses = [r["loss"] for r in qwen25_log]
+        ax.plot(steps, losses, "^-", color=QWEN25_COLOR, linewidth=2,
+                markersize=6, label="Qwen2.5-0.5B\n(conservative)")
     ax.set_xlabel("Training Step")
     ax.set_ylabel("Policy Loss")
     ax.set_title("Loss Curves")
-    ax.legend(fontsize=9, framealpha=0.8)
+    ax.legend(fontsize=8, framealpha=0.8)
     ax.grid(True, alpha=0.3)
 
     # Top-right: Reward curves
@@ -490,25 +522,61 @@ def chart_grpo_training(
         rewards = [r["mean_reward"] for r in hybrid_log]
         ax.plot(steps, rewards, "o-", color=COLORS["ane"], linewidth=2,
                 markersize=6, label="Hybrid ANE+MLX")
-    if has_mlx:
-        steps = [r["step"] for r in mlx_grpo_log]
-        rewards = [r["mean_reward"] for r in mlx_grpo_log]
-        ax.plot(steps, rewards, "s-", color=COLORS["mlx"], linewidth=2,
-                markersize=5, label="MLX-only Qwen3.5")
+    for size, log in sorted(mlx_grpo_logs.items()):
+        if len(log) < 2:
+            continue
+        steps = [r["step"] for r in log]
+        rewards = [r["mean_reward"] for r in log]
+        c = MLX_COLORS.get(size, COLORS["mlx"])
+        ax.plot(steps, rewards, "s-", color=c, linewidth=2,
+                markersize=5, label=f"Qwen3.5-{size}")
+    if has_qwen25:
+        steps = [r["step"] for r in qwen25_log]
+        rewards = [r["mean_reward"] for r in qwen25_log]
+        ax.plot(steps, rewards, "^-", color=QWEN25_COLOR, linewidth=2,
+                markersize=6, label="Qwen2.5-0.5B")
+    ax.axhline(y=0, color="white", linestyle=":", alpha=0.3)
     ax.set_xlabel("Training Step")
     ax.set_ylabel("Mean Reward")
     ax.set_title("Reward Progression")
-    ax.legend(fontsize=9, framealpha=0.8)
+    ax.legend(fontsize=8, framealpha=0.8)
     ax.grid(True, alpha=0.3)
 
-    # Bottom-left: Timing breakdown (hybrid)
+    # Bottom-left: JSON validity comparison across all models
     ax = axes[1, 0]
-    if has_hybrid:
+    if has_mlx or has_qwen25:
+        for size, log in sorted(mlx_grpo_logs.items()):
+            if len(log) < 2:
+                continue
+            steps = [r["step"] for r in log]
+            valid = [r.get("json_valid", 0) * 100 for r in log]
+            c = MLX_COLORS.get(size, COLORS["mlx"])
+            ax.plot(steps, valid, "o-", color=c, linewidth=2,
+                    markersize=6, label=f"Qwen3.5-{size}")
+            ax.fill_between(steps, valid, alpha=0.1, color=c)
+        if has_qwen25:
+            steps = [r["step"] for r in qwen25_log]
+            valid = [r.get("json_valid", 0) * 100 for r in qwen25_log]
+            ax.plot(steps, valid, "^-", color=QWEN25_COLOR, linewidth=2.5,
+                    markersize=7, label="Qwen2.5-0.5B (conservative)")
+            ax.fill_between(steps, valid, alpha=0.15, color=QWEN25_COLOR)
+        if has_hybrid:
+            steps = [r["step"] for r in hybrid_log]
+            valid = [r.get("json_valid", 0) * 100 for r in hybrid_log]
+            ax.plot(steps, valid, "D-", color=COLORS["ane"], linewidth=2,
+                    markersize=5, label="Hybrid (Qwen2.5-0.5B)")
+        ax.axhline(y=80, color=COLORS["reward"], linestyle="--", alpha=0.4, label="80% SLO")
+        ax.set_xlabel("Training Step")
+        ax.set_ylabel("JSON Valid (%)")
+        ax.set_ylim(-5, 110)
+        ax.set_title("JSON Validity During Training")
+        ax.legend(fontsize=8, framealpha=0.8)
+        ax.grid(True, alpha=0.3)
+    elif has_hybrid:
         steps = [r["step"] for r in hybrid_log]
         ane_ms = [r["ane_rollout_ms"] for r in hybrid_log]
         mlx_ms = [r["mlx_gradient_ms"] for r in hybrid_log]
         sync_ms = [r["weight_sync_ms"] for r in hybrid_log]
-
         ax.bar(steps, ane_ms, label="ANE Rollout", color=COLORS["ane"], edgecolor="white", linewidth=0.5)
         ax.bar(steps, mlx_ms, bottom=ane_ms, label="MLX Gradient", color=COLORS["mlx"], edgecolor="white", linewidth=0.5)
         bottoms = [a + m for a, m in zip(ane_ms, mlx_ms)]
@@ -518,16 +586,8 @@ def chart_grpo_training(
         ax.set_title("Hybrid Step Timing Breakdown")
         ax.legend(fontsize=9, framealpha=0.8)
         ax.grid(axis="y", alpha=0.3)
-    elif has_mlx:
-        steps = [r["step"] for r in mlx_grpo_log]
-        step_ms = [r.get("step_ms", 0) for r in mlx_grpo_log]
-        ax.bar(steps, step_ms, color=COLORS["mlx"], edgecolor="white", linewidth=0.5)
-        ax.set_xlabel("Training Step")
-        ax.set_ylabel("Step Time (ms)")
-        ax.set_title("MLX Step Time")
-        ax.grid(axis="y", alpha=0.3)
 
-    # Bottom-right: Compute split pie chart
+    # Bottom-right: Compute split pie (hybrid) or capacity summary
     ax = axes[1, 1]
     if has_hybrid:
         total_ane = sum(r["ane_rollout_ms"] for r in hybrid_log)
@@ -550,13 +610,25 @@ def chart_grpo_training(
             )
             ax.set_title("Compute Split (Hybrid Training)")
     elif has_mlx:
-        # Show reward distribution for MLX
-        rewards = [r["mean_reward"] for r in mlx_grpo_log]
-        ax.hist(rewards, bins=15, color=COLORS["mlx"], edgecolor="white", linewidth=0.5)
-        ax.set_xlabel("Mean Reward")
-        ax.set_ylabel("Frequency")
-        ax.set_title("MLX GRPO Reward Distribution")
-        ax.grid(axis="y", alpha=0.3)
+        # Capacity summary: valid steps / total for each model
+        ax.axis("off")
+        lines = ["GRPO Capacity Threshold", "=" * 35, ""]
+        for size, log in sorted(mlx_grpo_logs.items()):
+            n_valid = sum(1 for r in log if r.get("json_valid", 0))
+            n_total = len(log)
+            pct = 100 * n_valid / n_total if n_total else 0
+            first_r = log[0]["mean_reward"] if log else 0
+            last_r = log[-1]["mean_reward"] if log else 0
+            lines.append(f"Qwen3.5-{size}:")
+            lines.append(f"  Valid steps: {n_valid}/{n_total} ({pct:.0f}%)")
+            lines.append(f"  Reward: {first_r:.2f} -> {last_r:.2f}")
+            lines.append("")
+        lines.append("Larger models maintain JSON")
+        lines.append("validity longer under GRPO.")
+        ax.text(0.05, 0.95, "\n".join(lines), transform=ax.transAxes,
+                fontsize=10, verticalalignment="top", fontfamily="monospace",
+                bbox=dict(boxstyle="round,pad=0.5", facecolor="#16213e",
+                         edgecolor=COLORS["accent"], alpha=0.9))
 
     plt.tight_layout()
     path = out_dir / "4_grpo_training.png"
@@ -575,7 +647,8 @@ def chart_dashboard(
     ane_results: List[Dict],
     mlx_results: Dict[str, Dict],
     hybrid_log: List[Dict],
-    mlx_grpo_log: List[Dict],
+    mlx_grpo_logs: Dict[str, List[Dict]],
+    qwen25_log: List[Dict],
     out_dir: Path,
 ) -> Optional[Path]:
     """Single-page dashboard combining key results."""
@@ -684,7 +757,10 @@ def chart_dashboard(
 
     # --- Row 2: Training curves ---
     has_hybrid = len(hybrid_log) > 1
-    has_mlx_grpo = len(mlx_grpo_log) > 1
+    has_mlx_grpo = any(len(v) > 1 for v in mlx_grpo_logs.values())
+    has_qwen25 = len(qwen25_log) > 1
+    MLX_COLORS = {"0.8B": "#4ECDC4", "2B": "#3498DB", "MoE": "#9B59B6"}
+    QWEN25_COLOR = "#2ECC71"
 
     # Loss
     ax = fig.add_subplot(gs[1, 0:2])
@@ -692,10 +768,17 @@ def chart_dashboard(
         s = [r["step"] for r in hybrid_log]
         l = [r["loss"] for r in hybrid_log]
         ax.plot(s, l, "o-", color=COLORS["ane"], linewidth=2, markersize=5, label="Hybrid ANE+MLX (Qwen2.5-0.5B)")
-    if has_mlx_grpo:
-        s = [r["step"] for r in mlx_grpo_log]
-        l = [r["loss"] for r in mlx_grpo_log]
-        ax.plot(s, l, "s-", color=COLORS["mlx"], linewidth=2, markersize=4, label="MLX GRPO (Qwen3.5-0.8B)")
+    for size, log in sorted(mlx_grpo_logs.items()):
+        if len(log) < 2:
+            continue
+        s = [r["step"] for r in log]
+        l = [r["loss"] for r in log]
+        c = MLX_COLORS.get(size, COLORS["mlx"])
+        ax.plot(s, l, "s-", color=c, linewidth=2, markersize=4, label=f"Qwen3.5-{size}")
+    if has_qwen25:
+        s = [r["step"] for r in qwen25_log]
+        l = [r["loss"] for r in qwen25_log]
+        ax.plot(s, l, "^-", color=QWEN25_COLOR, linewidth=2, markersize=5, label="Qwen2.5-0.5B")
     ax.set_xlabel("Step")
     ax.set_ylabel("Loss")
     ax.set_title("GRPO Policy Loss", fontsize=10)
@@ -708,10 +791,17 @@ def chart_dashboard(
         s = [r["step"] for r in hybrid_log]
         rew = [r["mean_reward"] for r in hybrid_log]
         ax.plot(s, rew, "o-", color=COLORS["ane"], linewidth=2, markersize=5, label="Hybrid ANE+MLX")
-    if has_mlx_grpo:
-        s = [r["step"] for r in mlx_grpo_log]
-        rew = [r["mean_reward"] for r in mlx_grpo_log]
-        ax.plot(s, rew, "s-", color=COLORS["mlx"], linewidth=2, markersize=4, label="MLX GRPO Qwen3.5")
+    for size, log in sorted(mlx_grpo_logs.items()):
+        if len(log) < 2:
+            continue
+        s = [r["step"] for r in log]
+        rew = [r["mean_reward"] for r in log]
+        c = MLX_COLORS.get(size, COLORS["mlx"])
+        ax.plot(s, rew, "s-", color=c, linewidth=2, markersize=4, label=f"Qwen3.5-{size}")
+    if has_qwen25:
+        s = [r["step"] for r in qwen25_log]
+        rew = [r["mean_reward"] for r in qwen25_log]
+        ax.plot(s, rew, "^-", color=QWEN25_COLOR, linewidth=2, markersize=5, label="Qwen2.5-0.5B")
     ax.set_xlabel("Step")
     ax.set_ylabel("Mean Reward")
     ax.set_title("Reward Progression", fontsize=10)
@@ -777,12 +867,26 @@ def chart_dashboard(
         stats_lines.append(f"  MLX gradient: {avg_mlx:.0f}ms avg")
         stats_lines.append(f"  Total: {total_time/1000:.1f}s")
 
-    if has_mlx_grpo:
-        first_r = mlx_grpo_log[0]["mean_reward"]
-        last_r = mlx_grpo_log[-1]["mean_reward"]
+    if has_qwen25:
+        n_valid = sum(1 for r in qwen25_log if r.get("json_valid", 0))
+        first_r = qwen25_log[0]["mean_reward"]
+        last_r = qwen25_log[-1]["mean_reward"]
         stats_lines.append("")
-        stats_lines.append(f"Qwen3.5 GRPO ({len(mlx_grpo_log)} steps):")
-        stats_lines.append(f"  Reward: {first_r:.3f} -> {last_r:.3f}")
+        stats_lines.append(f"Qwen2.5-0.5B GRPO ({len(qwen25_log)} steps):")
+        stats_lines.append(f"  Valid: {n_valid}/{len(qwen25_log)}, "
+                         f"rew {first_r:.2f}->{last_r:.2f}")
+
+    if has_mlx_grpo:
+        stats_lines.append("")
+        stats_lines.append("Qwen3.5 GRPO (unstable):")
+        for size, log in sorted(mlx_grpo_logs.items()):
+            if not log:
+                continue
+            n_valid = sum(1 for r in log if r.get("json_valid", 0))
+            first_r = log[0]["mean_reward"]
+            last_r = log[-1]["mean_reward"]
+            stats_lines.append(f"  {size}: {n_valid}/{len(log)} valid, "
+                             f"rew {first_r:.2f}->{last_r:.2f}")
 
     stats_text = "\n".join(stats_lines)
     ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
@@ -856,13 +960,30 @@ def run_live_ane_demo(out_dir: Path) -> List[Dict]:
 
 
 # ---------------------------------------------------------------------------
-# Live demo: Qwen3.5 MLX GRPO training
+# Live demo: Qwen2.5-0.5B MLX GRPO training (conservative, stable)
 # ---------------------------------------------------------------------------
 
 
-def run_qwen35_grpo(out_dir: Path, num_steps: int = 20) -> List[Dict]:
-    """Run Qwen3.5-0.8B GRPO training on MLX and return log records."""
-    print(f"\n  Running Qwen3.5-0.8B MLX GRPO ({num_steps} steps)...")
+def load_qwen25_grpo_log() -> List[Dict[str, Any]]:
+    """Load Qwen2.5-0.5B MLX GRPO training log if it exists."""
+    log_path = PROJECT_ROOT / "results" / "p9_demo" / "qwen25_0.5b_grpo_log.jsonl"
+    if not log_path.exists():
+        return []
+    records = []
+    with open(log_path) as f:
+        for line in f:
+            if line.strip():
+                records.append(json.loads(line))
+    return records
+
+
+def run_qwen25_grpo(
+    out_dir: Path,
+    num_steps: int = 25,
+) -> List[Dict]:
+    """Run Qwen2.5-0.5B GRPO training with conservative settings."""
+    model_id = "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
+    print(f"\n  Running Qwen2.5-0.5B MLX GRPO ({num_steps} steps, conservative)...")
 
     task_file = str(PROJECT_ROOT / "tasks" / "clinc_en.jsonl")
     if not Path(task_file).exists():
@@ -876,20 +997,93 @@ def run_qwen35_grpo(out_dir: Path, num_steps: int = 20) -> List[Dict]:
         print(f"    Import error: {e}")
         return []
 
-    log_path = out_dir / "qwen35_grpo_log.jsonl"
+    log_path = out_dir / "qwen25_0.5b_grpo_log.jsonl"
 
     cfg = MLXTrainConfig(
-        base_model="mlx-community/Qwen3.5-0.8B-4bit",
+        base_model=model_id,
+        tasks=[task_file],
+        num_steps=num_steps,
+        group_size=4,
+        max_tokens=128,
+        lora_rank=8,
+        lora_layers=8,
+        learning_rate=1e-5,
+        beta=0.3,
+        checkpoint_every=0,
+        eval_interval=5,
+        seed=42,
+        adapter_path=str(out_dir / "qwen25_0.5b_adapter"),
+        log_path=str(log_path),
+    )
+
+    try:
+        trainer = MLXGRPOTrainer(cfg)
+        trainer.run()
+    except Exception as e:
+        print(f"    Training error: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+    # Read back the log
+    records = []
+    if log_path.exists():
+        with open(log_path) as f:
+            for line in f:
+                if line.strip():
+                    records.append(json.loads(line))
+
+    print(f"    Completed {len(records)} steps.")
+    if records:
+        n_valid = sum(1 for r in records if r.get("json_valid", 0))
+        print(f"    Valid: {n_valid}/{len(records)} ({100*n_valid/len(records):.0f}%)")
+        print(f"    Reward: {records[0]['mean_reward']:.3f} -> {records[-1]['mean_reward']:.3f}")
+
+    return records
+
+
+# ---------------------------------------------------------------------------
+# Live demo: Qwen3.5 MLX GRPO training
+# ---------------------------------------------------------------------------
+
+
+def run_qwen35_grpo(
+    out_dir: Path,
+    num_steps: int = 20,
+    qwen35_model: str = "mlx-community/Qwen3.5-2B-4bit",
+) -> List[Dict]:
+    """Run Qwen3.5 GRPO training on MLX and return log records."""
+    short_name = qwen35_model.split("/")[-1]
+    print(f"\n  Running {short_name} MLX GRPO ({num_steps} steps)...")
+
+    task_file = str(PROJECT_ROOT / "tasks" / "clinc_en.jsonl")
+    if not Path(task_file).exists():
+        print("    Task file not found, skipping.")
+        return []
+
+    try:
+        from agent_stable_slo.train.mlx_grpo_adapter import MLXGRPOTrainer
+        from agent_stable_slo.train.mlx_train_config import MLXTrainConfig
+    except ImportError as e:
+        print(f"    Import error: {e}")
+        return []
+
+    # Derive size label for filename
+    size_label = "2b" if "2B" in qwen35_model.upper() or "2b" in qwen35_model else "0.8b"
+    log_path = out_dir / f"qwen35_{size_label}_grpo_log.jsonl"
+
+    cfg = MLXTrainConfig(
+        base_model=qwen35_model,
         tasks=[task_file],
         num_steps=num_steps,
         group_size=2,
-        max_tokens=64,
+        max_tokens=96,
         lora_rank=4,
         lora_layers=4,
-        learning_rate=1e-4,
+        learning_rate=5e-5,
         checkpoint_every=0,
         seed=42,
-        adapter_path=str(out_dir / "qwen35_adapter"),
+        adapter_path=str(out_dir / f"qwen35_{size_label}_adapter"),
         log_path=str(log_path),
     )
 
@@ -936,6 +1130,12 @@ def main():
                     help="Skip live ANE demo")
     ap.add_argument("--grpo-steps", type=int, default=20,
                     help="Number of GRPO training steps (default: 20)")
+    ap.add_argument("--grpo-model", default="mlx-community/Qwen3.5-2B-4bit",
+                    help="MLX model for Qwen3.5 GRPO training (default: Qwen3.5-2B-4bit)")
+    ap.add_argument("--run-qwen25", action="store_true",
+                    help="Run Qwen2.5-0.5B GRPO (conservative settings, recommended)")
+    ap.add_argument("--qwen25-steps", type=int, default=25,
+                    help="Steps for Qwen2.5-0.5B GRPO (default: 25)")
     args = ap.parse_args()
 
     apply_dark_style()
@@ -954,11 +1154,14 @@ def main():
     ane_results = load_ane_smoke_results()
     mlx_results = load_mlx_eval_results()
     hybrid_log = load_hybrid_grpo_log()
-    mlx_grpo_log = load_mlx_grpo_log()
+    mlx_grpo_logs = load_mlx_grpo_logs()
+    qwen25_log = load_qwen25_grpo_log()
     print(f"  ANE models: {len(ane_results)}")
     print(f"  MLX models: {len(mlx_results)}")
     print(f"  Hybrid GRPO steps: {len(hybrid_log)}")
-    print(f"  Qwen3.5 GRPO steps: {len(mlx_grpo_log)}")
+    print(f"  Qwen2.5-0.5B GRPO steps: {len(qwen25_log)}")
+    for size, log in sorted(mlx_grpo_logs.items()):
+        print(f"  Qwen3.5-{size} GRPO steps: {len(log)}")
 
     # --- Live ANE demo ---
     if not args.charts_only and not args.skip_ane:
@@ -967,12 +1170,26 @@ def main():
     else:
         print("\n[2/6] Skipping live ANE demo.")
 
+    # --- Qwen2.5-0.5B GRPO training (conservative) ---
+    # --run-qwen25 overrides --skip-grpo for this model
+    if not args.charts_only and (args.run_qwen25 or (not args.skip_grpo and not qwen25_log)):
+        if args.run_qwen25 or not qwen25_log:
+            print(f"\n[2.5/6] Qwen2.5-0.5B GRPO ({args.qwen25_steps} steps, conservative)...")
+            qwen25_log = run_qwen25_grpo(out_dir, num_steps=args.qwen25_steps)
+    elif qwen25_log:
+        n_valid = sum(1 for r in qwen25_log if r.get("json_valid", 0))
+        print(f"\n[2.5/6] Qwen2.5-0.5B GRPO: using existing {len(qwen25_log)}-step log ({n_valid} valid).")
+
     # --- Qwen3.5 GRPO training ---
-    if not args.charts_only and not args.skip_grpo and not mlx_grpo_log:
+    if not args.charts_only and not args.skip_grpo and not mlx_grpo_logs:
         print(f"\n[3/6] Qwen3.5 GRPO training ({args.grpo_steps} steps)...")
-        mlx_grpo_log = run_qwen35_grpo(out_dir, num_steps=args.grpo_steps)
-    elif mlx_grpo_log:
-        print(f"\n[3/6] Qwen3.5 GRPO: using existing {len(mlx_grpo_log)}-step log.")
+        new_log = run_qwen35_grpo(out_dir, num_steps=args.grpo_steps, qwen35_model=args.grpo_model)
+        if new_log:
+            size = "2B" if "2B" in args.grpo_model.upper() or "2b" in args.grpo_model else "0.8B"
+            mlx_grpo_logs[size] = new_log
+    elif mlx_grpo_logs:
+        total = sum(len(v) for v in mlx_grpo_logs.values())
+        print(f"\n[3/6] Qwen3.5 GRPO: using existing logs ({total} total steps across {len(mlx_grpo_logs)} models).")
     else:
         print("\n[3/6] Skipping Qwen3.5 GRPO training.")
 
@@ -989,11 +1206,11 @@ def main():
     c = chart_model_zoo(mlx_results, ane_results, out_dir)
     if c: charts.append(c)
 
-    c = chart_grpo_training(hybrid_log, mlx_grpo_log, out_dir)
+    c = chart_grpo_training(hybrid_log, mlx_grpo_logs, qwen25_log, out_dir)
     if c: charts.append(c)
 
     print("\n[5/6] Generating dashboard...")
-    c = chart_dashboard(ane_results, mlx_results, hybrid_log, mlx_grpo_log, out_dir)
+    c = chart_dashboard(ane_results, mlx_results, hybrid_log, mlx_grpo_logs, qwen25_log, out_dir)
     if c: charts.append(c)
 
     # --- Summary ---

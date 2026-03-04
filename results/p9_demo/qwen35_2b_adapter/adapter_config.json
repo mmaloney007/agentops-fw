@@ -1,0 +1,8 @@
+{
+  "step": 14,
+  "base_model": "mlx-community/Qwen3.5-2B-4bit",
+  "lora_rank": 4,
+  "lora_layers": 2,
+  "config_version": "0.1.0",
+  "saved_at": 1772654006.2990358
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Intent",
+    "latency_ms": 344.1431522369385,
+    "ttft_ms": 146.75092697143555,
+    "valid": true,
+    "parsed": {
+      "intent": "book_flight",
+      "confidence": 1
+    },
+    "raw": "{\"intent\": \"book_flight\", \"confidence\": 1}"
+  },
+  {
+    "name": "QA",
+    "latency_ms": 207.40818977355957,
+    "ttft_ms": 60.430049896240234,
+    "valid": true,
+    "parsed": {
+      "answer": "Paris"
+    },
+    "raw": "{\n  \"answer\": \"Paris\"\n}"
+  },
+  {
+    "name": "Tool",
+    "latency_ms": 835.2189064025879,
+    "ttft_ms": 146.73399925231934,
+    "valid": true,
+    "parsed": {
+      "tool_name": "OpenWeatherMap",
+      "arguments": {
+        "city": "New York",
+        "api_key": "your_api_key_here"
+      }
+    },
+    "raw": "{\n  \"tool_name\": \"OpenWeatherMap\",\n  \"arguments\": {\n    \"city\": \"New York\",\n    \"api_key\": \"your_api_key_here\"\n  }\n}"
+  },
+  {
+    "name": "Math",
+    "latency_ms": 257.2758197784424,
+    "ttft_ms": 123.71706962585449,
+    "valid": true,
+    "parsed": {
+      "answer": "345"
+    },
+    "raw": "{\"answer\": \"345\"}"
+  },
+  {
+    "name": "Code",
+    "latency_ms": 439.7718906402588,
+    "ttft_ms": 164.60013389587402,
+    "valid": true,
+    "parsed": {
+      "code": "0",
+      "language": "Python"
+    },
+    "raw": "{\n  \"code\": \"0\",\n  \"language\": \"Python\"\n}"
+  }
+]
