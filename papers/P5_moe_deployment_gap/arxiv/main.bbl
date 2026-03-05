@@ -29,7 +29,7 @@ William Fedus, Barret Zoph, and Noam Shazeer.
 \bibitem[Hannun et~al.(2023)Hannun, Digani, Katharopoulos, and
   Collobert]{hannun2023mlx}
 Awni Hannun, Jagrit Digani, Angelos Katharopoulos, and Ronan Collobert.
-\newblock {MLX}: Efficient and flexible machine learning on {Apple} silicon.
+\newblock {MLX}: An array framework for {Apple} silicon.
 \newblock \url{https://github.com/ml-explore/mlx}, 2023.
 \newblock Apple's machine learning framework for unified memory architectures.
 
@@ -53,12 +53,12 @@ Stefan Larson et~al.
   prediction.
 \newblock In \emph{Proceedings of EMNLP-IJCNLP}, 2019.
 
-\bibitem[Lepikhin et~al.(2021)Lepikhin, Lee, Xu, Chen, Firat, Huang, Krikun,
-  Shazeer, and Chen]{lepikhin2021gshard}
+\bibitem[Lepikhin et~al.(2020)Lepikhin, Lee, Xu, Chen, Firat, Huang, Krikun,
+  Shazeer, and Chen]{lepikhin2020gshard}
 Dmitry Lepikhin, HyoukJoong Lee, Yuanzhong Xu, Dehao Chen, Orhan Firat, Yanping
   Huang, Maxim Krikun, Noam Shazeer, and Zhifeng Chen.
 \newblock {GShard}: Scaling giant models with conditional computation and
-  automatic sharding, 2021.
+  automatic sharding, 2020.
 
 \bibitem[Maloney(2025{\natexlab{a}})]{maloney2025agentslobench}
 V.~Michael Maloney.
@@ -127,7 +127,8 @@ Noam Shazeer, Azalia Mirhoseini, Krzysztof Maziarz, Andy Davis, Quoc~V. Le,
 
 \bibitem[Xue et~al.(2024)Xue, Fu, Lu, Mai, and Marina]{xue2024moeinf}
 Leyang Xue, Yao Fu, Zhan Lu, Luo Mai, and Mahesh Marina.
-\newblock {MoE-Infinity}: Offloading-efficient {MoE} model serving, 2024.
+\newblock {MoE-Infinity}: Efficient {MoE} inference on personal machines with
+  sparsity-aware expert cache, 2024.
 
 \bibitem[Yang et~al.(2018)]{yang2018hotpotqa}
 Zhilin Yang et~al.
@@ -137,7 +138,7 @@ Zhilin Yang et~al.
 
 \bibitem[Yi et~al.(2023)Yi, Guo, Wei, Zhou, Wang, and Xu]{yi2023edgemoe}
 Rongjie Yi, Liwei Guo, Shiyun Wei, Ao~Zhou, Shangguang Wang, and Mengwei Xu.
-\newblock {EdgeMoE}: Fast on-device inference of {MoE}-based large language
-  models, 2023.
+\newblock {EdgeMoE}: Empowering sparse large language models on mobile devices,
+  2023.
 
 \end{thebibliography}

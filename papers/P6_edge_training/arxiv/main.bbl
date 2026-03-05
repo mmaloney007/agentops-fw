@@ -8,8 +8,7 @@
 \bibitem[{Apple ML Explore}(2024)]{mlxlm2024}
 {Apple ML Explore}.
 \newblock {mlx-lm}: Language models on {Apple} silicon via {MLX}.
-\newblock
-  \url{https://github.com/ml-explore/mlx-examples/tree/main/llms/mlx_lm}, 2024.
+\newblock \url{https://github.com/ml-explore/mlx-lm}, 2024.
 \newblock LoRA and QLoRA fine-tuning for MLX.
 
 \bibitem[Dao(2023)]{dao2023flashattention2}
@@ -33,7 +32,7 @@ Elias Frantar, Saleh Ashkboos, Torsten Hoefler, and Dan Alistarh.
 \bibitem[Hannun et~al.(2023)Hannun, Digani, Katharopoulos, and
   Collobert]{hannun2023mlx}
 Awni Hannun, Jagrit Digani, Angelos Katharopoulos, and Ronan Collobert.
-\newblock {MLX}: Efficient and flexible machine learning on {Apple} silicon.
+\newblock {MLX}: An array framework for {Apple} silicon.
 \newblock \url{https://github.com/ml-explore/mlx}, 2023.
 \newblock Apple MLX framework for on-device ML.
 

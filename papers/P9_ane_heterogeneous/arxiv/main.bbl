@@ -1,0 +1,96 @@
+\begin{thebibliography}{12}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[{Anemll Contributors}(2024)]{anemll2024}
+{Anemll Contributors}.
+\newblock Anemll: Run {LLMs} on apple neural engine.
+\newblock \url{https://github.com/anemll/anemll}, 2024.
+\newblock Open-source CoreML conversion for Neural Engine LLM inference.
+
+\bibitem[{Apple Inc.}(2017)]{apple2023coremltools}
+{Apple Inc.}
+\newblock \texttt{coremltools}: Convert models to {Core ML}.
+\newblock \url{https://github.com/apple/coremltools}, 2017.
+\newblock Python package for CoreML model conversion and quantization.
+
+\bibitem[{Apple Inc.}(2023)]{apple2022m2max}
+{Apple Inc.}
+\newblock Apple unveils {M2 Pro} and {M2 Max}: Next-generation chips for
+  next-level workflows.
+\newblock
+  \url{https://www.apple.com/newsroom/2023/01/apple-unveils-m2-pro-and-m2-max-next-generation-chips-for-next-level-workflows/},
+  2023.
+\newblock 16-core Neural Engine, 15.8 TOPS.
+
+\bibitem[Hannun et~al.(2023)Hannun, Digani, Katharopoulos, and
+  Collobert]{hannun2023mlx}
+Awni Hannun, Jagrit Digani, Angelos Katharopoulos, and Ronan Collobert.
+\newblock {MLX}: An array framework for apple silicon.
+\newblock \url{https://github.com/ml-explore/mlx}, 2023.
+\newblock Apple's machine learning framework exploiting unified memory.
+
+\bibitem[Larson et~al.(2019)Larson, Mahendran, Peper, Clarke, Lee, Hill,
+  Kummerfeld, Leach, Laurenzano, Tang, and Mars]{larson2019clinc150}
+Stefan Larson, Anish Mahendran, Joseph~J. Peper, Christopher Clarke, Andrew
+  Lee, Parker Hill, Jonathan~K. Kummerfeld, Kevin Leach, Michael~A. Laurenzano,
+  Lingjia Tang, and Jason Mars.
+\newblock An evaluation dataset for intent classification and out-of-scope
+  prediction.
+\newblock In \emph{Proceedings of the 2019 Conference on Empirical Methods in
+  Natural Language Processing (EMNLP)}, 2019.
+
+\bibitem[Maloney(2025{\natexlab{a}})]{maloney2025agentslobench}
+V.~Michael Maloney.
+\newblock {AgentSLO-Bench}: An {SLO}-aware benchmark for {LLM} agent
+  deployment.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{a}}.
+\newblock Paper~III of this series.
+
+\bibitem[Maloney(2025{\natexlab{b}})]{maloney2025capacity}
+V.~Michael Maloney.
+\newblock Capacity thresholds in schema-aware training: Why small models can't
+  close the deployment gap.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{b}}.
+\newblock Paper~II of this series.
+
+\bibitem[Maloney(2025{\natexlab{c}})]{maloney2025deploymentgap}
+V.~Michael Maloney.
+\newblock The deployment gap: Why benchmark accuracy fails to predict
+  production readiness.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{c}}.
+\newblock Paper~I of this series.
+
+\bibitem[Maloney(2025{\natexlab{d}})]{maloney2025dynamics}
+V.~Michael Maloney.
+\newblock Training dynamics of schema-aware reinforcement learning for {LLM}
+  agents: Reward decomposition, forgetting, and early prediction.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{d}}.
+\newblock Paper~IV of this series.
+
+\bibitem[Maloney(2025{\natexlab{e}})]{maloney2025moe}
+V.~Michael Maloney.
+\newblock Active parameters, not total parameters: {MoE} models and the
+  deployment gap.
+\newblock \emph{arXiv preprint}, 2025{\natexlab{e}}.
+\newblock Paper~V of this series.
+
+\bibitem[Schulman et~al.(2017)Schulman, Wolski, Dhariwal, Radford, and
+  Klimov]{schulman2017ppo}
+John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov.
+\newblock Proximal policy optimization algorithms.
+\newblock \emph{arXiv preprint arXiv:1707.06347}, 2017.
+
+\bibitem[Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Bi, Zhang, Zhang, Li, Wu,
+  and Guo]{grpo}
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei
+  Zhang, Mingchuan Zhang, Y.K. Li, Y.~Wu, and Daya Guo.
+\newblock {DeepSeekMath}: Pushing the limits of mathematical reasoning in open
+  language models.
+\newblock \emph{arXiv preprint arXiv:2402.03300}, 2024.
+\newblock Introduces GRPO (Group Relative Policy Optimization).
+
+\end{thebibliography}

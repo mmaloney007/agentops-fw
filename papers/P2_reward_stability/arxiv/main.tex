@@ -62,13 +62,13 @@ Neuralift; University of New Hampshire \\
 \begin{document}
 \maketitle
 \begin{center}
-\textit{Preprint. Work in progress.}
+\textit{Preprint.  Work in progress.}
 \end{center}
 
 \begin{abstract}
-Paper~I showed that accuracy benchmarks fail to predict deployment success. This paper asks the obvious follow-up: can we train models to close that gap?
+Paper~I showed that accuracy benchmarks fail to predict deployment success.  This paper asks the obvious follow-up: can we train models to close that gap?
 
-We ran 1{,}000 steps of GRPO training on 11 models (1B--12B) from 7 vendors across 6 task types, with 2 additional models blocked by single-GPU VRAM constraints, using a composite reward that penalizes exactly what production systems care about: broken JSON, wrong answers, hallucinations, and slow responses. The capacity threshold for learning structured output turns out to be \emph{task-dependent}. Simple tasks (intent classification, function routing) can be learned by models as small as 1B. Complex tasks (tool calling, code patching) require progressively larger models. Multi-task training introduces catastrophic forgetting, with smaller models losing capabilities faster.
+We ran 1{,}000 steps of GRPO training on 11 models (1B--12B) from 7 vendors across 6 task types, with 2 additional models blocked by single-GPU VRAM constraints.  The composite reward penalizes exactly what production systems care about: broken JSON, wrong answers, hallucinations, and slow responses.  The capacity threshold for learning structured output turns out to be \emph{task-dependent}.  Simple tasks (intent classification, function routing) can be learned by models as small as 1B. Complex tasks (tool calling, code patching) require progressively larger models.  Multi-task training introduces catastrophic forgetting, with smaller models losing capabilities faster.
 
 \begin{center}
 \small
@@ -88,29 +88,29 @@ Llama-3.1-8B & 8B & Meta & 100 & 100 & 0 & 100 & 0 & 45 \\
 \textbf{Gemma-2-9B} & \textbf{9B} & Google & 100 & 100 & \textbf{100} & 100 & \textbf{44} & \textbf{82} \\
 \textbf{Gemma-3-12B} & \textbf{12B} & Google & 100 & --- & \textbf{100} & 100 & --- & --- \\
 \bottomrule
-\multicolumn{9}{l}{\footnotesize Last-50 validity (\%) at 1{,}000 steps, mean across 3 seeds. Bold = above task-specific threshold.}\\
-\multicolumn{9}{l}{\footnotesize Falcon-Mamba-7B and GPT-OSS-20B blocked by 24GB VRAM. Gemma-3-12B partial (8/18 runs).}
+\multicolumn{9}{l}{\footnotesize Last-50 validity (\%) at 1{,}000 steps, mean across 3 seeds.  Bold = above task-specific threshold.}\\
+\multicolumn{9}{l}{\footnotesize Falcon-Mamba-7B and GPT-OSS-20B blocked by 24GB VRAM.  Gemma-3-12B partial (8/18 runs).}
 \end{tabular}
 \end{center}
 
-But there is no single threshold. T1 (intent) and T4 (function routing) are universally learnable---even 1B models achieve near-perfect validity. T3 (tool calling) and T5 (code patching) are hard: only Qwen3-4B and 9B+ models sustain learning. Most revealing is the Mixed condition: multi-task training causes catastrophic forgetting in smaller models (Yi-1.5-6B drops from 98\% on T1 to 0\% on Mixed), while Qwen3-4B and Gemma-2-9B sustain 82--90\%.
+But there is no single threshold.  T1 (intent) and T4 (function routing) are universally learnable; even 1B models achieve near-perfect validity.  T3 (tool calling) and T5 (code patching) are hard: only Qwen3-4B and 9B+ models sustain learning.  Most revealing is the Mixed condition: multi-task training causes catastrophic forgetting in smaller models (Yi-1.5-6B drops from 98\% on T1 to 0\% on Mixed), while Qwen3-4B and Gemma-2-9B sustain 82--90\%.
 
-NVIDIA's work shows small models are 10--30$\times$ cheaper to deploy. Ours shows they \emph{can} learn simple structured tasks but cannot learn complex ones or hold up under multi-task pressure. The implication is a task-aware deployment strategy: match model capacity to task complexity, and default to 9B+ when multi-task reliability matters.
+NVIDIA's work shows small models are 10--30$\times$ cheaper to deploy.  Ours shows they \emph{can} learn simple structured tasks but cannot learn complex ones or hold up under multi-task pressure.  The implication is a task-aware deployment strategy: match model capacity to task complexity, and default to 9B+ when multi-task reliability matters.
 \end{abstract}
 
 \section{Introduction}
 
-There's a frustrating pattern in agent development. You fine-tune a model, watch the training metrics improve, deploy with confidence, and then discover the model fails in production for reasons the metrics never captured. It emits broken JSON. It hallucinates facts. It gives different answers to the same question. It takes forever to respond.
+There's a frustrating pattern in agent development.  You fine-tune a model, watch the training metrics improve, deploy with confidence, and then discover the model fails in production for reasons the metrics never captured.  It emits broken JSON.  It hallucinates facts.  It gives different answers to the same question.  It takes forever to respond.
 
-These aren't bugs you can fix with more training. They're consequences of training for the wrong thing.
+These aren't bugs you can fix with more training.  They're consequences of training for the wrong thing.
 
-Standard RL methods---PPO, DPO, RLHF---optimize for helpfulness and preference alignment. They don't optimize for ``always produce valid JSON'' or ``never make up facts'' or ``finish in under two seconds.'' So the model doesn't learn those things. It has no reason to. You didn't tell it they mattered.
+Standard RL methods (PPO, DPO, RLHF) optimize for helpfulness and preference alignment.  They don't optimize for ``always produce valid JSON'' or ``never make up facts'' or ``finish in under two seconds.'' So the model doesn't learn those things.  It has no reason to.  You didn't tell it they mattered.
 
-Most teams discover this the hard way. They run open-weight models on a 4090 or M2 Max, maybe behind LM Studio or Ollama, and face production pressure with limited resources. Every timeout is visible. Every retry costs tokens and time. There's no cluster to absorb the variance.
+Most teams discover this the hard way.  They run open-weight models on a 4090 or M2 Max, maybe behind LM Studio or Ollama, and face production pressure with limited resources.  Every timeout is visible.  Every retry costs tokens and time.  There's no cluster to absorb the variance.
 
-The research literature doesn't help much. PPO~\citep{schulman2017ppo} and DPO~\citep{rafailov2023dpo} were built for preference alignment, not contract compliance. RLHF~\citep{ouyang2022rlhf} makes models more helpful but leaves structural correctness as someone else's problem. Faithfulness to context? Not measured. Output stability? Not considered. Latency? An ops concern, not a training objective.
+The research literature doesn't help much.  PPO~\citep{schulman2017ppo} and DPO~\citep{rafailov2023dpo} were built for preference alignment, not contract compliance.  RLHF~\citep{ouyang2022rlhf} makes models more helpful but leaves structural correctness as someone else's problem.  Faithfulness to context? Not measured.  Output stability? Not considered.  Latency? An ops concern, not a training objective.
 
-Paper~I documented the deployment gap: accuracy benchmarks fail to predict production success. This paper asks whether we can train our way out of that gap. The answer turns out to be: yes, but only if your model has enough capacity.
+Paper~I documented the deployment gap: accuracy benchmarks fail to predict production success.  This paper asks whether we can train our way out of that gap.  The answer turns out to be: yes, but only if your model has enough capacity.
 
 We introduce \emph{SLO-aware policy gradient training} for contract-first agents, designed explicitly for single-GPU hardware.
 Our method extends REINFORCE~\citep{williams1992reinforce} with a 6-component composite reward:
@@ -134,21 +134,21 @@ What we actually built:
     REINFORCE with an exponential moving average baseline, LoRA adapters for memory efficiency, 4-bit quantization so the base model fits, multi-sample generation to measure stability during training.
     The whole pipeline runs on a single RTX 4090.
     No cluster required.
-    This is not merely a cost constraint---it reflects the modal deployment reality.
+    This isn't just a cost constraint.  It reflects the modal deployment reality.
     The majority of open-weight model deployments run on 1--2 consumer GPUs, not clusters~\citep{nvidia2025slm}.
     By training and evaluating on the same hardware class, we eliminate the gap between research conditions and production conditions that plagues multi-GPU benchmarks.
 
-    \item \textbf{Evidence that this works---with caveats.}
+    \item \textbf{Evidence that this works (with caveats).}
     On simple tasks (intent classification, function routing), even 1B models achieve near-perfect JSON validity after 1{,}000 steps.
     On complex tasks (tool calling, code patching), only models at 4B+ (with the right architecture) or 9B+ (reliably) sustain learning.
     Multi-task training reveals catastrophic forgetting in smaller models.
-    Faithfulness improves by 0.12 points. Output stability improves by 60\%.
+    Faithfulness improves by 0.12 points.  Output stability improves by 60\%.
     These are real numbers from 237 training runs on a single RTX 4090.
 \end{itemize}
 
 Figure~\ref{fig:training-loop} illustrates the training loop.
 A prompt is sampled, the model generates multiple outputs (for stability measurement), each output is scored on all six dimensions, and the gradient is computed using the composite reward.
-The key insight: you can train for operational requirements directly if you define them as reward components.
+If you define operational requirements as reward components, you can train for them directly.
 
 \begin{figure}[t]
 \centering
@@ -198,13 +198,11 @@ The loop runs on a single GPU using LoRA adapters and 4-bit quantization.}
 \label{fig:training-loop}
 \end{figure}
 
-The rest of this paper is organized as follows.
 Section~\ref{sec:background} reviews policy gradient methods, LoRA-based efficient fine-tuning, and SLO-aware systems.
-Section~\ref{sec:problem} formalizes the optimization problem and explains why standard methods fail.
-Section~\ref{sec:method} presents our composite reward design, REINFORCE training loop, and faithfulness/stability integration.
-Section~\ref{sec:implementation} describes our single-GPU implementation using PEFT and W\&B logging.
-Section~\ref{sec:experiments} reports experimental results across task families and models.
-Section~\ref{sec:discussion} discusses limitations and future work.
+Section~\ref{sec:problem} formalizes the optimization problem.
+Section~\ref{sec:method} presents our composite reward design and REINFORCE training loop.
+Sections~\ref{sec:implementation}--\ref{sec:experiments} cover implementation, experimental results, and analysis.
+Section~\ref{sec:discussion} discusses limitations.
 
 \section{Background and Related Work}
 \label{sec:background}
@@ -226,10 +224,10 @@ where $b$ is updated as $b \leftarrow \beta b + (1-\beta) R(\tau)$ (exponential 
 PPO~\citep{schulman2017ppo} extends this with a clipped surrogate objective and separate value network to further stabilize training.
 RLHF~\citep{ouyang2022rlhf} applies PPO to align LLMs with human preferences via a learned reward model.
 DPO~\citep{rafailov2023dpo} avoids explicit reward modeling by directly optimizing the policy to prefer chosen responses over rejected ones.
-While these methods improve conversational quality and preference alignment, they do not address contract-first requirements: structural correctness, faithfulness, stability, and latency constraints are typically handled separately or ignored.
+While these methods improve conversational quality and preference alignment, they don't address contract-first requirements: structural correctness, faithfulness, stability, and latency constraints are typically handled separately or ignored.
 
 Table~\ref{tab:method-comparison} compares our approach to existing methods.
-The key difference is what we optimize \emph{for}: not helpfulness or preference alignment, but operational requirements that production systems actually care about.
+The difference is what we optimize \emph{for}: not helpfulness or preference alignment, but operational requirements that production systems actually care about.
 
 \begin{table}[t]
 \centering
@@ -253,16 +251,16 @@ Code RL~\citep{coderl2022} & Test pass rate & Partial & No & No \\
 Two recent papers also apply GRPO to structured-output compliance.
 \citet{agarwal2025thinkjson} train a 1.5B model with a composite reward combining schema validity and content correctness, achieving 80\%+ structural accuracy on a single model.
 \citet{hu2025rlstruct} propose a multi-dimensional reward hierarchy (syntax $\to$ schema $\to$ content) and report 89.7\% accuracy on a 4B model.
-Our work differs in three ways: (1) we test across 13 models spanning 1B--12B parameters, discovering a capacity threshold below which training fails entirely; (2) our reward includes an explicit latency penalty absent from both prior works; and (3) we analyze training dynamics---reward decomposition, catastrophic forgetting, and early predictors of success---rather than reporting only final-state metrics.
+Our work differs in scope and methodology.  We test across 13 models spanning 1B--12B parameters, discovering a capacity threshold below which training fails entirely.  Our reward includes an explicit latency penalty absent from both prior works.  And we analyze training dynamics (reward decomposition, catastrophic forgetting, early predictors of success) rather than reporting only final-state metrics.  We study how models learn, not just what they learn.
 
 \subsection{LoRA and Efficient Fine-Tuning}
 
-Low-Rank Adaptation (LoRA)~\citep{hu2021lora} freezes the base model and injects trainable low-rank matrices into attention layers, drastically reducing memory and compute.
+Low-Rank Adaptation (LoRA)~\citep{hu2021lora} freezes the base model and injects trainable low-rank matrices into attention layers, cutting memory and compute by orders of magnitude.
 QLoRA~\citep{dettmers2023qlora} combines LoRA with 4-bit quantization (NF4), enabling fine-tuning of billion-parameter models on consumer GPUs.
 PEFT~\citep{mangrulkar2022peft} provides a unified interface for LoRA, prefix tuning, and adapter methods.
 
-LoRA's efficiency makes it ideal for single-GPU RL training: we can freeze the base model in 4-bit precision, train only LoRA adapters (typically $<$1\% of model parameters), and still achieve meaningful policy improvements.
-This enables iterative experimentation on workstation hardware (RTX 4090) or laptop accelerators (Apple M-series), democratizing access to policy gradient training.
+LoRA's efficiency makes it ideal for single-GPU RL training.  We freeze the base model in 4-bit precision and train only LoRA adapters, typically $<$1\% of model parameters.
+This makes policy gradient training accessible on workstation hardware (RTX 4090) or laptop accelerators (Apple M-series).
 
 \subsection{Constrained MDPs and SLO-Aware RL}
 
@@ -309,13 +307,13 @@ Rank inversions are common: the model with 2nd-best accuracy (Ministral-8B) had 
 This paper investigates whether training can close this gap.
 
 \paragraph{Training integration.}
-Our training method \emph{reuses} these metrics as reward components, ensuring alignment between offline evaluation and online policy improvement.
+Our training method \emph{reuses} these metrics as reward components, so offline evaluation and online policy improvement optimize the same thing.
 Agents are optimized for the same metrics they will be judged on in production.
 
 \section{Problem Formulation}
 \label{sec:problem}
 
-Before diving into the method, we need to be precise about what we are optimizing and why standard approaches fail.
+We need to be precise about what we're optimizing and why standard approaches fail.
 
 \subsection{The Gap Between Training and Deployment}
 
@@ -323,18 +321,18 @@ Standard LLM training optimizes for next-token prediction (pretraining) or prefe
 Neither objective captures what production agents actually need:
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Structural correctness.} The agent must emit valid JSON matching a schema. Next-token loss does not care about JSON validity---it treats \texttt{\{"foo": 1\}} and \texttt{\{"foo": 1} (missing brace) as equally valid continuations if both have similar likelihood.
+    \item \textbf{Structural correctness.} The agent must emit valid JSON matching a schema.  Next-token loss doesn't care about JSON validity.  It treats \texttt{\{"foo": 1\}} and \texttt{\{"foo": 1} (missing brace) as equally valid continuations if both have similar likelihood.
 
-    \item \textbf{Faithfulness to context.} The agent must not fabricate facts. Preference alignment encourages helpful responses, but "helpful and wrong" still gets high reward if the human annotator did not check the sources.
+    \item \textbf{Faithfulness to context.} The agent must not fabricate facts.  Preference alignment encourages helpful responses, but "helpful and wrong" still gets high reward if the human annotator did not check the sources.
 
-    \item \textbf{Output stability.} The agent should give the same answer to the same question. Standard training does not penalize inconsistency across runs---the model is free to sample different outputs each time.
+    \item \textbf{Output stability.} The agent should give the same answer to the same question.  Standard training doesn't penalize inconsistency across runs.  The model is free to sample different outputs each time.
 
-    \item \textbf{Latency constraints.} The agent must respond within a deadline. Training loss is computed offline; it does not know or care how long inference takes.
+    \item \textbf{Latency constraints.} The agent must respond within a deadline.  Training loss is computed offline; it does not know or care how long inference takes.
 \end{enumerate}
 
 The result: models that score well on benchmarks but fail in production.
 They emit broken JSON, hallucinate facts, give different answers depending on random seeds, and blow past latency budgets.
-These are not bugs to fix later---they are direct consequences of optimizing the wrong objective.
+These aren't bugs to fix later.  They're direct consequences of optimizing the wrong objective.
 
 \subsection{Formal Problem Statement}
 
@@ -362,17 +360,17 @@ This is simpler than full CMDP methods but still allows us to trade off quality 
 
 \subsection{Why REINFORCE Instead of PPO?}
 
-We use REINFORCE~\citep{williams1992reinforce} instead of PPO~\citep{schulman2017ppo} for three reasons:
+We use REINFORCE~\citep{williams1992reinforce} instead of PPO~\citep{schulman2017ppo}.
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Simplicity.} REINFORCE requires only the policy network; PPO additionally needs a value network, clipping logic, and careful hyperparameter tuning. On a single GPU with limited memory, this matters.
+    \item \textbf{Simplicity.} REINFORCE requires only the policy network; PPO needs a value network, clipping logic, and careful hyperparameter tuning.  On a single GPU with limited memory, this matters.
 
-    \item \textbf{Debuggability.} When training goes wrong, REINFORCE failures are easier to diagnose. The reward is directly visible in the gradient; there is no value function to blame.
+    \item \textbf{Debuggability.} When training goes wrong, REINFORCE failures are easier to diagnose.  The reward is directly visible in the gradient; there's no value function to blame.
 
-    \item \textbf{Sufficiency.} For our relatively short training runs (500--1000 steps) on a narrow distribution (structured output tasks), REINFORCE with an EMA baseline converges adequately. We leave PPO for future work.
+    \item \textbf{Sufficiency.} For our relatively short training runs (500--1000 steps) on a narrow distribution (structured output tasks), REINFORCE with an EMA baseline converges adequately.  We leave PPO for future work.
 \end{enumerate}
 
-The tradeoff is higher variance.
+That said, the tradeoff is higher variance.
 REINFORCE gradients can be noisy, especially early in training.
 We mitigate this with an exponential moving average baseline (Section~\ref{sec:method}) and gradient clipping.
 
@@ -411,8 +409,8 @@ Our training objective is:
 
 \subsection{Training Loop: REINFORCE with an EMA Baseline}
 
-The training loop is straightforward REINFORCE, with one important modification: we subtract a moving average baseline to reduce variance.
-Here is what happens on each step:
+The training loop follows standard REINFORCE, with one important modification: we subtract a moving average baseline to reduce variance.
+Each step proceeds as follows:
 \begin{enumerate}[leftmargin=12pt]
     \item Sample a prompt $s$ from the training dataset.
     \item Generate $k$ outputs $\{y_1, \ldots, y_k\}$ via $\pi_\theta(\cdot | s)$ (multi-sample for stability).
@@ -436,7 +434,7 @@ Here is what happens on each step:
 
 Scoring faithfulness requires an LLM-as-judge call, which is expensive.
 Every training step that checks faithfulness doubles your API calls.
-Here is how we keep costs reasonable:
+We keep costs reasonable with four design choices:
 \begin{enumerate}[leftmargin=12pt]
     \item Enable faithfulness judging only for tasks requiring grounding (e.g., T2 grounded summarization), disable for others (e.g., T1 incident classification).
     \item Use a fast local judge model (same LM Studio endpoint or separate judge).
@@ -463,14 +461,14 @@ If $D \approx 0$, you get the same answer.
 Users expect the latter.
 
 By penalizing disagreement during training ($\gamma > 0$), we push the model toward consistent outputs.
-This is not about memorization---we are teaching the model that for a given input, there should be one right answer, and it should give that answer every time.
+This isn't about memorization.  We're teaching the model that for a given input, there should be one right answer, and it should give that answer every time.
 
 \subsection{Latency: Making Slowness Hurt}
 
 Latency $L$ is measured end-to-end: from when the request arrives to when a validated response is ready.
 This includes generation, validation, and any retries.
-The penalty term $-\lambda L$ means that slow responses get lower rewards, plain and simple.
-Token cost $C$ works the same way---verbose outputs are penalized.
+The penalty term $-\lambda L$ means slow responses get lower rewards.
+Token cost $C$ works the same way: verbose outputs are penalized.
 
 One subtlety: we do \emph{not} include judge latency in $L$.
 The judge is for training, not for the user.
@@ -482,7 +480,7 @@ If you were to block on faithfulness during inference, you would add that to $L$
 \subsection{Running This on a Single GPU}
 
 We built this to run on hardware you can actually afford.
-The whole point of this work is democratizing agent training---if you need a cluster, most teams cannot participate.
+The whole point is making agent training accessible.  If you need a cluster, most teams can't participate.
 Figure~\ref{fig:memory-breakdown} shows how memory is allocated on a typical training run.
 
 \begin{figure}[t]
@@ -516,7 +514,7 @@ An RTX 4090 (24GB) can train models up to $\sim$12B parameters comfortably; larg
 \end{figure}
 
 The implementation uses PyTorch, Transformers, and PEFT.
-Here is what matters:
+The details that matter:
 \begin{itemize}[leftmargin=12pt]
     \item \textbf{Base model:} Loaded in 4-bit (NF4) quantization via \texttt{BitsAndBytesConfig}.
     \item \textbf{LoRA adapter:} Rank $r=16$, alpha $\alpha=32$, dropout 0.05, target modules auto-detected (q/k/v/o projections).
@@ -536,7 +534,7 @@ Memory footprint on RTX 4090 (24GB VRAM):
 
 \subsection{Logging: What You Should Track}
 
-If you cannot reproduce a run, you did not really run it.
+If you can't reproduce a run, you didn't really run it.
 We log everything to Weights \& Biases:
 \begin{itemize}[leftmargin=12pt]
     \item \textbf{Per step:} reward, advantage, latency, tokens, schema validity, faithfulness, disagreement.
@@ -550,7 +548,7 @@ When something goes wrong, you need to know what changed.
 \subsection{Common Pitfalls (And How We Learned About Them)}
 
 We made a lot of mistakes building this.
-Here are the ones that cost the most time:
+These cost us the most time:
 
 \paragraph{Pitfall 1: Forgetting to unload the inference server.}
 If you are running LM Studio for inference and then try to train on the same GPU, you will OOM.
@@ -564,7 +562,7 @@ If you start measuring latency immediately, your early metrics will be misleadin
 We now run 20 warmup requests before any measurement.
 
 \paragraph{Pitfall 3: Gradient explosion with high rewards.}
-If your reward signal occasionally spikes (e.g., a particularly good output), the gradient can explode.
+If your reward signal occasionally spikes (e.g., an unusually high-scoring output), the gradient can explode.
 Gradient clipping (max norm 1.0) is essential.
 We also found that scaling rewards to roughly $[-1, 1]$ range before training stabilizes things.
 
@@ -586,7 +584,7 @@ This is not a coincidence.
 If training optimizes one thing and evaluation measures another, you are fooling yourself.
 After each training run, we execute the full Paper~I evaluation harness on the trained adapter.
 The numbers in training should match the numbers in evaluation.
-If they do not, something is wrong.
+If they don't, something is wrong.
 
 \section{Experiments}
 \label{sec:experiments}
@@ -600,10 +598,10 @@ We train 11 open-weight models spanning 1B to 12B parameters from 7 vendors (Tab
     \item \textbf{Medium (3.8--7B):} Phi-3-mini (Microsoft, 3.8B), Qwen3-4B (Alibaba, 4B), Yi-1.5-6B (01.AI, 6B), Mistral-7B-v0.3 (Mistral, 7B).
     \item \textbf{Large (8--12B):} Ministral-8B (Mistral), Llama-3.1-8B (Meta), Gemma-2-9B (Google, 9B), Gemma-3-12B (Google, 12B; 8/18 runs completed).
 \end{itemize}
-Two additional models were blocked by hardware constraints: Falcon-Mamba-7B (SSM/LoRA CUDA kernel incompatibility) and GPT-OSS-20B (exceeds 24GB even with 4-bit quantization). All 11 models trained on a single RTX 4090 (24GB VRAM) using 4-bit quantization and LoRA adapters. A total of 185 out of 234 planned runs completed (79.1\% completion rate across 11 models $\times$ 6 tasks $\times$ 3 seeds).
+Two additional models were blocked by hardware constraints: Falcon-Mamba-7B (SSM/LoRA CUDA kernel incompatibility) and GPT-OSS-20B (exceeds 24GB even with 4-bit quantization).  All 11 models trained on a single RTX 4090 (24GB VRAM) using 4-bit quantization and LoRA adapters.  A total of 185 out of 234 planned runs completed (79.1\% completion rate across 11 models $\times$ 6 tasks $\times$ 3 seeds).
 
 \paragraph{Tasks.}
-We train and evaluate on 6 task types spanning the full complexity spectrum:
+We train and evaluate on 6 task types covering the full complexity spectrum:
 \begin{itemize}[leftmargin=12pt]
     \item \textbf{T1 (Incident Classification):} 100 structured classification examples across 5 categories.
     \item \textbf{T2 (Grounded Summarization):} 100 operational summaries requiring faithfulness to source data.
@@ -612,7 +610,7 @@ We train and evaluate on 6 task types spanning the full complexity spectrum:
     \item \textbf{T5 (Code Patching):} 300 SWE-bench style code repair tasks requiring diff generation.
     \item \textbf{Mixed:} 500 balanced samples from T1--T5 for multi-task evaluation.
 \end{itemize}
-T1 and T2 use production-representative data (incident triage, operational summaries) rather than the academic benchmarks (CLINC-150, HotpotQA) used for evaluation in Paper~I. T3--T5 share the same datasets as Paper~I, enabling direct comparison of pre- and post-training performance on held-out evaluation data. Task complexity varies significantly: T1 and T4 require simple structured output with constrained vocabularies; T2 and T3 require reasoning over context; T5 requires code understanding; Mixed tests whether models can maintain performance across diverse demands simultaneously.
+T1 and T2 use production-representative data (incident triage, operational summaries) rather than the academic benchmarks (CLINC-150, HotpotQA) used for evaluation in Paper~I.  T3--T5 share the same datasets as Paper~I, enabling direct comparison of pre- and post-training performance on held-out evaluation data.  Task complexity varies.  T1 and T4 require simple structured output with constrained vocabularies.  T2 and T3 require reasoning over context.  T5 requires code understanding.  Mixed tests whether models can hold performance across diverse demands simultaneously.
 
 \paragraph{Hyperparameters.}
 \begin{itemize}[leftmargin=12pt]
@@ -639,14 +637,14 @@ Table~\ref{tab:structure} shows schema validity rates before and after training.
 SLO-aware RL improves schema compliance across all models, with the largest gains on Ministral (+47\% on T1) and Gemma-3 (+22\% on T2).
 Naive RL also improves structure but less consistently.
 
-The structure gains are not surprising---schema validity is a binary reward component, so the model learns quickly that valid JSON is good.
+The structure gains aren't surprising.  Schema validity is a binary reward component, so the model learns quickly that valid JSON is good.
 Structure \emph{does not degrade} when we add other reward components.
 This is a common failure mode in multi-objective RL: you optimize for one thing and another thing gets worse.
 Our lexicographic reward design (structure first, then accuracy, then faithfulness) prevents this.
 
 \begin{table}[t]
 \centering
-\caption{Schema validity rate (\%) before and after training for representative models: Qwen3-4B (below threshold) and Gemma-3-12B (above threshold). Higher is better. Full 13-model results in Table~\ref{tab:validation}.}
+\caption{Schema validity rate (\%) before and after training for representative models: Qwen3-4B (below threshold) and Gemma-3-12B (above threshold).  Higher is better.  Full 13-model results in Table~\ref{tab:validation}.}
 \label{tab:structure}
 \begin{tabular}{l l ccc}
 \toprule
@@ -664,16 +662,16 @@ Gemma-3-12B & Pretrained & 89.7 & 85.4 & 82.9 \\
 \end{table}
 
 \paragraph{Key observation.}
-Both models show improved schema validity with training. But the critical difference emerges in the per-task breakdown (Table~\ref{tab:validation}): on simple tasks (T1, T4), both models sustain improvement through 1{,}000 steps. On complex tasks (T3, T5, Mixed), only larger models maintain their gains. The capacity threshold is task-dependent, not absolute.
+Both models show improved schema validity with training.  But the critical difference emerges in the per-task breakdown (Table~\ref{tab:validation}): on simple tasks (T1, T4), both models sustain improvement through 1{,}000 steps.  On complex tasks (T3, T5, Mixed), only larger models maintain their gains.  The capacity threshold is task-dependent, not absolute.
 
 \paragraph{Faithfulness and Stability.}
 Table~\ref{tab:faithfulness-stability} shows faithfulness scores (T2 only) and disagreement@k across tasks.
-SLO-aware RL significantly improves both: faithfulness increases by 0.08--0.12 points, and disagreement decreases by 50--65\%.
+SLO-aware RL improves both: faithfulness increases by 0.08--0.12 points, and disagreement decreases by 50--65\%.
 Naive RL improves task accuracy but does not address faithfulness or stability.
 
 The faithfulness gains are task-specific.
 T2 (grounded summarization) requires reasoning across source data, and the model learns to stay grounded in the provided context rather than hallucinating.
-T1 and T3 do not have explicit faithfulness requirements, so we do not compute faithfulness for them.
+T1 and T3 don't have explicit faithfulness requirements, so we don't compute faithfulness for them.
 
 Stability improvement is harder to interpret.
 The disagreement penalty pushes the model toward more deterministic outputs, but the mechanism is indirect: the model learns that consistent outputs get higher rewards, so it becomes less "creative" in its generation.
@@ -681,7 +679,7 @@ This is a feature for production deployments (users expect consistency) but coul
 
 \begin{table}[t]
 \centering
-\caption{Faithfulness (T2) and Disagreement@3 for representative models. Higher faithfulness and lower disagreement are better.}
+\caption{Faithfulness (T2) and Disagreement@3 for representative models.  Higher faithfulness and lower disagreement are better.}
 \label{tab:faithfulness-stability}
 \begin{tabular}{l l cc ccc}
 \toprule
@@ -703,11 +701,11 @@ Gemma-3-12B & Pretrained & 0.78 & --- & 0.19 & 0.24 & 0.27 \\
 \paragraph{Latency and SLO Compliance.}
 Table~\ref{tab:latency} shows \pninetyfive latency before and after training.
 SLO-aware RL increases latency slightly (+5--15\%) due to multi-sample generation and validation, but remains within acceptable bounds (1.15$\times$ of baseline).
-Importantly, success@\slo (quality gates $\wedge$ \pninetyfive deadline) improves because quality gains outweigh latency increase.
+But success@\slo (quality gates $\wedge$ \pninetyfive deadline) still improves because quality gains outweigh the latency increase.
 
 \begin{table}[t]
 \centering
-\caption{\pninetyfive latency (ms) and relative overhead for representative models. Lower is better.}
+\caption{\pninetyfive latency (ms) and relative overhead for representative models.  Lower is better.}
 \label{tab:latency}
 \begin{tabular}{l l ccc c}
 \toprule
@@ -733,7 +731,7 @@ A total of 185 out of 234 planned runs completed (79.1\% completion rate).
 %% Verified via: python scripts/aggregate_p2_results.py
 \begin{table}[t]
 \centering
-\caption{Last-50 JSON validity (\%) at 1{,}000 steps across 6 task types. Values are means across 3 seeds. The capacity threshold is \emph{task-dependent}: T1/T4 are universally learnable; T3/T5 require larger models; Mixed reveals catastrophic forgetting in smaller models. (---) indicates OOM or incomplete runs.}
+\caption{Last-50 JSON validity (\%) at 1{,}000 steps across 6 task types.  Values are means across 3 seeds.  The capacity threshold is \emph{task-dependent}: T1/T4 are universally learnable; T3/T5 require larger models; Mixed reveals catastrophic forgetting in smaller models. (---) indicates OOM or incomplete runs.}
 \label{tab:validation}
 \begin{tabular}{l l c cccccc}
 \toprule
@@ -753,29 +751,29 @@ Llama-3.1-8B & Meta & 8B & 100 & 100 & 0 & 100 & 0 & 45 \\
 \textbf{Gemma-2-9B} & Google & 9B & 100 & 100 & \textbf{100} & 100 & \textbf{44} & \textbf{82} \\
 \textbf{Gemma-3-12B}$^*$ & Google & 12B & 100 & --- & \textbf{100} & 100 & --- & --- \\
 \bottomrule
-\multicolumn{9}{l}{\footnotesize $^\dagger$20B total, 3.6B active (MoE). $^\ddagger$Blocked by 24GB VRAM (see Section~\ref{sec:discussion}).}\\
-\multicolumn{9}{l}{\footnotesize $^*$Gemma-3-12B completed 8/18 runs (T1, T3, T4 $\times$ 3 seeds). OOM on T2, T5, Mixed---even 12B pushes commodity}\\
-\multicolumn{9}{l}{\footnotesize hardware limits for training. Completed runs show 100\% validity, but multi-task resilience remains unconfirmed.}
+\multicolumn{9}{l}{\footnotesize $^\dagger$20B total, 3.6B active (MoE).  $^\ddagger$Blocked by 24GB VRAM (see Section~\ref{sec:discussion}).}\\
+\multicolumn{9}{l}{\footnotesize $^*$Gemma-3-12B completed 8/18 runs (T1, T3, T4 $\times$ 3 seeds).  OOM on T2, T5, Mixed---even 12B pushes commodity}\\
+\multicolumn{9}{l}{\footnotesize hardware limits for training.  Completed runs show 100\% validity, but multi-task resilience remains unconfirmed.}
 \end{tabular}
 \end{table}
 
 \paragraph{What the training data reveals.}
 
-The 1{,}000-step, 6-task results tell a more nuanced story than a single capacity threshold. The ability to learn structured output depends on both model size \emph{and} task complexity.
+The 1{,}000-step, 6-task results tell a more nuanced story than a single capacity threshold.  The ability to learn structured output depends on both model size \emph{and} task complexity.
 
-\textbf{T1 and T4 are universally learnable.} Intent classification (T1) and function routing (T4) require simple structured output with constrained vocabularies. Every model from 1B to 12B achieves 98--100\% Last-50 validity on these tasks. Even Llama-3.2-1B, the smallest model, sustains perfect validity through 1{,}000 steps. The structured output ``problem'' simply doesn't exist for these task types.
+\textbf{T1 and T4 are universally learnable.} Intent classification (T1) and function routing (T4) require simple structured output with constrained vocabularies.  Every model from 1B to 12B achieves 98--100\% Last-50 validity on these tasks.  Even Llama-3.2-1B, the smallest model, sustains perfect validity through 1{,}000 steps.  The structured output ``problem'' simply doesn't exist for these task types.
 
-\textbf{T2 divides on architecture, not just size.} Grounded summarization (T2) is learnable by most models (95--100\% Last-50), with two notable exceptions: Phi-3-mini (0\%) and Mistral-7B (67\%). Phi-3-mini's failure likely relates to its DynamicCache incompatibility requiring \texttt{--no-use-cache}, which degrades generation quality. Mistral-7B's partial learning (67\% with high variance) suggests sliding-window attention may hinder grounded reasoning.
+\textbf{T2 divides on architecture, not just size.} Grounded summarization (T2) is learnable by most models (95--100\% Last-50), with two notable exceptions: Phi-3-mini (0\%) and Mistral-7B (67\%).  Phi-3-mini's failure likely relates to its DynamicCache incompatibility requiring \texttt{--no-use-cache}, which degrades generation quality.  Mistral-7B's partial learning (67\% with high variance) suggests sliding-window attention may hinder grounded reasoning.
 
-\textbf{T3 and T5 are hard.} Tool calling (T3) and code patching (T5) separate capable models from the rest. Only Qwen3-4B (100\%, 49\%), Gemma-2-9B (100\%, 44\%), Gemma-3-12B (100\%, ---), and partially Qwen2.5-3B and Ministral-8B (67\%, 0\%) achieve meaningful T3 performance. T5 is the hardest: only Qwen3-4B and Gemma-2-9B show any learning. These tasks require the model to simultaneously maintain format constraints, reason about tool arguments or code structure, and generate precise output---a burden that overwhelms smaller models.
+\textbf{T3 and T5 are hard.} Tool calling (T3) and code patching (T5) separate capable models from the rest.  Only Qwen3-4B (100\%, 49\%), Gemma-2-9B (100\%, 44\%), Gemma-3-12B (100\%, ---), and partially Qwen2.5-3B and Ministral-8B (67\%, 0\%) achieve meaningful T3 performance.  T5 is the hardest: only Qwen3-4B and Gemma-2-9B show any learning.  These tasks require the model to simultaneously maintain format constraints, reason about tool arguments or code structure, and generate precise output.  That burden overwhelms smaller models.
 
-\textbf{The Qwen3-4B surprise.} At only 4B parameters, Qwen3-4B achieves 100\% T3 validity, 49\% T5 validity, and 90\% Mixed validity---outperforming every model below 9B and matching Gemma-2-9B on several tasks. This challenges the simple ``bigger is better'' narrative. Qwen3-4B's extended thinking architecture and pretraining on structured data appear to provide disproportionate benefit for schema-aware tasks. The capacity threshold is not purely about parameter count; architecture and pretraining data distribution matter significantly.
+\textbf{The Qwen3-4B surprise.} At only 4B parameters, Qwen3-4B achieves 100\% T3 validity, 49\% T5 validity, and 90\% Mixed validity, outperforming every model below 9B and matching Gemma-2-9B on several tasks.  This challenges the simple ``bigger is better'' narrative.  Qwen3-4B's extended thinking architecture and pretraining on structured data appear to punch well above their weight on schema-aware tasks.  The capacity threshold is not purely about parameter count; architecture and pretraining data distribution matter too.
 
-\textbf{Hardware blocked two models---and that is itself a finding.} Falcon-Mamba-7B (SSM architecture) and GPT-OSS-20B (MoE with 3.6B active params) both OOM'd on our 24GB RTX 4090, even with 4-bit quantization. This is not merely a limitation of our study; it is evidence that the deployment gap has a \emph{training} dimension. Falcon-Mamba-7B failed because the Mamba SSM architecture lacks compatible LoRA CUDA kernels---the PEFT/bitsandbytes toolchain assumes transformer attention layers, and the mismatch produces a hard failure rather than degraded performance. GPT-OSS-20B failed because MoE models must load all expert parameters into memory even when only a fraction are active per token: its 20B total parameters exceed 24GB for LoRA training despite only 3.6B active parameters during inference.
+\textbf{Hardware blocked two models, and that is itself a finding.} Falcon-Mamba-7B (SSM architecture) and GPT-OSS-20B (MoE with 3.6B active params) both OOM'd on our 24GB RTX 4090, even with 4-bit quantization.  This is not merely a limitation of our study; it is evidence that the deployment gap has a \emph{training} dimension.  Falcon-Mamba-7B failed because the Mamba SSM architecture lacks compatible LoRA CUDA kernels.  The PEFT/bitsandbytes toolchain assumes transformer attention layers, and the mismatch produces a hard failure rather than degraded performance.  GPT-OSS-20B failed because MoE models must load all expert parameters into memory even when only a fraction are active per token: its 20B total parameters exceed 24GB for LoRA training despite only 3.6B active parameters during inference.
 
-The practical implication is stark: practitioners who deploy these architectures on commodity hardware \emph{cannot close the deployment gap through training}---they lack the hardware to even attempt it. SSM and MoE models, despite their theoretical inference efficiency, require cluster-level resources for RL fine-tuning. This creates an asymmetry: the architectures designed for efficient deployment are the hardest to improve through post-deployment training. The MoE question---does total or active parameter count determine the effective capacity threshold?---remains open and cannot be answered without multi-GPU experiments.
+The practical implication is stark: practitioners who deploy these architectures on commodity hardware \emph{cannot close the deployment gap through training}.  They lack the hardware to even attempt it.  SSM and MoE models, despite their theoretical inference efficiency, require cluster-level resources for RL fine-tuning.  The architectures designed for efficient deployment are the hardest to improve through post-deployment training.  An open question remains: does total or active parameter count determine the effective capacity threshold?  That can't be answered without multi-GPU experiments.
 
-\textbf{The threshold is task-dependent but vendor-agnostic.} Models from Meta, Alibaba, Microsoft, 01.AI, Mistral, and Google all follow the same pattern within each task category. This isn't a quirk of one company's training data. The per-task thresholds appear intrinsic to the task, not the vendor.
+\textbf{The threshold is task-dependent but vendor-agnostic.} Models from Meta, Alibaba, Microsoft, 01.AI, Mistral, and Google all follow the same pattern within each task category.  This isn't a quirk of one company's training data.  The per-task thresholds appear intrinsic to the task, not the vendor.
 
 \paragraph{Extending NVIDIA's findings.}
 NVIDIA~\citep{nvidia2025slm} demonstrates that small language models are 10--30$\times$ cheaper for inference and can match larger models on focused tasks with supervised fine-tuning.
@@ -791,7 +789,7 @@ The Mixed task condition exposes a severe failure mode: models that perform well
 
 \begin{table}[t]
 \centering
-\caption{Forgetting in multi-task training. Last-50 validity (\%) for each model on Mixed vs.\ its best single-task performance. $\Delta$ shows the gap. Larger gaps indicate more severe multi-task interference.}
+\caption{Forgetting in multi-task training.  Last-50 validity (\%) for each model on Mixed vs.\ its best single-task performance.  $\Delta$ shows the gap.  Larger gaps indicate more severe multi-task interference.}
 \label{tab:forgetting}
 \begin{tabular}{l c ccc c}
 \toprule
@@ -812,31 +810,31 @@ Yi-1.5-6B & 6B & 99 (T4) & 0 & $-99$ & Catastrophic \\
 \end{tabular}
 \end{table}
 
-Three patterns emerge from Table~\ref{tab:forgetting}:
+Table~\ref{tab:forgetting} shows the damage:
 
-\textbf{Yi-1.5-6B experiences total collapse.} Despite achieving 98--99\% validity on T1, T2, and T4 individually, Yi-1.5-6B drops to 0\% on Mixed. The model cannot simultaneously maintain competence across task types. This is not a matter of slow learning---it is active destruction of acquired capabilities.
+\textbf{Yi-1.5-6B experiences total collapse.} Despite achieving 98--99\% validity on T1, T2, and T4 individually, Yi-1.5-6B drops to 0\% on Mixed.  The model cannot simultaneously maintain competence across task types.  This isn't slow learning.  It's active destruction of acquired capabilities.
 
-\textbf{Forgetting correlates with model architecture, not just size.} Llama-3.1-8B (8B) suffers more forgetting ($\Delta = -55$) than Qwen2.5-3B (3B, $\Delta = -24$) or Phi-3-mini (3.8B, $\Delta = -26$). The Llama architecture appears particularly susceptible to multi-task interference at this scale, while Qwen's architecture provides better resistance.
+\textbf{Forgetting correlates with model architecture, not just size.} Llama-3.1-8B (8B) suffers more forgetting ($\Delta = -55$) than Qwen2.5-3B (3B, $\Delta = -24$) or Phi-3-mini (3.8B, $\Delta = -26$).  The Llama architecture appears more susceptible to multi-task interference at this scale, while Qwen's architecture provides better resistance.
 
-\textbf{Only Qwen3-4B and Gemma-2-9B resist forgetting.} These two models maintain $>80$\% Mixed validity, suggesting they have sufficient representational bandwidth to juggle multiple task types simultaneously. This identifies a ``multi-task threshold'' that is higher than the single-task threshold: many models can learn individual tasks, but only the most capable can learn them all at once.
+\textbf{Only Qwen3-4B and Gemma-2-9B resist forgetting.} These two models maintain $>80$\% Mixed validity, suggesting they have sufficient representational bandwidth to juggle multiple task types simultaneously.  This identifies a ``multi-task threshold'' that is higher than the single-task threshold: many models can learn individual tasks, but only the most capable can learn them all at once.
 
-The forgetting analysis has direct practical implications: if you plan to deploy a single model across diverse tasks, you need a model that passes the multi-task threshold (Qwen3-4B or 9B+), not just the single-task threshold. Alternatively, you can train task-specific adapters and swap them at inference time, avoiding the multi-task pressure entirely.
+This has direct practical implications.  If you plan to deploy a single model across diverse tasks, you need one that passes the multi-task threshold (Qwen3-4B or 9B+), not just the single-task threshold.  The alternative: train task-specific adapters and swap them at inference time, avoiding multi-task pressure entirely.
 
 \paragraph{The mechanism is format collapse, not task confusion.}
-To understand \emph{why} multi-task training degrades, we classify every invalid output into three categories: \emph{format collapse} (output is not JSON at all), \emph{wrong schema} (valid JSON but wrong structure), and \emph{partial JSON} (truncated or malformed). Across the 11 models on Mixed training, the dominant failure mode varies systematically.
+To understand \emph{why} multi-task training degrades, we classify every invalid output into three categories: \emph{format collapse} (output is not JSON at all), \emph{wrong schema} (valid JSON but wrong structure), and \emph{partial JSON} (truncated or malformed).  Across the 11 models on Mixed training, the dominant failure mode varies systematically.
 
-For the most severely affected models---Yi-1.5-6B (34.5\% format collapse), Mistral-7B (33.2\%), and Llama-3.2-3B (31.1\%)---the primary failure is format collapse: the model stops producing JSON entirely, regressing to free-text responses. This is not task confusion (producing the wrong task's schema) but a more fundamental loss: the model forgets the syntactic constraint itself. In contrast, models that resist forgetting show lower format collapse rates: Qwen3-4B (11.2\%), Phi-3-mini (10.4\%), and Qwen2.5-3B (10.6\%), with their errors concentrated in wrong-schema or partial-JSON categories.
+For the most severely affected models (Yi-1.5-6B at 34.5\% format collapse, Mistral-7B at 33.2\%, Llama-3.2-3B at 31.1\%), the primary failure is format collapse: the model stops producing JSON entirely, regressing to free-text responses.  This is not task confusion (producing the wrong task's schema) but a more fundamental loss: the model forgets the syntactic constraint itself.  In contrast, models that resist forgetting show lower format collapse rates: Qwen3-4B (11.2\%), Phi-3-mini (10.4\%), and Qwen2.5-3B (10.6\%), with their errors concentrated in wrong-schema or partial-JSON categories.
 
-The temporal pattern confirms this: Yi-1.5-6B starts Mixed training at 54\% early validity but drops to 0\% in the final 50 steps. The model initially learns JSON format, then actively \emph{unlearns} it under multi-task gradient pressure. This suggests that format knowledge is stored in shared parameters that get overwritten when the model adapts to heterogeneous task objectives.
+The temporal pattern confirms this: Yi-1.5-6B starts Mixed training at 54\% early validity but drops to 0\% in the final 50 steps.  The model initially learns JSON format, then actively \emph{unlearns} it under multi-task gradient pressure.  This suggests that format knowledge is stored in shared parameters that get overwritten when the model adapts to heterogeneous task objectives.
 
 \subsection{Task-Dependent Capacity Thresholds}
 \label{sec:task-thresholds}
 
-The per-task results in Table~\ref{tab:validation} reveal that the ``capacity threshold'' is not a single number but a function of task complexity. We can organize the 6 tasks into a difficulty hierarchy based on the minimum model size that achieves $>90$\% Last-50 validity:
+The per-task results in Table~\ref{tab:validation} reveal that the ``capacity threshold'' is not a single number but a function of task complexity.  We can organize the 6 tasks into a difficulty hierarchy based on the minimum model size that achieves $>90$\% Last-50 validity:
 
 \begin{table}[t]
 \centering
-\caption{Task difficulty hierarchy. Minimum model size for $>90$\% Last-50 validity, based on 1{,}000-step training results.}
+\caption{Task difficulty hierarchy.  Minimum model size for $>90$\% Last-50 validity, based on 1{,}000-step training results.}
 \label{tab:task-thresholds}
 \begin{tabular}{l l c p{6cm}}
 \toprule
@@ -853,19 +851,19 @@ T5 (Code) & Code patching & 9B+ & Complex reasoning with precise diff format \\
 \end{tabular}
 \end{table}
 
-This hierarchy makes intuitive sense: tasks requiring only format compliance (T1, T4) have low thresholds because the model needs to learn ``what shape to put the answer in,'' not ``how to reason about the answer.'' Tasks requiring both format compliance and complex reasoning (T3, T5) have higher thresholds because the model must simultaneously maintain format constraints and generate semantically correct content.
+This hierarchy makes sense.  Tasks requiring only format compliance (T1, T4) have low thresholds because the model needs to learn ``what shape to put the answer in,'' not ``how to reason about the answer.''  Tasks requiring both format compliance and complex reasoning (T3, T5) have higher thresholds.  The model must simultaneously maintain format constraints and generate semantically correct content.
 
 The Mixed condition sits between T3 and T5 because it adds the dimension of task discrimination: the model must recognize which type of output is appropriate for each prompt, in addition to generating it correctly.
 
 \subsection{Training Cost Analysis}
 \label{sec:training-cost}
 
-Reproducibility requires transparency about compute costs. Table~\ref{tab:compute-cost} reports the total training cost for our 185-run campaign.
+Reproducibility requires transparency about compute costs.  Table~\ref{tab:compute-cost} reports the total training cost for our 185-run campaign.
 
 \begin{table}[h]
 \centering
 \small
-\caption{Compute cost breakdown for 185 GRPO training runs. GPU-hours are wall-clock time on RTX 4090. Dollar costs assume \$0.50/GPU-hour (amortized hardware cost for self-hosted training).}
+\caption{Compute cost breakdown for 185 GRPO training runs.  GPU-hours are wall-clock time on RTX 4090. Dollar costs assume \$0.50/GPU-hour (amortized hardware cost for self-hosted training).}
 \label{tab:compute-cost}
 \begin{tabular}{l rrrr}
 \toprule
@@ -877,22 +875,22 @@ Reproducibility requires transparency about compute costs. Table~\ref{tab:comput
 \midrule
 \textbf{Total} & 185 & 1.2 avg & 224 & \$112 \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize $^*$Excludes OOM'd Falcon-Mamba-7B (9 planned runs). $^\dagger$Excludes OOM'd GPT-OSS-20B and partial Gemma-3-12B.}
+\multicolumn{5}{l}{\footnotesize $^*$Excludes OOM'd Falcon-Mamba-7B (9 planned runs).  $^\dagger$Excludes OOM'd GPT-OSS-20B and partial Gemma-3-12B.}
 \end{tabular}
 \end{table}
 
-The entire training campaign cost approximately \$112 in compute and ran over 9.3 GPU-days on a single RTX 4090. For comparison, a single H100 training run at cloud rates (\$3/GPU-hour) for one 70B model would cost approximately \$150---more than our entire multi-model, multi-task study.
+The entire training campaign cost approximately \$112 in compute and ran over 9.3 GPU-days on a single RTX 4090.  For comparison, a single H100 training run at cloud rates (\$3/GPU-hour) for one 70B model would cost roughly \$150.  That's more than our entire multi-model, multi-task study.
 
-\paragraph{Per-model economics.} Training a single model on a single task (1{,}000 steps, 3 seeds) costs \$2--5 depending on model size. This enables rapid iteration: a practitioner can explore 20+ model-task combinations for under \$100. The democratization argument from Section~\ref{sec:implementation} is not merely philosophical---commodity hardware makes this research economically feasible for individual researchers and small teams.
+\paragraph{Per-model economics.} Training a single model on a single task (1{,}000 steps, 3 seeds) costs \$2--5 depending on model size.  This enables rapid iteration: a practitioner can explore 20+ model-task combinations for under \$100. The accessibility argument from Section~\ref{sec:implementation} isn't philosophical.  Commodity hardware makes this research economically feasible for individual researchers and small teams.
 
 \subsection{Ablation Studies}
 \label{sec:ablation}
 
-We ablate each reward component by recomputing rewards from the 237 training runs with each penalty weight set to zero in turn. Table~\ref{tab:ablation} summarizes the reward deltas.
+We ablate each reward component by recomputing rewards from the 237 training runs with each penalty weight set to zero in turn.  Table~\ref{tab:ablation} summarizes the reward deltas.
 
 \begin{table}[t]
 \centering
-\caption{Reward ablation: mean change in composite reward when each penalty is removed ($\Delta = R_{\text{no-penalty}} - R_{\text{baseline}}$), averaged across all tasks and seeds per model. Positive $\Delta$ means the penalty was actively reducing reward during training.}
+\caption{Reward ablation: mean change in composite reward when each penalty is removed ($\Delta = R_{\text{no-penalty}} - R_{\text{baseline}}$), averaged across all tasks and seeds per model.  Positive $\Delta$ means the penalty was actively reducing reward during training.}
 \label{tab:ablation}
 \begin{tabular}{@{}l r r r r@{}}
 \toprule
@@ -913,38 +911,38 @@ Llama-3.2-1B  & $+0.154$ & $+0.005$ & $+0.000$ & 1{,}540 \\
 \end{tabular}
 \end{table}
 
-Three findings emerge:
+The ablation shows clear patterns:
 
-\textbf{Latency dominates the penalty budget.} Removing $\lambda$ increases mean reward by $+0.15$ to $+0.59$, linearly correlated with inference latency ($r = 0.94$). Qwen3-4B---the slowest model at 5.9s per inference---pays the largest latency tax. In contrast, the 1B Llama model runs at 1.5s and loses only 0.15 reward points to the latency term. This confirms that $\lambda$ is the primary lever for trading off output quality against deployment speed.
+\textbf{Latency dominates the penalty budget.} Removing $\lambda$ increases mean reward by $+0.15$ to $+0.59$, linearly correlated with inference latency ($r = 0.94$).  Qwen3-4B, the slowest model at 5.9s per inference, pays the largest latency tax.  In contrast, the 1B Llama model runs at 1.5s and loses only 0.15 reward points to the latency term.  This confirms that $\lambda$ is the primary lever for trading off output quality against deployment speed.
 
-\textbf{Cost penalty is negligible at current weights.} Removing $\mu$ produces deltas of $+0.003$ to $+0.006$---effectively zero. At $\mu = 0.05$ with outputs averaging 30--60 tokens, the cost term contributes less than 0.01 to the reward signal. Higher $\mu$ values or longer outputs would be needed for cost to materially influence policy.
+\textbf{Cost penalty is negligible at current weights.} Removing $\mu$ produces deltas of $+0.003$ to $+0.006$, effectively zero.  At $\mu = 0.05$ with outputs averaging 30--60 tokens, the cost term contributes less than 0.01 to the reward signal.  Higher $\mu$ values or longer outputs would be needed for cost to materially influence policy.
 
-\textbf{Stability penalty has zero effect.} Removing $\gamma$ produces exactly $\Delta = 0.000$ for all 11 models, because the training loop uses \texttt{stability\_samples=1}---a single sample has zero disagreement with itself. The $\gamma D$ term in the reward is structurally inert during training. This is a design limitation we did not detect until post-hoc analysis; it means the stability improvements reported in Table~\ref{tab:faithfulness-stability} arise from indirect effects of format convergence, not from the explicit penalty. Future work should use $k \geq 3$ stability samples per step to activate this mechanism, at the cost of 3$\times$ inference per training step.
+\textbf{Stability penalty has zero effect.} Removing $\gamma$ produces exactly $\Delta = 0.000$ for all 11 models, because the training loop uses \texttt{stability\_samples=1}.  A single sample has zero disagreement with itself.  The $\gamma D$ term in the reward is structurally inert during training.  This is a design limitation we did not detect until post-hoc analysis; it means the stability improvements reported in Table~\ref{tab:faithfulness-stability} arise from indirect effects of format convergence, not from the explicit penalty.  Future work should use $k \geq 3$ stability samples per step to activate this mechanism, at the cost of 3$\times$ inference per training step.
 
 \subsection{Learning Curve Taxonomy}
 \label{sec:curve-taxonomy}
 
 We classify each of the 237 training runs (11 models $\times$ 6 tasks $\times$ 3 seeds, plus Gemma-3-12B partial) into three categories based on validity trajectory:
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{Sustained} (122 runs, 51.5\%): Validity rises above 50\% and stays above 50\% through the final 50 steps. Indicates stable learning.
-    \item \textbf{Transient} (27 runs, 11.4\%): Validity rises above 50\% at some point but drops below 50\% by the end. Indicates learning followed by forgetting or instability.
-    \item \textbf{Flat} (88 runs, 37.1\%): Validity never exceeds 50\%. The model does not learn the task meaningfully.
+    \item \textbf{Sustained} (122 runs, 51.5\%): Validity rises above 50\% and stays above 50\% through the final 50 steps.  Indicates stable learning.
+    \item \textbf{Transient} (27 runs, 11.4\%): Validity rises above 50\% at some point but drops below 50\% by the end.  Indicates learning followed by forgetting or instability.
+    \item \textbf{Flat} (88 runs, 37.1\%): Validity never exceeds 50\%.  The model does not learn the task meaningfully.
 \end{itemize}
 
-The distribution varies sharply by model: Qwen3-4B produces 15 sustained, 3 transient, and 3 flat runs; Gemma-2-9B produces 16 sustained and only 2 flat. At the other extreme, Falcon-Mamba-7B produces 18 flat runs (zero sustained), and Mistral-7B has 10 flat and only 8 sustained. The Llama family shows intermediate behavior with substantial transient fractions (3/21 runs for both 1B and 3B).
+The distribution varies sharply by model: Qwen3-4B produces 15 sustained, 3 transient, and 3 flat runs; Gemma-2-9B produces 16 sustained and only 2 flat.  At the other extreme, Falcon-Mamba-7B produces 18 flat runs (zero sustained), and Mistral-7B has 10 flat and only 8 sustained.  The Llama family shows intermediate behavior with substantial transient fractions (3/21 runs for both 1B and 3B).
 
-\textbf{Early prediction.} A run's classification is largely predictable from the first 50 steps: runs that reach 50\% validity within 50 steps almost always end as sustained (positive predictive value $>90$\%). Runs still below 20\% validity at step 50 almost always end as flat. The transient class is the hardest to predict, as these runs initially resemble sustained ones. This suggests a practical early-stopping criterion: terminate any run still below 20\% validity at step 50, saving the remaining 950 steps of compute ($\sim$47 GPU-minutes per terminated run on an RTX 4090). Across our 88 flat runs, this would have saved approximately 69 GPU-hours.
+\textbf{Early prediction.} A run's classification is largely predictable from the first 50 steps: runs that reach 50\% validity within 50 steps almost always end as sustained (positive predictive value $>90$\%).  Runs still below 20\% validity at step 50 almost always end as flat.  The transient class is the hardest to predict, as these runs initially resemble sustained ones.  This suggests a practical early-stopping criterion: terminate any run still below 20\% validity at step 50, saving the remaining 950 steps of compute ($\sim$47 GPU-minutes per terminated run on an RTX 4090).  Across our 88 flat runs, this would have saved approximately 69 GPU-hours.
 
 \subsection{Relationship to Companion Papers}
 \label{sec:companion}
 
-This paper establishes \emph{what} the capacity thresholds are and documents their task dependence. Two questions it does not answer: \emph{how should the community measure these thresholds reproducibly?} and \emph{why do the thresholds exist mechanistically?}
+This paper establishes \emph{what} the capacity thresholds are and documents their task dependence.  Two questions it does not answer: \emph{how should the community measure these thresholds reproducibly?} and \emph{why do the thresholds exist mechanistically?}
 
-Paper~III (AgentSLO-Bench) addresses the first question by formalizing the evaluation protocol into a reusable benchmark with tiered SLO deadlines and per-request measurement. Paper~IV (Training Dynamics) addresses the second by decomposing the composite reward into its competing components, building a full model~$\times$~task forgetting matrix, and classifying the 237 training curves into a taxonomy that predicts final outcomes from the first 50 steps. Papers~V and~VI will validate the framework in production deployment and propose community standards, respectively. Together, these six papers provide a complete arc: discovery (I), training (II), measurement (III), mechanism (IV), deployment (V), and standardization (VI).
+Paper~III (AgentSLO-Bench) addresses the first question by formalizing the evaluation protocol into a reusable benchmark with tiered SLO deadlines.  Paper~IV (Training Dynamics) addresses the second.  It decomposes the composite reward into competing components, builds a full model~$\times$~task forgetting matrix, and classifies the 237 training curves into a taxonomy that predicts final outcomes from the first 50 steps.  Papers~V and~VI cover production deployment and community standards.  The six papers form a complete arc: discovery (I), training (II), measurement (III), mechanism (IV), deployment (V), and standardization (VI).
 
 \subsection{Analysis: What the Model Actually Learns}
 
-The training dynamics reveal what the model is learning---and what it is not.
+The training dynamics show what the model learns and what it doesn't.
 
 \paragraph{Early training: format convergence.}
 In the first 50--100 steps, reward improves rapidly as the model learns to emit valid JSON consistently.
@@ -960,10 +958,10 @@ This is where the real work happens.
 \paragraph{Late training: diminishing returns.}
 After step 300, improvements slow.
 The model has learned the "shape" of good outputs; further gains require more data or architectural changes.
-We see slight overfitting risk here---reward continues improving but may not generalize.
+We see slight overfitting risk here: reward continues improving but may not generalize.
 
 \paragraph{What the model does NOT learn.}
-The stability penalty ($\gamma D$) has zero direct effect on training, because our implementation uses a single generation sample per step (\texttt{stability\_samples=1}), yielding disagreement${}=0$ at every step (Section~\ref{sec:ablation}). Any observed stability improvements are side effects of format convergence---models that learn to produce consistent JSON structure naturally produce more consistent content. True output determinism would require either multi-sample disagreement estimation ($k \geq 3$), temperature${}=0$ decoding, or explicit self-consistency mechanisms, each with its own cost-quality tradeoff.
+The stability penalty ($\gamma D$) has zero direct effect on training, because our implementation uses a single generation sample per step (\texttt{stability\_samples=1}), yielding disagreement${}=0$ at every step (Section~\ref{sec:ablation}).  Any observed stability improvements are side effects of format convergence.  Models that learn to produce consistent JSON structure naturally produce more consistent content.  True output determinism would require either multi-sample disagreement estimation ($k \geq 3$), temperature${}=0$ decoding, or explicit self-consistency mechanisms, each with its own cost-quality tradeoff.
 
 \subsection{Reward Design Rationale}
 
@@ -1012,24 +1010,24 @@ We leave safety integration to future work with proper red-teaming.
 Using an LLM to score faithfulness is convenient but noisy.
 The judge has its own biases, and small changes to the prompt can shift scores significantly.
 We log everything so you can debug failures, but we would not bet production decisions on faithfulness scores without human review.
-Retrieval-augmented verification or multiple-judge ensembles would help, but we have not built that yet.
+Retrieval-augmented verification or multiple-judge ensembles would help, but we haven't built that yet.
 
 \paragraph{Training is slow.}
 One episode per step, batch size one, gradient accumulation.
-It works, but it is not fast.
+It works, but it's not fast.
 On a 4090, expect 2--3 seconds per training step depending on model size and sequence length.
 Multi-GPU parallelism would help, but then you need multiple GPUs, which defeats the point of "commodity hardware."
 
 \paragraph{We did not automate hyperparameter search.}
 The reward weights ($\lambda$, $\mu$, $\gamma$, $\kappa$) require tuning for each task.
 We used grid search, which is tedious.
-Adaptive scheduling or Lagrangian methods could do this automatically, but we have not implemented them.
+Adaptive scheduling or Lagrangian methods could do this automatically, but we haven't implemented them.
 
 \subsection{What Comes Next}
 
 \paragraph{Reward decomposition (Paper~IV).}
-The 6-component reward contains competing signals---most notably, the latency penalty that grows with model size and consumes up to 25\% of the maximum reward for 8B models.
-Paper~IV~\citep{maloney2025dynamics} decomposes these interactions systematically, builds a full model~$\times$~task forgetting matrix, classifies the 237 training curves into a sustained/transient/flat taxonomy, and demonstrates that 50-step early prediction can save 8--12 GPU-hours per campaign by terminating hopeless runs.
+The 6-component reward contains competing signals.  The latency penalty grows with model size and consumes up to 25\% of the maximum reward for 8B models.
+Paper~IV~\citep{maloney2025dynamics} decomposes these interactions, builds a full model~$\times$~task forgetting matrix, and classifies the 237 training curves into a sustained/transient/flat taxonomy.  50-step early prediction can save 8--12 GPU-hours per campaign by terminating hopeless runs early.
 See Section~\ref{sec:companion} for the full companion paper summary.
 
 \paragraph{PPO would probably work better.}
@@ -1040,7 +1038,7 @@ We started with REINFORCE because it is easier to debug, but the infrastructure 
 \paragraph{Multi-objective optimization without fixed weights.}
 Right now you have to choose weights for latency vs.\ quality vs.\ stability.
 A cleaner approach would learn an entire Pareto frontier of policies, then let you pick the trade-off at deployment time based on your current constraints.
-This is a well-studied problem in multi-objective RL; we just have not integrated it yet.
+This is a well-studied problem in multi-objective RL; we just haven't integrated it yet.
 
 \paragraph{Online learning from production.}
 The real goal is to deploy the agent, collect actual user feedback, and keep training.
@@ -1051,7 +1049,7 @@ The infrastructure exists; the missing piece is building the feedback loop with 
 Right now we train on a fixed mixture of tasks.
 A smarter approach would start with easy tasks (high schema validity, simple outputs) and progressively increase difficulty.
 This might accelerate convergence and avoid the model getting stuck on hard examples early in training.
-We have not tried this yet, but the infrastructure supports it.
+We haven't tried this yet, but the infrastructure supports it.
 
 \paragraph{Reward model distillation.}
 The faithfulness judge is expensive.
@@ -1062,7 +1060,7 @@ The risk is that the reward model inherits the judge's biases, so you would need
 \paragraph{Safety as a reward component.}
 We optimized for correctness, faithfulness, stability, and latency.
 We did not optimize for safety, bias, or privacy.
-These could be added as additional reward terms, but that requires careful design to avoid Goodhart's law problems where the model learns to game the safety classifier rather than actually being safe.
+These could be added as reward terms, but the design is tricky.  Goodhart's law applies: the model can learn to game the safety classifier rather than actually being safe.
 
 \subsection{Threats to Validity}
 
@@ -1073,8 +1071,8 @@ We trained for 1{,}000 steps, doubling our initial 500-step experiments.
 A natural question: do small models simply need \emph{more} training to reach the same endpoint?
 The extended training provides stronger evidence against this hypothesis.
 On simple tasks (T1, T4), even small models converge well before step 500 and remain stable through step 1{,}000.
-On complex tasks (T3, T5, Mixed), models that fail at 500 steps remain failed at 1{,}000---the learn-then-forget pattern persists.
-Yi-1.5-6B's total collapse on Mixed (0\% at 1{,}000 steps) is particularly telling: extended training made things worse, not better.
+On complex tasks (T3, T5, Mixed), models that fail at 500 steps remain failed at 1{,}000.  The learn-then-forget pattern persists.
+Yi-1.5-6B's total collapse on Mixed (0\% at 1{,}000 steps) drives the point home: extended training made things worse, not better.
 Still, we cannot rule out that alternative training regimes (different learning rates, curriculum learning, longer warmup) might help small models on complex tasks.
 Future work should explore whether the task-dependent threshold is intrinsic or an artifact of our training protocol.
 
@@ -1103,7 +1101,7 @@ Results on larger models with larger batches may differ.
 The principles transfer; the specific numbers may not.
 
 \paragraph{Statistical power with $n=11$ models.}
-A reviewer may reasonably ask whether 11 models provide sufficient statistical power to support our claims. We address this directly. Our primary claims are \emph{within-model} and \emph{within-task}, not between-model population estimates. Each model is evaluated across 6 tasks $\times$ 3 seeds = 18 data points; each task is evaluated across 11 models $\times$ 3 seeds = 33 data points. The task-dependent threshold pattern (T1/T4 universal, T3/T5 hard, Mixed revealing forgetting) emerges from 185 individual training runs, not from 11 model-level averages. Within this design, the pattern is unambiguous: every model from 1B to 12B achieves $\geq$98\% validity on T1 and T4, while only 3 of 11 models achieve $>$0\% on T5. We are not estimating a population-level effect size; we are documenting the outcomes of a specific, reproducible training regime across the full range of commodity-deployable open-weight models. The 3-seed variance analysis in Paper~IV provides additional evidence that the per-task patterns are reproducible rather than artifacts of random initialization.
+A reviewer may reasonably ask whether 11 models provide sufficient statistical power to support our claims.  We address this directly.  Our primary claims are \emph{within-model} and \emph{within-task}, not between-model population estimates.  Each model is evaluated across 6 tasks $\times$ 3 seeds = 18 data points; each task is evaluated across 11 models $\times$ 3 seeds = 33 data points.  The task-dependent threshold pattern (T1/T4 universal, T3/T5 hard, Mixed revealing forgetting) emerges from 185 individual training runs, not from 11 model-level averages.  Within this design, the pattern is unambiguous: every model from 1B to 12B achieves $\geq$98\% validity on T1 and T4, while only 3 of 11 models achieve $>$0\% on T5. We are not estimating a population-level effect size; we are documenting the outcomes of a specific, reproducible training regime across the full range of commodity-deployable open-weight models.  The 3-seed variance analysis in Paper~IV provides additional evidence that the per-task patterns are reproducible rather than artifacts of random initialization.
 
 \paragraph{Limited above-threshold diversity on complex tasks.}
 On simple tasks (T1, T4), the threshold is low enough that all 11 models demonstrate learning, providing strong vendor diversity.
@@ -1111,7 +1109,7 @@ On complex tasks (T3, T5), our best performers are Qwen3-4B (Alibaba) and Gemma-
 However, Gemma-3-12B's partial data (8/18 runs, OOM on T2/T5/Mixed) limits our confidence in the 12B data point.
 Falcon-Mamba-7B and GPT-OSS-20B both OOM'd entirely.
 Future work should validate whether larger models from Meta, Mistral, or other vendors show similar sustained learning on complex tasks.
-The Qwen3-4B result is encouraging---it shows that architectural innovation can lower the effective threshold, which is a vendor-specific contribution worth further investigation.
+The Qwen3-4B result is encouraging: architectural innovation can lower the effective threshold.  That's a vendor-specific contribution worth further investigation.
 
 \subsection{Relationship to Paper I}
 
@@ -1119,9 +1117,9 @@ This paper (Paper II) builds directly on the evaluation framework from Paper I (
 The relationship is intentional:
 
 \begin{itemize}[leftmargin=12pt]
-    \item \textbf{Paper I defines the metrics.} Schema validity, task accuracy, faithfulness, stability, latency---all specified in \texttt{criteria.yaml}.
+    \item \textbf{Paper I defines the metrics.} Schema validity, task accuracy, faithfulness, stability, latency, all specified in \texttt{criteria.yaml}.
     \item \textbf{Paper II uses those metrics as rewards.} The same metrics that gate deployment become the reward components for training.
-    \item \textbf{Evaluation and training are coupled.} You train for what you evaluate. You evaluate what you train for. No gap.
+    \item \textbf{Evaluation and training are coupled.} You train for what you evaluate.  You evaluate what you train for.  No gap.
 \end{itemize}
 
 This coupling is the point.
@@ -1151,7 +1149,7 @@ The evaluation tasks should be a held-out subset of the same distribution, not a
 
 \paragraph{Monitor early and often.}
 The first 50 steps are the most informative.
-If reward is not improving by step 50, something is wrong---probably the learning rate is too low, or the reward is poorly scaled.
+If reward isn't improving by step 50, something is wrong.  The learning rate is probably too low, or the reward is poorly scaled.
 Do not wait for 500 steps to notice a problem.
 
 \paragraph{Save checkpoints frequently.}
@@ -1169,7 +1167,7 @@ Monitor held-out metrics every 100 steps and stop when they stop improving.
 \subsection{When NOT to Use This Approach}
 
 This method is not universally appropriate.
-Here are cases where you should probably do something else:
+You should probably use something else when:
 
 \paragraph{Creative or diverse outputs.}
 If your task requires the model to produce varied, creative responses (e.g., brainstorming, story generation), the stability penalty will hurt you.
@@ -1178,12 +1176,12 @@ For creative tasks, you want the opposite.
 
 \paragraph{Very short tasks.}
 If each episode takes $<$100ms, the overhead of multi-sample generation for stability measurement will dominate.
-For fast, simple tasks, just use supervised fine-tuning---it is faster and works fine when you have good labels.
+For fast, simple tasks, just use supervised fine-tuning.  It's faster and works fine when you have good labels.
 
 \paragraph{Safety-critical applications.}
-We do not include safety rewards because they are hard to specify correctly.
+We don't include safety rewards because they're hard to specify correctly.
 If your application is safety-critical (medical, financial, legal), do not rely solely on this approach.
-You need human review, red-teaming, and proper safety evaluation---not just a reward function.
+You need human review, red-teaming, and proper safety evaluation.  A reward function isn't enough.
 
 \paragraph{No clear correctness signal.}
 If you cannot define what "correct" means for your task, you cannot define a reward.
@@ -1193,29 +1191,29 @@ For open-ended tasks without clear correctness criteria, consider preference lea
 \paragraph{Very large models.}
 On a single GPU, you are limited to models that fit in 24GB VRAM with 4-bit quantization.
 That is roughly 20B parameters.
-For larger models, you need multi-GPU training, which is a different infrastructure problem that we do not address here.
+For larger models, you need multi-GPU training, which is a different infrastructure problem that we don't address here.
 
 \section{Conclusion}
 
 We set out to answer a simple question: can training close the deployment gap? The answer is more nuanced than ``yes, if your model is big enough.'' It depends on what you're training for.
 
-The capacity threshold we discovered is \emph{task-dependent}. Simple structured tasks (intent classification, function routing) can be learned by models as small as 1B parameters---even the tiniest models achieve near-perfect validity after 1{,}000 steps of GRPO training. Complex tasks (tool calling with argument validation, code patching) require larger models: Qwen3-4B at minimum, with consistent success only at 9B+. Multi-task training is the hardest test: only Qwen3-4B and models at 9B+ can maintain performance across diverse task types without catastrophic forgetting.
+The capacity threshold we discovered is \emph{task-dependent}.  Simple structured tasks (intent classification, function routing) can be learned by models as small as 1B parameters.  Even the tiniest models achieve near-perfect validity after 1{,}000 steps of GRPO training.  Complex tasks (tool calling with argument validation, code patching) require larger models: Qwen3-4B at minimum, with consistent success only at 9B+.  Multi-task training is the hardest test: only Qwen3-4B and models at 9B+ can maintain performance across diverse task types without catastrophic forgetting.
 
 This has real implications for how teams should approach agent development:
 
-\textbf{Match model capacity to task complexity.} Not all structured output tasks are equal. If your agent only needs intent classification or function routing, a 1--3B model trained with GRPO will work. If it needs tool calling, code generation, or multi-task flexibility, you need 4B+ (with the right architecture) or 9B+ (reliably).
+\textbf{Match model capacity to task complexity.} Not all structured output tasks are equal.  If your agent only needs intent classification or function routing, a 1--3B model trained with GRPO will work.  If it needs tool calling, code generation, or multi-task flexibility, you need 4B+ (with the right architecture) or 9B+ (reliably).
 
-\textbf{Beware multi-task forgetting.} Training a single model on diverse tasks causes catastrophic interference in all but the most capable models. Yi-1.5-6B achieves 98\% validity on individual tasks but drops to 0\% when trained on all tasks together. If you need multi-task deployment, either use a sufficiently large model (9B+) or train task-specific adapters.
+\textbf{Beware multi-task forgetting.} Training a single model on diverse tasks causes catastrophic interference in all but the most capable models.  Yi-1.5-6B achieves 98\% validity on individual tasks but drops to 0\% when trained on all tasks together.  If you need multi-task deployment, either use a sufficiently large model (9B+) or train task-specific adapters.
 
-\textbf{Architecture matters as much as size.} Qwen3-4B, at only 4B parameters, outperforms every model up to 8B on complex tasks. The capacity threshold is not purely about parameter count---architecture design and pretraining data distribution contribute significantly. Choosing the right 4B model can be more effective than choosing any 8B model.
+\textbf{Architecture matters as much as size.} Qwen3-4B, at only 4B parameters, outperforms every model up to 8B on complex tasks.  The capacity threshold isn't purely about parameter count.  Architecture design and pretraining data distribution matter just as much.  Choosing the right 4B model can be more effective than choosing any 8B model.
 
-\textbf{Train large for hard tasks, but small is fine for easy ones.} The ``train large, deploy small'' paradigm from NVIDIA applies selectively. For T1/T4-class tasks, you can train and deploy small. For T3/T5-class tasks, run RL on 9B+ models where it works, then distill.
+\textbf{Train large for hard tasks, but small is fine for easy ones.} The ``train large, deploy small'' paradigm from NVIDIA applies selectively.  For T1/T4-class tasks, you can train and deploy small.  For T3/T5-class tasks, run RL on 9B+ models where it works, then distill.
 
-\textbf{Measure what matters.} The same metrics that Paper~I uses for evaluation---schema validity, accuracy, faithfulness, latency---become reward components for training. If you want the model to care about something, you have to reward it.
+\textbf{Measure what matters.} The same metrics that Paper~I uses for evaluation (schema validity, accuracy, faithfulness, latency) become reward components for training.  If you want the model to care about something, you have to reward it.
 
-The threshold isn't magic. It reflects the minimum capacity needed to simultaneously maintain format constraints and task-specific reasoning during policy gradient updates. Simple formats need little capacity. Complex reasoning under format constraints needs more. Multi-task juggling needs the most. This hierarchy is consistent across 11 models from 6 vendors.
+The threshold isn't magic.  It reflects the minimum capacity needed to simultaneously maintain format constraints and task-specific reasoning during policy gradient updates.  Simple formats need little capacity.  Complex reasoning under format constraints needs more.  Multi-task juggling needs the most.  This hierarchy is consistent across 11 models from 6 vendors.
 
-We showed this is practical on a single RTX 4090 with 4-bit quantization and LoRA adapters. No cluster required. The barrier to entry is low. What matters is matching model capacity to task complexity---and knowing that multi-task training is the hardest test your model will face.
+We showed this is practical on a single RTX 4090 with 4-bit quantization and LoRA adapters.  No cluster required.  The barrier to entry is low.  What matters is matching model capacity to task complexity, and knowing that multi-task training is the hardest test your model will face.
 
 \paragraph{Reproducibility.}
 All code, datasets, and trained adapters are available at:
@@ -1229,8 +1227,8 @@ There is a tendency in ML research to make things complicated.
 More parameters, more techniques, more infrastructure.
 Sometimes the right answer is simpler: define what you want, measure it, and optimize for it directly.
 That is what this paper does.
-The composite reward is not a sophisticated innovation---it is just the obvious thing to try if you take operational requirements seriously.
-We hope this work encourages others to think carefully about what they are actually optimizing for, and to train for the things that matter in production rather than the things that are easy to measure.
+The composite reward isn't a sophisticated innovation.  It's just the obvious thing to try if you take operational requirements seriously.
+We hope this encourages others to think about what they're actually optimizing for.  Train for what matters in production, not for what's easy to measure.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

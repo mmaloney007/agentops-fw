@@ -67,16 +67,16 @@ Neuralift; University of New Hampshire \\
 \begin{document}
 \maketitle
 \begin{center}
-\textit{Preprint. Work in progress.}
+\textit{Preprint.  Work in progress.}
 \end{center}
 
 % =============================================================================
 % ABSTRACT
 % =============================================================================
 \begin{abstract}
-Paper~II showed that GRPO training with a composite SLO-aware reward reveals task-dependent capacity thresholds: models below a critical size cannot learn structured output for complex tasks. Paper~IV explained \emph{why}---reward decomposition, catastrophic forgetting, curve taxonomy, and early prediction from the first 50 steps. But there's a caveat buried in every result from both papers, and it's the same caveat: an NVIDIA RTX~4090 with 24GB of discrete VRAM, PyTorch, and CUDA. The practical question is obvious: \emph{do these results transfer to hardware that doesn't require a dedicated GPU?}
+Paper~II showed that GRPO training with a composite SLO-aware reward reveals task-dependent capacity thresholds: models below a critical size cannot learn structured output for complex tasks.  Paper~IV explained \emph{why} (reward decomposition, catastrophic forgetting, curve taxonomy, and early prediction from the first 50 steps).  But there's a caveat buried in every result from both papers, and it's the same caveat: an NVIDIA RTX~4090 with 24GB of discrete VRAM, PyTorch, and CUDA.  The practical question is obvious: \emph{do these results transfer to hardware that doesn't require a dedicated GPU?}
 
-We train 8 models (1B--9B) via GRPO on Apple Silicon using the MLX framework and \texttt{mlx-lm} LoRA, then compare directly to the CUDA results from Papers~II and~IV. This is---to our knowledge---the first RL fine-tuning comparison between CUDA and Apple Silicon for structured output training. The comparison covers validity curves, capacity thresholds, reward trajectories, forgetting patterns, curve taxonomy, and wall-clock cost.
+We train 8 models (1B--9B) via GRPO on Apple Silicon using the MLX framework and \texttt{mlx-lm} LoRA, then compare directly to the CUDA results from Papers~II and~IV.  This is---to our knowledge---the first RL fine-tuning comparison between CUDA and Apple Silicon for structured output training.  The comparison covers validity curves, capacity thresholds, reward trajectories, forgetting patterns, curve taxonomy, and wall-clock cost.
 
 \begin{center}
 \small
@@ -98,7 +98,7 @@ Gemma-2-9B     & \textbf{TBD}\% & 82\% & TBD \\
 \end{tabular}
 \end{center}
 
-What we found: TBD. The capacity threshold on MLX TBD relative to CUDA---models that sustain learning on CUDA TBD sustain on MLX. The training dynamics---forgetting patterns, curve taxonomy, early prediction features---are TBD hardware-dependent, which suggests these phenomena are TBD model-intrinsic rather than artifacts of the training infrastructure. Wall-clock costs on MLX run TBD$\times$ higher than CUDA, but energy efficiency (accuracy gain per watt-hour) is TBD because Apple Silicon draws 4.9$\times$ less power. The practical implication: GRPO training for SLO compliance TBD on hardware that costs under \$4{,}000 and sits on a desk.
+What we found: TBD.  The capacity threshold on MLX TBD relative to CUDA: models that sustain learning on CUDA TBD sustain on MLX.  The training dynamics (forgetting patterns, curve taxonomy, early prediction features) are TBD hardware-dependent, which suggests these phenomena are TBD model-intrinsic rather than artifacts of the training infrastructure.  Wall-clock costs on MLX run TBD$\times$ higher than CUDA, but energy efficiency (accuracy gain per watt-hour) is TBD because Apple Silicon draws 4.9$\times$ less power.  The practical implication: GRPO training for SLO compliance TBD on hardware that costs under \$4{,}000 and sits on a desk.
 \end{abstract}
 
 % =============================================================================
@@ -108,40 +108,40 @@ What we found: TBD. The capacity threshold on MLX TBD relative to CUDA---models 
 
 There's a footnote that appears in every result from Papers~II and~IV, and it always says the same thing: RTX~4090, PyTorch, CUDA~12.x.
 
-Paper~II~\citep{maloney2025capacity} answered the capacity question---how big does a model need to be before GRPO training can close the deployment gap? Simple tasks at 1B. Complex tasks at 4B+. Multi-task training at 4B--9B+ to resist catastrophic forgetting. Paper~IV~\citep{maloney2025dynamics} explained \emph{why}: competing reward components, architecture-specific interference patterns, and a curve taxonomy that sorts every model-task pair into sustained, transient, or flat trajectories---predictable from the first 50 steps.
+Paper~II~\citep{maloney2025capacity} answered the capacity question: how big does a model need to be before GRPO training can close the deployment gap?  Simple tasks at 1B.  Complex tasks at 4B+.  Multi-task training at 4B--9B+ to resist catastrophic forgetting.  Paper~IV~\citep{maloney2025dynamics} explained \emph{why}: competing reward components, architecture-specific interference patterns, and a curve taxonomy that sorts every model-task pair into sustained, transient, or flat trajectories, predictable from the first 50 steps.
 
-Good results. Useful results. And every last one of them was produced on a \$1{,}600 GPU that requires a dedicated workstation with adequate cooling and a 750W power supply.
+Good results.  Useful results.  And every last one of them was produced on a \$1{,}600 GPU that requires a dedicated workstation with adequate cooling and a 750W power supply.
 
-Consider what this means in practice. A solo developer reads Paper~II, identifies that Qwen3-4B can close the deployment gap for tool calling, and decides to fine-tune it. They don't have a 4090. They have a MacBook Pro with an M3 Max and 64GB of unified memory. The question---\emph{can I do this on my Mac?}---has no answer in the literature. Not for GRPO. Not for SLO-aware composite rewards. Not for any RL fine-tuning of language models across the CUDA/Metal divide.
+The practical consequence is immediate.  A solo developer reads Paper~II, identifies that Qwen3-4B can close the deployment gap for tool calling, and decides to fine-tune it.  They don't have a 4090.  They have a MacBook Pro with an M3 Max and 64GB of unified memory.  The question (\emph{can I do this on my Mac?}) has no answer in the literature.  Not for GRPO.  Not for SLO-aware composite rewards.  Not for any RL fine-tuning of language models across the CUDA/Metal divide.
 
-This isn't an edge case. Over 60\% of developer laptops sold in 2024 used Apple Silicon. The M-series chips share memory between CPU and GPU---no VRAM wall, no PCIe bus, no 24GB ceiling. An M3 Max with 128GB of unified memory can load models that would OOM on a 4090. Whether it can \emph{train} them effectively is a different question entirely.
+This isn't an edge case.  Over 60\% of developer laptops sold in 2024 used Apple Silicon.  The M-series chips share memory between CPU and GPU: no VRAM wall, no PCIe bus, no 24GB ceiling.  An M3 Max with 128GB of unified memory can load models that would OOM on a 4090.  Whether it can \emph{train} them effectively is a different question entirely.
 
-The toolchain exists. MLX~\citep{hannun2023mlx} is Apple's machine learning framework, built to exploit unified memory and the Metal GPU. The \texttt{mlx-lm} library~\citep{mlxlm2024} supports LoRA fine-tuning directly on Metal, with gradient checkpointing for memory-constrained runs. You can install it with \texttt{pip}. The question is not whether you can run the code---it's whether the trained model will be any good.
+The toolchain exists.  MLX~\citep{hannun2023mlx} is Apple's machine learning framework, built to exploit unified memory and the Metal GPU.  The \texttt{mlx-lm} library~\citep{mlxlm2024} supports LoRA fine-tuning directly on Metal, with gradient checkpointing for memory-constrained runs.  You can install it with \texttt{pip}.  The question is not whether you can run the code; it's whether the trained model will be any good.
 
-Three questions, in order of how much they matter to a practitioner:
+The questions that matter for practitioners:
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Do you get the same model?} Does GRPO on MLX reach the same validity levels as GRPO on CUDA? Does the capacity threshold shift, or is it a property of the model itself?
+    \item \textbf{Do you get the same model?}  Does GRPO on MLX reach the same validity levels as GRPO on CUDA?  Does the capacity threshold shift, or is it a property of the model itself?
 
-    \item \textbf{Do you see the same dynamics?} The forgetting patterns, curve shapes, and reward decomposition from Paper~IV---are those real properties of the models, or are they artifacts of PyTorch and CUDA?
+    \item \textbf{Do you see the same dynamics?}  The forgetting patterns, curve shapes, and reward decomposition from Paper~IV: are those real properties of the models, or are they artifacts of PyTorch and CUDA?
 
-    \item \textbf{Is it worth your time?} What does edge GRPO training cost in hours, watts, and patience? Can you actually close the deployment gap on a MacBook over a weekend?
+    \item \textbf{Is it worth your time?}  What does edge GRPO training cost in hours, watts, and patience?  Can you actually close the deployment gap on a MacBook over a weekend?
 \end{enumerate}
 
-We answer by replicating the Paper~II training campaign on Apple Silicon. Eight models, same architectures, same reward function, same tasks, same hyperparameters where possible---MLX instead of PyTorch, Metal instead of CUDA. We then compare everything: validity curves, capacity thresholds, reward trajectories, forgetting matrices, curve taxonomy, early prediction, wall-clock time, and energy.
+We answer by replicating the Paper~II training campaign on Apple Silicon.  Eight models, same architectures, same reward function, same tasks, same hyperparameters where possible, with MLX instead of PyTorch and Metal instead of CUDA.  We then compare everything: validity curves (Figure~\ref{fig:cross-platform-validity}), capacity thresholds, reward trajectories, forgetting matrices, curve taxonomy, early prediction, wall-clock time, and energy.
 
 \paragraph{What we contribute.} Five things, in order of how much they'll change your workflow:
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{The first GRPO comparison across hardware platforms.} Nobody has compared RL fine-tuning outcomes between CUDA and Apple Silicon. We provide the first head-to-head using identical models, tasks, and reward functions.
+    \item \textbf{The first GRPO comparison across hardware platforms.}  Nobody has compared RL fine-tuning outcomes between CUDA and Apple Silicon.  We provide the first head-to-head using identical models, tasks, and reward functions.
 
-    \item \textbf{A capacity threshold portability test.} Do Paper~II's thresholds travel? If Qwen3-4B needs 4B parameters to learn tool calling on a 4090, does it still need 4B on a MacBook---or does the hardware shift the bar?
+    \item \textbf{A capacity threshold portability test.}  Do Paper~II's thresholds travel?  If Qwen3-4B needs 4B parameters to learn tool calling on a 4090, does it still need 4B on a MacBook, or does the hardware shift the bar?
 
-    \item \textbf{Training dynamics as a replication target.} We test whether Paper~IV's forgetting patterns, curve taxonomy, and early prediction features are real model properties or CUDA artifacts. If early-step features on one platform predict outcomes on the other, you can run 50 cheap steps to decide whether the full run is worth your time.
+    \item \textbf{Training dynamics as a replication target.}  We test whether Paper~IV's forgetting patterns, curve taxonomy, and early prediction features are real model properties or CUDA artifacts.  If early-step features on one platform predict outcomes on the other, you can run 50 cheap steps to decide whether the full run is worth your time.
 
-    \item \textbf{Honest cost numbers for edge training.} Wall-clock, energy, and dollars. Not estimates---measurements. So you can decide whether training on your Mac makes sense for your timeline.
+    \item \textbf{Honest cost numbers for edge training.}  Wall-clock, energy, and dollars.  Not estimates---measurements.  So you can decide whether training on your Mac makes sense for your timeline.
 
-    \item \textbf{A field report on MLX for RL.} The practical problems---quantization mismatches, framework maturity, gradient checkpointing requirements---that you'll hit when you try GRPO on Apple Silicon. We hit them first.
+    \item \textbf{A field report on MLX for RL.}  The practical problems (quantization mismatches, framework maturity, gradient checkpointing requirements) that you'll hit when you try GRPO on Apple Silicon.  We hit them first.
 \end{enumerate}
 
 \begin{figure}[t]
@@ -174,7 +174,7 @@ We answer by replicating the Paper~II training campaign on Apple Silicon. Eight 
 \legend{MLX (Apple Silicon), CUDA (RTX 4090)}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Cross-platform validity curves (placeholder).} Qwen3-4B on the Mixed task, showing validity percentage over 1{,}000 training steps on MLX (solid blue) vs.\ CUDA (dashed red). Both platforms show sustained learning; the final gap and convergence rate are TBD. Actual curves will replace this placeholder once MLX training completes. The key question is not whether the curves rise---but whether they reach the same ceiling.}
+\caption{\textbf{Cross-platform validity curves (placeholder).}  Qwen3-4B on the Mixed task, showing validity percentage over 1{,}000 training steps on MLX (solid blue) vs.\ CUDA (dashed red).  Both platforms show sustained learning; the final gap and convergence rate are TBD.  Actual curves will replace this placeholder once MLX training completes.  The key question is not whether the curves rise, but whether they reach the same ceiling.}
 \label{fig:cross-platform-validity}
 \end{figure}
 
@@ -186,49 +186,51 @@ We answer by replicating the Paper~II training campaign on Apple Silicon. Eight 
 
 \subsection{GRPO Training for SLO Compliance}
 
-GRPO~\citep{grpo} is the training algorithm that makes this series possible. It's a variant of REINFORCE~\citep{williams1992reinforce} that normalizes rewards within a group of samples from the same prompt. The key advantage over PPO~\citep{schulman2017ppo}: no value function, which means no second network eating your VRAM. That's what makes it practical for single-GPU training with LoRA~\citep{hu2021lora}. Paper~II used GRPO with a 6-component composite reward:
+GRPO~\citep{grpo} is the training algorithm that makes this series possible.  It's a variant of REINFORCE~\citep{williams1992reinforce} that normalizes rewards within a group of samples from the same prompt.  The key advantage over PPO~\citep{schulman2017ppo}: no value function, which means no second network eating your VRAM.  That's what makes it practical for single-GPU training with LoRA~\citep{hu2021lora}.  Paper~II used GRPO with a 6-component composite reward:
 
 \begin{equation}
 R = \underbrace{R_{\text{schema}}}_{\text{JSON valid}} + \underbrace{R_{\text{success}}}_{\text{task correct}} + \underbrace{\kappa_f (f - 0.5)}_{\text{faithfulness}} - \underbrace{\lambda L}_{\text{latency}} - \underbrace{\mu C}_{\text{cost}} - \underbrace{\gamma D}_{\text{stability}}
 \label{eq:reward}
 \end{equation}
 
-\noindent where $R_{\text{schema}} \in \{0, 1\}$ indicates valid JSON conforming to the task schema, $R_{\text{success}} \in \{0, 1\}$ indicates task-specific correctness, $f \in [0,1]$ is a faithfulness score, $L$ is latency in seconds, $C$ is output token count, and $D$ is a disagreement rate. The maximum attainable reward is 2.0. Default weights: $\lambda = 0.1$, $\mu = 0.05$, $\gamma = 0.1$, $\kappa_f = 0$ (faithfulness disabled during training).
+\noindent where $R_{\text{schema}} \in \{0, 1\}$ indicates valid JSON conforming to the task schema, $R_{\text{success}} \in \{0, 1\}$ indicates task-specific correctness, $f \in [0,1]$ is a faithfulness score, $L$ is latency in seconds, $C$ is output token count, and $D$ is a disagreement rate.  The maximum attainable reward is 2.0.  Default weights: $\lambda = 0.1$, $\mu = 0.05$, $\gamma = 0.1$, $\kappa_f = 0$ (faithfulness disabled during training).
 
-Every penalty in this equation maps to a failure mode from Paper~I~\citep{maloney2025deploymentgap}. Broken JSON? $R_{\text{schema}}$ catches it. Too slow? $\lambda L$ penalizes it. Different answer every time? $\gamma D$ fixes it. The question for this paper: does this reward function produce the same training signal when the compute substrate underneath it changes from CUDA to Metal?
+Every penalty in this equation maps to a failure mode from Paper~I~\citep{maloney2025deploymentgap}.  Broken JSON?  $R_{\text{schema}}$ catches it.  Too slow?  $\lambda L$ penalizes it.  Different answer every time?  $\gamma D$ fixes it.  What matters for this paper: does this reward function produce the same training signal when the compute substrate underneath it changes from CUDA to Metal?
 
 \subsection{MLX and Apple Silicon Training}
 
-MLX~\citep{hannun2023mlx} is Apple's answer to PyTorch for Apple Silicon. The design philosophy is different from the ground up. On CUDA, GPU memory is physically separate---data crosses a PCIe bus to reach the GPU, and you hit a hard ceiling at 24GB (4090) or 48GB (6000 Ada). On Apple Silicon, CPU and GPU share a single memory pool. An M3 Max with 128GB of unified memory can load models that would OOM on a 4090. No bus, no ceiling, no ``CUDA out of memory'' at 3 AM.
+MLX~\citep{hannun2023mlx} is Apple's answer to PyTorch for Apple Silicon.  The design philosophy is different from the ground up.  On CUDA, GPU memory is physically separate: data crosses a PCIe bus to reach the GPU, and you hit a hard ceiling at 24GB (4090) or 48GB (6000 Ada).  On Apple Silicon, CPU and GPU share a single memory pool.  An M3 Max with 128GB of unified memory can load models that would OOM on a 4090.  No bus, no ceiling, no ``CUDA out of memory'' at 3 AM.
 
-The \texttt{mlx-lm} library~\citep{mlxlm2024} provides LoRA and QLoRA fine-tuning on the Metal GPU with lazy evaluation, gradient checkpointing, and INT4 quantization. The toolchain is young---MLX is less than two years old---but functional.
+The \texttt{mlx-lm} library~\citep{mlxlm2024} provides LoRA and QLoRA fine-tuning on the Metal GPU with lazy evaluation, gradient checkpointing, and INT4 quantization.  The toolchain is young (MLX is less than two years old) but functional.
 
-Three architectural differences matter for RL training:
+Four architectural differences matter for RL training:
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Memory bandwidth.} The M3 Max delivers about 400~GB/s, compared to 1{,}008~GB/s for the 4090. That 2.5$\times$ gap hits hardest during the GRPO sampling step, where you're generating 4 completions per prompt and the autoregressive loop is memory-bandwidth-bound.
+    \item \textbf{Memory bandwidth.}  The M3 Max delivers about 400~GB/s, compared to 1{,}008~GB/s for the 4090.  That 2.5$\times$ gap hits hardest during the GRPO sampling step, where you're generating 4 completions per prompt and the autoregressive loop is memory-bandwidth-bound.
 
-    \item \textbf{Compute throughput.} 14.2 TFLOPS (FP16) on Metal vs.\ 82.6 on CUDA. A 5.8$\times$ gap. This hurts during gradient computation and LoRA weight updates, though Metal's lower kernel launch overhead helps at small batch sizes.
+    \item \textbf{Compute throughput.}  14.2 TFLOPS (FP16) on Metal vs.\ 82.6 on CUDA.  A 5.8$\times$ gap.  This hurts during gradient computation and LoRA weight updates, though Metal's lower kernel launch overhead helps at small batch sizes.
 
-    \item \textbf{Quantization formats.} MLX defaults to INT4; PyTorch/CUDA typically uses NF4 via bitsandbytes for QLoRA~\citep{dettmers2023qlora}. These are not the same format. INT4 uses uniform quantization; NF4 assumes normally distributed weights. This introduces a controlled confound that we cannot fully eliminate.
+    \item \textbf{Quantization formats.}  MLX defaults to INT4; PyTorch/CUDA typically uses NF4 via bitsandbytes for QLoRA~\citep{dettmers2023qlora}.  These are not the same format.  INT4 uses uniform quantization; NF4 assumes normally distributed weights.  This introduces a controlled confound that we cannot fully eliminate.
+
+    \item \textbf{Evaluation model.}  MLX uses lazy evaluation; PyTorch uses eager.  Lazy evaluation fuses operations and avoids materializing intermediate tensors, which helps memory but can hide numerical differences that only show up in the gradient path.
 \end{enumerate}
 
 \subsection{RL Fine-Tuning on Consumer Hardware}
 
-LoRA~\citep{hu2021lora}, QLoRA~\citep{dettmers2023qlora}, and PEFT~\citep{mangrulkar2022peft} have democratized supervised fine-tuning on consumer hardware. You can SFT a 65B model on a single 48GB GPU. That part is solved.
+LoRA~\citep{hu2021lora}, QLoRA~\citep{dettmers2023qlora}, and PEFT~\citep{mangrulkar2022peft} made supervised fine-tuning practical on consumer hardware.  You can SFT a 65B model on a single 48GB GPU.  That part is solved.
 
-RL fine-tuning is a different animal. GRPO generates multiple completions per prompt (memory-bound), computes rewards for each (CPU-bound with JSON parsing and schema checking), then updates the policy through the full model (compute-bound). Each step stresses a different part of the hardware pipeline, and they all have to happen in sequence. On CUDA, a decade of PyTorch engineering has optimized every step. On MLX, the framework is less than two years old. RL-specific optimizations are nascent---which is a polite way of saying they mostly don't exist yet.
+RL fine-tuning is a different animal.  GRPO generates multiple completions per prompt (memory-bound), computes rewards for each (CPU-bound with JSON parsing and schema checking), then updates the policy through the full model (compute-bound).  Each step stresses a different part of the hardware pipeline, and they all have to happen in sequence.  On CUDA, a decade of PyTorch engineering has optimized every step.  On MLX, the framework is less than two years old.  RL-specific optimizations are nascent, which is a polite way of saying they mostly don't exist yet.
 
-Prior consumer-hardware training work focuses on throughput for supervised tasks~\citep{zhu2023survey}. MLPerf~\citep{mattson2020mlperf} benchmarks training across hardware but doesn't touch RL fine-tuning. We found no prior work comparing RL training outcomes across CUDA and MLX.
+Prior consumer-hardware training work focuses on throughput for supervised tasks~\citep{zhu2023survey}.  MLPerf~\citep{mattson2020mlperf} benchmarks training across hardware but doesn't touch RL fine-tuning.  We found no prior work comparing RL training outcomes across CUDA and MLX.
 
 \subsection{The Deployment Gap Series}
 
-This is Paper~VI. Here's where it fits:
+This is Paper~VI.  Here's where it fits:
 
 \begin{description}[leftmargin=*]
-\item[Paper~I] (The Deployment Gap)~\citep{maloney2025deploymentgap} showed that accuracy benchmarks fail to predict deployment success. Twelve of 13 models achieved 0\% Success@SLO under a 2-second deadline despite 99\%+ JSON validity.
+\item[Paper~I] (The Deployment Gap)~\citep{maloney2025deploymentgap} showed that accuracy benchmarks fail to predict deployment success.  Twelve of 13 models achieved 0\% Success@SLO under a 2-second deadline despite 99\%+ JSON validity.
 
-\item[Paper~II] (Capacity Thresholds)~\citep{maloney2025capacity} trained 11 models with GRPO and found task-dependent capacity thresholds. Simple tasks at 1B; complex tasks at 4B--9B+.
+\item[Paper~II] (Capacity Thresholds)~\citep{maloney2025capacity} trained 11 models with GRPO and found task-dependent capacity thresholds.  Simple tasks at 1B; complex tasks at 4B--9B+.
 
 \item[Paper~III] (AgentSLO-Bench)~\citep{maloney2025agentslobench} turned the evaluation protocol into a reusable benchmark with tiered SLO deadlines and per-request measurement across 7 task schemas.
 
@@ -237,13 +239,13 @@ This is Paper~VI. Here's where it fits:
 \item[Paper~V] (MoE Deployment Gap)~\citep{maloney2025moe} extended the deployment gap analysis to mixture-of-experts architectures, where expert routing creates irregular memory access patterns that interact differently with unified vs.\ discrete memory.
 \end{description}
 
-Papers~I--IV assumed CUDA throughout. Paper~V used both CUDA and MLX. This paper extends the series in a new direction: hardware generalization for dense models. We test whether the core findings---capacity thresholds, training dynamics, forgetting patterns---transfer to a fundamentally different compute substrate.
+Papers~I--IV assumed CUDA throughout.  Paper~V used both CUDA and MLX.  This paper extends the series in a new direction: hardware generalization for dense models.  We test whether the core findings (capacity thresholds, training dynamics, forgetting patterns) transfer to a fundamentally different compute substrate.
 
 \subsection{Hardware Comparison Studies in ML}
 
-Existing hardware comparisons in ML~\citep{mattson2020mlperf} answer the wrong question. They measure \emph{how fast} a model trains---forward/backward pass speed, data loading, scaling curves---not \emph{what} it learns. For supervised learning, this is fine; the converged model is usually the same regardless of hardware. For RL fine-tuning, it's not fine at all.
+Existing hardware comparisons in ML~\citep{mattson2020mlperf} answer the wrong question.  They measure \emph{how fast} a model trains (forward/backward pass speed, data loading, scaling curves), not \emph{what} it learns.  For supervised learning, this is fine; the converged model is usually the same regardless of hardware.  For RL fine-tuning, it's not fine at all.
 
-The question we care about is convergence, not throughput: does the same model, trained with the same algorithm and reward function, arrive at the same policy on different hardware? Hardware affects numerical precision (FP16 vs BF16 vs INT4), memory layout (discrete vs unified), and kernel implementation (CUDA vs Metal). Any of these could alter gradient dynamics, reward signal propagation, or the effective learning rate. Nobody has tested this for RL fine-tuning of language models.
+What we care about is convergence, not throughput: does the same model, trained with the same algorithm and reward function, arrive at the same policy on different hardware?  Hardware affects numerical precision (FP16 vs BF16 vs INT4), memory layout (discrete vs unified), and kernel implementation (CUDA vs Metal).  Any of these could alter gradient dynamics, reward signal propagation, or the effective learning rate.  Nobody has tested this for RL fine-tuning of language models.
 
 
 % =============================================================================
@@ -257,7 +259,7 @@ Table~\ref{tab:hardware} summarizes the two platforms.
 
 \begin{table}[t]
 \centering
-\caption{Hardware platforms. The CUDA platform is the same used in Papers~II and IV. The MLX platform represents a high-end consumer Apple Silicon configuration.}
+\caption{Hardware platforms.  The CUDA platform is the same used in Papers~II and IV.  The MLX platform represents a high-end consumer Apple Silicon configuration.}
 \label{tab:hardware}
 \begin{tabular}{l l l}
 \toprule
@@ -276,15 +278,15 @@ System Cost & $\sim$\$3{,}500 & $\sim$\$3{,}500 \\
 \end{tabular}
 \end{table}
 
-Same price. Opposite architectures. The 4090 has 5.8$\times$ the compute and 2.5$\times$ the memory bandwidth, but you're stuck at 24GB. The M3 Max has 2.7--5.3$\times$ more total memory, no CPU-GPU transfer bottleneck, and draws 4.9$\times$ less power. These tradeoffs don't all pull in the same direction---generation is memory-bound (favors MLX), reward computation is CPU-bound (roughly a wash), and gradient updates are compute-bound (favors CUDA). GRPO hits all three in sequence, which makes the net effect hard to predict from specs alone.
+Same price.  Opposite architectures.  The 4090 has 5.8$\times$ the compute and 2.5$\times$ the memory bandwidth, but you're stuck at 24GB.  The M3 Max has 2.7--5.3$\times$ more total memory, no CPU-GPU transfer bottleneck, and draws 4.9$\times$ less power.  These tradeoffs don't all pull in the same direction: generation is memory-bound (favors MLX), reward computation is CPU-bound (roughly a wash), and gradient updates are compute-bound (favors CUDA).  GRPO hits all three in sequence, which makes the net effect hard to predict from specs alone.
 
 \subsection{Models}
 
-We picked 8 of the 11 models that completed training in Paper~II---specifically, the ones with MLX-compatible weights. Table~\ref{tab:models} lists the configurations on each platform.
+We picked 8 of the 11 models that completed training in Paper~II, specifically the ones with MLX-compatible weights.  Table~\ref{tab:models} lists the configurations on each platform.
 
 \begin{table}[t]
 \centering
-\caption{Models trained on both platforms. MLX paths reference HuggingFace repositories converted to MLX format. CUDA paths match Paper~II.}
+\caption{Models trained on both platforms.  MLX paths reference HuggingFace repositories converted to MLX format.  CUDA paths match Paper~II.}
 \label{tab:models}
 \small
 \begin{tabular}{l c l l}
@@ -303,15 +305,15 @@ Gemma-2-9B & 9B & \texttt{google/gemma-2-9b-it} & \texttt{mlx-community/gemma-2-
 \end{tabular}
 \end{table}
 
-Three models didn't make the cut. Falcon-Mamba-7B has no MLX-compatible SSM implementation. GPT-OSS-20B exceeded 24GB VRAM on CUDA and lacks MLX-format weights (it would \emph{fit} in unified memory---irony noted). Gemma-3-12B completed only 8 of 18 runs on CUDA, not enough for a fair comparison. The 8 remaining models span 1B--9B, 5 vendors, and include both the CUDA stars (Qwen3-4B, Gemma-2-9B) and the CUDA disaster (Mistral-7B, which showed catastrophic forgetting). Yi-1.5-6B---the worst forgetter in Paper~IV---is excluded for lack of MLX support, which is unfortunate because it would have been the most interesting case.
+Three models didn't make the cut.  Falcon-Mamba-7B has no MLX-compatible SSM implementation.  GPT-OSS-20B exceeded 24GB VRAM on CUDA and lacks MLX-format weights (it would \emph{fit} in unified memory, irony noted).  Gemma-3-12B completed only 8 of 18 runs on CUDA, not enough for a fair comparison.  The 8 remaining models span 1B--9B, 5 vendors, and include both the CUDA stars (Qwen3-4B, Gemma-2-9B) and the CUDA disaster (Mistral-7B, which showed catastrophic forgetting).  Yi-1.5-6B (the worst forgetter in Paper~IV) is excluded for lack of MLX support, which is unfortunate because it would have been the most interesting case.
 
 \subsection{Training Protocol}
 
-We matched the Paper~II protocol as closely as MLX allows. Table~\ref{tab:hyperparams} shows where we matched and where we couldn't.
+We matched the Paper~II protocol as closely as MLX allows.  Table~\ref{tab:hyperparams} shows where we matched and where we couldn't.
 
 \begin{table}[t]
 \centering
-\caption{Training hyperparameters. Values are matched across platforms except where MLX constraints require adaptation. Differences are noted in bold.}
+\caption{Training hyperparameters.  Values are matched across platforms except where MLX constraints require adaptation.  Differences are noted in bold.}
 \label{tab:hyperparams}
 \begin{tabular}{l c c}
 \toprule
@@ -334,15 +336,15 @@ Gradient checkpointing & Off ($<$7B), On ($\geq$7B) & \textbf{On (all)} \\
 \end{tabular}
 \end{table}
 
-Three hyperparameters had to differ:
+Several hyperparameters required adjustment:
 
-\textbf{LoRA rank.} Down from 16 to 8 on MLX. Rank-16 produced unstable gradients for 7B+ models---likely a quirk of the INT4 backward pass. Rank-8 with $\alpha = 16$ preserves the same effective learning rate scaling ($\alpha / r = 2.0$ on both platforms) while halving the adapter parameter count.
+\textbf{LoRA rank.}  Down from 16 to 8 on MLX.  Rank-16 produced unstable gradients for 7B+ models, likely a quirk of the INT4 backward pass.  Rank-8 with $\alpha = 16$ preserves the same effective learning rate scaling ($\alpha / r = 2.0$ on both platforms) while halving the adapter parameter count.
 
-\textbf{Quantization.} Paper~II used NF4 via bitsandbytes for models $\geq$7B and full precision for smaller ones. MLX uses INT4 for everything---it's the default and best-optimized format for \texttt{mlx-lm}. Both are 4-bit, but the codebooks differ: NF4 assumes normally distributed weights; INT4 uses uniform quantization. The difference matters most for outlier weights. We quantify the impact in Section~\ref{sec:comparison}.
+\textbf{Quantization.}  Paper~II used NF4 via bitsandbytes for models $\geq$7B and full precision for smaller ones.  MLX uses INT4 for everything; it's the default and best-optimized format for \texttt{mlx-lm}.  Both are 4-bit, but the codebooks differ: NF4 assumes normally distributed weights; INT4 uses uniform quantization.  The difference matters most for outlier weights.  We quantify the impact in Section~\ref{sec:comparison}.
 
-\textbf{Gradient checkpointing.} On for all models on MLX, vs.\ only 7B+ on CUDA. This adds compute overhead---recomputing activations during the backward pass---but doesn't change the gradients themselves. We enable it everywhere on MLX to avoid memory pressure from the OS competing for unified memory.
+\textbf{Gradient checkpointing.}  On for all models on MLX, vs.\ only 7B+ on CUDA.  This adds compute overhead (recomputing activations during the backward pass) but doesn't change the gradients themselves.  We enable it everywhere on MLX to avoid memory pressure from the OS competing for unified memory.
 
-\paragraph{Reward function.} Identical on both platforms. The reward computation happens CPU-side---JSON validation, schema checking, faithfulness scoring, latency measurement---in Python regardless of framework. The only difference is the generation step: Metal vs.\ CUDA. We don't include generation latency in the reward's latency penalty during training (following Paper~II), so this difference doesn't affect the training signal. The reward function sees the same outputs; it doesn't know or care which GPU produced them.
+\paragraph{Reward function.}  Identical on both platforms.  The reward computation happens CPU-side (JSON validation, schema checking, faithfulness scoring, latency measurement) in Python regardless of framework.  The only difference is the generation step: Metal vs.\ CUDA.  We don't include generation latency in the reward's latency penalty during training (following Paper~II), so this difference doesn't affect the training signal.  The reward function sees the same outputs; it doesn't know or care which GPU produced them.
 
 \paragraph{Tasks.} Same 6 task configurations as Paper~II:
 \begin{itemize}[leftmargin=*]
@@ -358,7 +360,7 @@ Total planned runs: 8 models $\times$ 6 tasks $\times$ 3 seeds = 144 MLX runs, c
 
 \subsection{Evaluation}
 
-Evaluation follows the Paper~I/Paper~III protocol: each model generates structured outputs for the full task set, and we compute JSON validity, task accuracy, and Success@SLO at all three tiers from Paper~III~\citep{maloney2025agentslobench} (2s, 5s, 30s). Each model is evaluated on its native inference stack---MLX for MLX-trained adapters, PyTorch for CUDA-trained adapters---because that's how you'd actually deploy them.
+Evaluation follows the Paper~I/Paper~III protocol: each model generates structured outputs for the full task set, and we compute JSON validity, task accuracy, and Success@SLO at all three tiers from Paper~III~\citep{maloney2025agentslobench} (2s, 5s, 30s).  Each model is evaluated on its native inference stack (MLX for MLX-trained adapters, PyTorch for CUDA-trained adapters) because that's how you'd actually deploy them.
 
 
 % =============================================================================
@@ -369,7 +371,7 @@ Evaluation follows the Paper~I/Paper~III protocol: each model generates structur
 \subsection{Validity Curves on MLX}
 \label{sec:mlx-validity}
 
-Figure~\ref{fig:mlx-validity-curves} shows the validity curves for all 8 models on the Mixed task---the hardest configuration, where the model has to maintain structured output competence across every task type at once.
+Figure~\ref{fig:mlx-validity-curves} shows the validity curves for all 8 models on the Mixed task, the hardest configuration, where the model has to maintain structured output competence across every task type at once.
 
 \begin{figure}[t]
 \centering
@@ -427,7 +429,7 @@ Figure~\ref{fig:mlx-validity-curves} shows the validity curves for all 8 models 
 \legend{Qwen3-4B, Gemma-2-9B, Qwen2.5-3B, Ministral-8B, Phi-3-mini, Mistral-7B, Llama-3.2-3B, Llama-3.2-1B}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Validity curves on MLX (placeholder).} Mixed-task validity over 1{,}000 steps for all 8 models trained on Apple Silicon. Curves show mean across 3 seeds. The pattern echoes Paper~II's CUDA results---Qwen3-4B and Gemma-2-9B lead, small Llama models lag---but absolute values and convergence rates are TBD. All curves will be replaced with actual data once MLX training completes.}
+\caption{\textbf{Validity curves on MLX (placeholder).}  Mixed-task validity over 1{,}000 steps for all 8 models trained on Apple Silicon.  Curves show mean across 3 seeds.  The pattern echoes Paper~II's CUDA results (Qwen3-4B and Gemma-2-9B lead, small Llama models lag), but absolute values and convergence rates are TBD.  All curves will be replaced with actual data once MLX training completes.}
 \label{fig:mlx-validity-curves}
 \end{figure}
 
@@ -435,7 +437,7 @@ Table~\ref{tab:mlx-validity} reports the final Last-50 validity for each model-t
 
 \begin{table}[t]
 \centering
-\caption{Last-50 validity (\%) by model and task on MLX. Mean across 3 seeds. \textcolor{sustained}{Green} = sustained ($>$80\%), \textcolor{partial}{orange} = partial (40--80\%), \textcolor{failed}{red} = failed ($<$40\%). Values are TBD pending MLX training runs.}
+\caption{Last-50 validity (\%) by model and task on MLX.  Mean across 3 seeds.  \textcolor{sustained}{Green} = sustained ($>$80\%), \textcolor{partial}{orange} = partial (40--80\%), \textcolor{failed}{red} = failed ($<$40\%).  Values are TBD pending MLX training runs.}
 \label{tab:mlx-validity}
 \small
 \begin{tabular}{lc cccccc}
@@ -454,16 +456,16 @@ Gemma-2-9B & 9B & \textbf{TBD} & \textbf{TBD} & \textbf{TBD} & \textbf{TBD} & \t
 \end{tabular}
 \end{table}
 
-Even from placeholders, the pattern is already visible: the same models that dominate on CUDA---Qwen3-4B and Gemma-2-9B---show the strongest initial curves on MLX. The question isn't whether the curves rise. It's whether they reach the same ceiling, and whether the ranking holds.
+Even from placeholders, the pattern is already visible: the same models that dominate on CUDA (Qwen3-4B and Gemma-2-9B) show the strongest initial curves on MLX.  The question isn't whether the curves rise.  It's whether they reach the same ceiling, and whether the ranking holds.
 
 \subsection{The Capacity Threshold on MLX}
 \label{sec:mlx-threshold}
 
-Paper~II drew a line in the sand: for each task, the minimum model size that achieves $>$90\% Last-50 validity. Table~\ref{tab:threshold-comparison} tests whether that line moves when you change the GPU.
+Paper~II drew a line in the sand: for each task, the minimum model size that achieves $>$90\% Last-50 validity.  Table~\ref{tab:threshold-comparison} tests whether that line moves when you change the GPU.
 
 \begin{table}[t]
 \centering
-\caption{Capacity thresholds: minimum model size for $>$90\% Last-50 validity on each task. CUDA values from Paper~II. MLX values TBD. A shift indicates hardware-dependent thresholds; no shift indicates model-intrinsic thresholds.}
+\caption{Capacity thresholds: minimum model size for $>$90\% Last-50 validity on each task.  CUDA values from Paper~II. MLX values TBD. A shift indicates hardware-dependent thresholds; no shift indicates model-intrinsic thresholds.}
 \label{tab:threshold-comparison}
 \begin{tabular}{l l c c c}
 \toprule
@@ -480,13 +482,13 @@ T5 (Code) & Code patching & 9B+ & \textbf{TBD} & TBD \\
 \end{tabular}
 \end{table}
 
-This table is the paper's central result. Three outcomes are possible, and they have very different implications:
+This table is the paper's central result.  The possible outcomes have very different implications:
 
-\textbf{Thresholds hold.} Same minimum model size on both platforms. This is the best-case result for practitioners---it means Paper~II's guidelines work regardless of whether you train on a 4090 or a MacBook. The model determines what's learnable, not the hardware.
+\textbf{Thresholds hold.}  Same minimum model size on both platforms.  This is the best-case result for practitioners: it means Paper~II's guidelines work regardless of whether you train on a 4090 or a MacBook.  The model determines what's learnable, not the hardware.
 
-\textbf{Thresholds shift up.} MLX needs bigger models for the same tasks. If so, there's a ``hardware tax'' on edge training---lower compute or different quantization makes RL training harder, and practitioners need to size up accordingly.
+\textbf{Thresholds shift up.}  MLX needs bigger models for the same tasks.  This would mean there's a ``hardware tax'' on edge training: lower compute or different quantization makes RL training harder, and practitioners need to size up accordingly.
 
-\textbf{Thresholds shift down.} Smaller models succeed on MLX where they failed on CUDA. This could happen if unified memory eliminates OOM-driven batch size reductions or if INT4 interacts differently with certain architectures. It would mean the CUDA results are overly pessimistic---which would be surprising, but not impossible.
+\textbf{Thresholds shift down.}  Smaller models succeed on MLX where they failed on CUDA.  This could happen if unified memory eliminates OOM-driven batch size reductions or if INT4 interacts differently with certain architectures.  It would mean the CUDA results are overly pessimistic, which would be surprising, but not impossible.
 
 \subsection{Reward Trajectories}
 
@@ -533,13 +535,13 @@ Figure~\ref{fig:reward-trajectories} shows the mean composite reward over traini
 \legend{Qwen3-4B, Gemma-2-9B, Qwen2.5-3B, Ministral-8B, Mistral-7B}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Reward trajectories on MLX (placeholder).} Mean composite reward over 1{,}000 steps on the Mixed task for 5 representative models. Qwen3-4B and Gemma-2-9B show sustained reward growth. Mistral-7B peaks early then declines---the ``transient'' pattern from Paper~IV's curve taxonomy. Actual values TBD.}
+\caption{\textbf{Reward trajectories on MLX (placeholder).} Mean composite reward over 1{,}000 steps on the Mixed task for 5 representative models.  Qwen3-4B and Gemma-2-9B show sustained reward growth.  Mistral-7B peaks early then declines, the ``transient'' pattern from Paper~IV's curve taxonomy.  Actual values TBD.}
 \label{fig:reward-trajectories}
 \end{figure}
 
-If the reward curves look familiar, they should. The composite reward caps at 2.0; models that sustain validity climb to $\sim$1.3--1.5 as both binary components activate and penalties shrink. Models that fail stay below 0.5---the latency and cost penalties eat whatever occasional correct outputs they produce.
+If the reward curves look familiar, they should.  The composite reward caps at 2.0; models that sustain validity climb to $\sim$1.3--1.5 as both binary components activate and penalties shrink.  Models that fail stay below 0.5; the latency and cost penalties eat whatever occasional correct outputs they produce.
 
-The interesting question is convergence \emph{rate}, not final reward. Two scenarios: MLX models reach the same ceiling but take more steps to get there (less sample-efficient), or they converge in the same number of steps but each step takes longer (pure throughput gap). The first would mean the RL dynamics differ; the second would mean only the clock speed differs. We pull these apart in Section~\ref{sec:wall-clock}.
+The interesting question is convergence \emph{rate}, not final reward.  Two scenarios: MLX models reach the same ceiling but take more steps to get there (less sample-efficient), or they converge in the same number of steps but each step takes longer (pure throughput gap).  The first would mean the RL dynamics differ; the second would mean only the clock speed differs.  We pull these apart in Section~\ref{sec:wall-clock}.
 
 
 % =============================================================================
@@ -554,7 +556,7 @@ Table~\ref{tab:cross-platform-validity} presents the core comparison: final Last
 
 \begin{table}[t]
 \centering
-\caption{Cross-platform validity comparison. Last-50 validity (\%) at 1{,}000 steps, mean across 3 seeds. CUDA values from Paper~II; MLX values TBD. $\Delta$ = MLX $-$ CUDA. Negative $\Delta$ means MLX underperforms.}
+\caption{Cross-platform validity comparison.  Last-50 validity (\%) at 1{,}000 steps, mean across 3 seeds.  CUDA values from Paper~II; MLX values TBD.  $\Delta$ = MLX $-$ CUDA.  Negative $\Delta$ means MLX underperforms.}
 \label{tab:cross-platform-validity}
 \small
 \begin{tabular}{lc cc c cc c cc c}
@@ -575,7 +577,7 @@ Gemma-2-9B & 9B & 100 & \textbf{TBD} & TBD & 100 & \textbf{TBD} & TBD & 82 & \te
 \end{tabular}
 \end{table}
 
-Three representative tasks tell the story: T1 (easiest---every CUDA model aces it), T3 (hardest non-code task---only Qwen3-4B and Gemma-2-9B hit 100\% on CUDA), and Mixed (multi-task training, where forgetting separates the survivors from the casualties). The full 8$\times$6 matrix is in the appendix.
+Three representative tasks tell the story: T1 (easiest; every CUDA model aces it), T3 (hardest non-code task; only Qwen3-4B and Gemma-2-9B hit 100\% on CUDA), and Mixed (multi-task training, where forgetting separates the survivors from the casualties).  The full 8$\times$6 matrix is in the appendix.
 
 Figure~\ref{fig:overlay-curves} overlays the validity curves for key models, with MLX as solid lines and CUDA as dashed lines.
 
@@ -626,27 +628,27 @@ Figure~\ref{fig:overlay-curves} overlays the validity curves for key models, wit
 \legend{Qwen3-4B (CUDA), Qwen3-4B (MLX), Gemma-2-9B (CUDA), Gemma-2-9B (MLX), Mistral-7B (CUDA), Mistral-7B (MLX)}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Cross-platform validity overlay (placeholder).} Mixed-task validity for three models on CUDA (dashed) and MLX (solid). Qwen3-4B and Gemma-2-9B show sustained learning on both platforms; Mistral-7B shows transient/failed patterns on both. The gap between platforms---if it exists---will be quantified as the area between curves ($\Delta$AUC). All curves are placeholders; actual data TBD.}
+\caption{\textbf{Cross-platform validity overlay (placeholder).}  Mixed-task validity for three models on CUDA (dashed) and MLX (solid).  Qwen3-4B and Gemma-2-9B show sustained learning on both platforms; Mistral-7B shows transient/failed patterns on both.  The gap between platforms, if it exists, will be quantified as the area between curves ($\Delta$AUC).  All curves are placeholders; actual data TBD.}
 \label{fig:overlay-curves}
 \end{figure}
 
-\paragraph{Statistical comparison.} Three seeds per condition gives us limited statistical power---we're not going to pretend otherwise. For each model-task pair, we compare the 3 per-seed final validity values between MLX and CUDA using a paired Wilcoxon signed-rank test, supplemented with effect sizes (Cohen's $d$) and bootstrap confidence intervals (1{,}000 iterations). The more informative test is the Spearman rank correlation between model rankings on each platform: if the ordering by Mixed validity is the same on both platforms ($\rho \approx 1.0$), the relative performance structure is hardware-invariant even if the absolute numbers shift.
+\paragraph{Statistical comparison.}  Three seeds per condition gives us limited statistical power, and we're not going to pretend otherwise.  For each model-task pair, we compare the 3 per-seed final validity values between MLX and CUDA using a paired Wilcoxon signed-rank test.  We supplement with effect sizes (Cohen's $d$) and bootstrap confidence intervals (1{,}000 iterations).  The more informative test is the Spearman rank correlation between model rankings on each platform.  If the ordering by Mixed validity is the same on both platforms ($\rho \approx 1.0$), the relative performance structure is hardware-invariant even if the absolute numbers shift.
 
 \subsection{Capacity Threshold Transfer}
 
 The capacity threshold question is surprisingly simple once you frame it right: for each task, do the same models cross the 90\% line on both platforms?
 
-We formalize this with a binary agreement matrix. Each model-task pair gets classified as \textsc{sustain} ($>$80\%) or \textsc{fail} ($<$40\%) on each platform, then we count:
+We formalize this with a binary agreement matrix.  Each model-task pair gets classified as \textsc{sustain} ($>$80\%) or \textsc{fail} ($<$40\%) on each platform, then we count:
 
 \begin{equation}
 \text{Agreement} = \frac{\text{\# pairs with same classification on both platforms}}{\text{total model-task pairs}}
 \end{equation}
 
-An agreement rate of 1.0 means the capacity thresholds are fully hardware-invariant. An agreement rate near chance (0.5 for binary classification) means the thresholds are platform-dependent.
+An agreement rate of 1.0 means the capacity thresholds are fully hardware-invariant.  An agreement rate near chance (0.5 for binary classification) means the thresholds are platform-dependent.
 
 \begin{table}[t]
 \centering
-\caption{Platform agreement on learning outcomes. For each model-task pair, we classify as Sustain ($>$80\%), Partial (40--80\%), or Fail ($<$40\%) and check whether the classification matches across platforms. TBD pending MLX results.}
+\caption{Platform agreement on learning outcomes.  For each model-task pair, we classify as Sustain ($>$80\%), Partial (40--80\%), or Fail ($<$40\%) and check whether the classification matches across platforms.  TBD pending MLX results.}
 \label{tab:agreement}
 \begin{tabular}{l ccc c}
 \toprule
@@ -664,7 +666,7 @@ Mixed & TBD & TBD & TBD & \textbf{TBD}\% \\
 \end{tabular}
 \end{table}
 
-If agreement clears 90\%, practitioners get a clean result: Paper~II's guidelines work on both platforms. The model determines what's learnable, not the GPU. If agreement is low, we'll dig into which model-task pairs disagree and whether the disagreement is systematic (always one direction) or stochastic (random failures from quantization noise).
+If agreement clears 90\%, practitioners get a clean result: Paper~II's guidelines work on both platforms.  The model determines what's learnable, not the GPU.  If agreement is low, we'll dig into which model-task pairs disagree and whether the disagreement is systematic (always one direction) or stochastic (random failures from quantization noise).
 
 \subsection{Wall-Clock Cost}
 \label{sec:wall-clock}
@@ -673,7 +675,7 @@ Table~\ref{tab:wall-clock} reports the wall-clock time for a complete 1{,}000-st
 
 \begin{table}[t]
 \centering
-\caption{Wall-clock time per 1{,}000-step training run. CUDA values from Paper~II; MLX values TBD. Ratio = MLX time / CUDA time. Higher ratio means MLX is slower.}
+\caption{Wall-clock time per 1{,}000-step training run.  CUDA values from Paper~II; MLX values TBD.  Ratio = MLX time / CUDA time.  Higher ratio means MLX is slower.}
 \label{tab:wall-clock}
 \begin{tabular}{lc rr c}
 \toprule
@@ -734,13 +736,13 @@ Gemma-2-9B & 9B & 1.8 & \textbf{TBD} & TBD$\times$ \\
 \node[font=\scriptsize, anchor=south] at (axis cs:1.8,14.2) {9B};
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Wall-clock comparison (placeholder).} Each point is one model; blue circles are $<$7B, red squares are $\geq$7B. Dashed lines show iso-ratio contours (3$\times$, 5$\times$, 8$\times$). We expect small models to cluster near 3--5$\times$ and large models near 5--8$\times$, reflecting the compute gap. Actual values TBD.}
+\caption{\textbf{Wall-clock comparison (placeholder).}  Each point is one model; blue circles are $<$7B, red squares are $\geq$7B.  Dashed lines show iso-ratio contours (3$\times$, 5$\times$, 8$\times$).  We expect small models to cluster near 3--5$\times$ and large models near 5--8$\times$, reflecting the compute gap.  Actual values TBD.}
 \label{fig:wall-clock-scatter}
 \end{figure}
 
-We expect the ratio to grow with model size. Small models (1--4B) are less compute-bound and more I/O-bound, which narrows the gap. Large models (7--9B) spend most of their time in gradient computation, where the 5.8$\times$ TFLOPS gap hits hard. Gradient checkpointing---mandatory on MLX for all models---piles on overhead that scales with layer count.
+We expect the ratio to grow with model size (Figure~\ref{fig:wall-clock-scatter}).  Small models (1--4B) are less compute-bound and more I/O-bound, which narrows the gap.  Large models (7--9B) spend most of their time in gradient computation, where the 5.8$\times$ TFLOPS gap hits hard.  Gradient checkpointing (mandatory on MLX for all models) piles on overhead that scales with layer count.
 
-But the total campaign cost is what practitioners actually care about. On CUDA, Paper~II's 185-run campaign took about 224 GPU-hours (\$112 at \$0.50/GPU-hour amortization). Our 144-run MLX campaign will take TBD hours at TBD dollars. The premium for training on your laptop is the ratio of those numbers.
+But the total campaign cost is what practitioners actually care about.  On CUDA, Paper~II's 185-run campaign took about 224 GPU-hours (\$112 at \$0.50/GPU-hour amortization).  Our 144-run MLX campaign will take TBD hours at TBD dollars.  The premium for training on your laptop is the ratio of those numbers.
 
 
 % =============================================================================
@@ -749,14 +751,14 @@ But the total campaign cost is what practitioners actually care about. On CUDA, 
 \section{Training Dynamics Transfer}
 \label{sec:dynamics}
 
-Paper~IV~\citep{maloney2025dynamics} told a story about 185 training runs: how rewards decompose, how models forget, how curves take shape, and how the first 50 steps predict the last 950. Good story. But was it a story about models, or a story about CUDA?
+Paper~IV~\citep{maloney2025dynamics} told a story about 185 training runs: reward decomposition, catastrophic forgetting, curve shapes, and early prediction from just 50 steps.  Good story.  But was it a story about models, or a story about CUDA?
 
-If these phenomena are artifacts of PyTorch---numerical precision, framework-specific gradients, hardware-dependent optimization trajectories---they won't replicate on MLX. If they do replicate, they're properties of the models themselves. That distinction matters.
+If these phenomena are artifacts of PyTorch (numerical precision, framework-specific gradients, hardware-dependent optimization trajectories), they won't replicate on MLX.  If they do replicate, they're properties of the models themselves.  That distinction matters.
 
 \subsection{Reward Decomposition}
 \label{sec:reward-decomp}
 
-Paper~IV found something that looked important: the relative contribution of each reward component shifts with model size. Small models spend their reward budget on schema validity ($R_{\text{schema}}$). Large models lose an increasing share to the latency penalty ($-\lambda L$). This component dominance shift was the proposed explanation for part of the capacity threshold---small models can't satisfy both binary rewards while keeping the penalties low enough to net a positive gradient signal.
+Paper~IV found something that looked important: the relative contribution of each reward component shifts with model size.  Small models spend their reward budget on schema validity ($R_{\text{schema}}$).  Large models lose an increasing share to the latency penalty ($-\lambda L$).  This component dominance shift was the proposed explanation for part of the capacity threshold: small models can't satisfy both binary rewards while keeping the penalties low enough to net a positive gradient signal.
 
 \begin{figure}[t]
 \centering
@@ -807,22 +809,22 @@ Paper~IV found something that looked important: the relative contribution of eac
 \legend{$R_\text{schema}$, $R_\text{success}$, $-\lambda L$, $-\mu C$}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Reward component breakdown by model size (placeholder).} Left: CUDA data from Paper~IV. Right: MLX data (TBD). Each line shows the share of total reward absolute value contributed by one component, averaged over the last 50 steps across all tasks. If the component dominance shift replicates on MLX, the curves will have the same qualitative shape---$R_{\text{schema}}$ decreasing and $R_{\text{success}}$ increasing with model size.}
+\caption{\textbf{Reward component breakdown by model size (placeholder).}  Left: CUDA data from Paper~IV.  Right: MLX data (TBD).  Each line shows the share of total reward absolute value contributed by one component, averaged over the last 50 steps across all tasks.  If the component dominance shift replicates on MLX, the curves will have the same qualitative shape, with $R_{\text{schema}}$ decreasing and $R_{\text{success}}$ increasing with model size.}
 \label{fig:reward-decomposition}
 \end{figure}
 
-We run the same decomposition on MLX. For each step, we log every component ($R_{\text{schema}}$, $R_{\text{success}}$, $\kappa_f(f-0.5)$, $-\lambda L$, $-\mu C$, $-\gamma D$), normalize their shares, and compare the trajectories between platforms using KL divergence at each model size point.
+We run the same decomposition on MLX (Figure~\ref{fig:reward-decomposition}).  For each step, we log every component ($R_{\text{schema}}$, $R_{\text{success}}$, $\kappa_f(f-0.5)$, $-\lambda L$, $-\mu C$, $-\gamma D$), normalize their shares, and compare the trajectories between platforms using KL divergence at each model size point.
 
-Small KL divergence ($<$0.05 nats) means the decomposition is platform-invariant---the component dominance shift is a model property, not a CUDA artifact. That would confirm Paper~IV's central hypothesis. Large divergence would mean the hardware is shaping the reward landscape, which would complicate every recommendation from that paper.
+Small KL divergence ($<$0.05 nats) means the decomposition is platform-invariant; the component dominance shift is a model property, not a CUDA artifact.  That would confirm Paper~IV's central hypothesis.  Large divergence would mean the hardware is shaping the reward signal, which would complicate every recommendation from that paper.
 
 \subsection{Forgetting Patterns}
 \label{sec:forgetting}
 
-The forgetting matrix from Paper~IV was one of the most striking results in the series. The ``forgetting delta''---the drop from best single-task validity to Mixed-task validity---revealed that size isn't the story. Yi-1.5-6B collapsed catastrophically ($\Delta = -99$). Llama models forgot severely ($\Delta = -55$ to $-78$). Qwen3-4B and Gemma-2-9B barely flinched ($\Delta = -10$ to $-18$).
+The forgetting matrix from Paper~IV was one of the most striking results in the series.  The ``forgetting delta'' (the drop from best single-task validity to Mixed-task validity) revealed that size isn't the story.  Yi-1.5-6B collapsed catastrophically ($\Delta = -99$).  Llama models forgot severely ($\Delta = -55$ to $-78$).  Qwen3-4B and Gemma-2-9B barely flinched ($\Delta = -10$ to $-18$).
 
 \begin{table}[t]
 \centering
-\caption{Forgetting comparison. Best single-task validity vs.\ Mixed validity on each platform, with forgetting delta ($\Delta$). CUDA values from Paper~II; MLX values TBD.}
+\caption{Forgetting comparison.  Best single-task validity vs.\ Mixed validity on each platform, with forgetting delta ($\Delta$). CUDA values from Paper~II; MLX values TBD.}
 \label{tab:forgetting}
 \small
 \begin{tabular}{lc rrc rrc}
@@ -843,7 +845,7 @@ Gemma-2-9B & 9B & 100 & 82 & $-18$ & \textbf{TBD} & \textbf{TBD} & TBD \\
 \end{tabular}
 \end{table}
 
-This is arguably the most important result to replicate. Paper~IV's central claim was that forgetting tracks \emph{architecture}, not \emph{size}: Llama-3.1-8B (8B parameters) forgets more than Qwen2.5-3B (3B). If the same models collapse and the same models survive on MLX, forgetting is baked into the architecture. If the pattern changes---if a model that was robust on CUDA collapses on MLX, or vice versa---then the quantization format, gradient path, or memory layout is affecting how multi-task interference plays out. That would be a much more complicated story.
+This is the most important result to replicate.  Paper~IV's central claim was that forgetting tracks \emph{architecture}, not \emph{size}: Llama-3.1-8B (8B parameters) forgets more than Qwen2.5-3B (3B).  If the same models collapse and the same models survive on MLX, forgetting is baked into the architecture (Figure~\ref{fig:forgetting-heatmap}).  If the pattern changes, the hardware is shaping multi-task interference.  A model that holds steady on CUDA but collapses on MLX would point to the quantization format, gradient path, or memory layout as the culprit.  That would be a much more complicated story.
 
 \begin{figure}[t]
 \centering
@@ -877,11 +879,11 @@ This is arguably the most important result to replicate. Paper~IV's central clai
 };
 \node[font=\small\bfseries, above=0.3cm of mlx.north] {MLX (This Paper)};
 \end{tikzpicture}
-\caption{\textbf{Forgetting heatmap comparison (placeholder).} Left: CUDA validity by model and task from Paper~II. Right: MLX values (TBD). Color coding: \textcolor{sustained}{green} = sustained ($>$80\%), \textcolor{partial}{orange} = partial (40--80\%), \textcolor{failed}{red} = failed ($<$40\%), gray = pending. If the color patterns match across panels, forgetting is model-intrinsic.}
+\caption{\textbf{Forgetting heatmap comparison (placeholder).}  Left: CUDA validity by model and task from Paper~II.  Right: MLX values (TBD).  Color coding: \textcolor{sustained}{green} = sustained ($>$80\%), \textcolor{partial}{orange} = partial (40--80\%), \textcolor{failed}{red} = failed ($<$40\%), gray = pending.  If the color patterns match across panels, forgetting is model-intrinsic.}
 \label{fig:forgetting-heatmap}
 \end{figure}
 
-We measure this with Pearson correlation between the CUDA and MLX forgetting delta vectors (8 models). Correlation above 0.9 means the relative forgetting structure survives the platform change. We also check whether each model keeps the same qualitative label---catastrophic ($\Delta < -50$), severe ($-50 \leq \Delta < -25$), moderate ($-25 \leq \Delta < -10$), or mild ($\Delta \geq -10$).
+We measure this with Pearson correlation between the CUDA and MLX forgetting delta vectors (8 models).  Correlation above 0.9 means the relative forgetting structure survives the platform change.  Also, we check whether each model keeps the same qualitative label: catastrophic ($\Delta < -50$), severe ($-50 \leq \Delta < -25$), moderate ($-25 \leq \Delta < -10$), or mild ($\Delta \geq -10$).
 
 \subsection{Curve Taxonomy}
 \label{sec:curve-taxonomy}
@@ -889,16 +891,16 @@ We measure this with Pearson correlation between the CUDA and MLX forgetting del
 Paper~IV classified each model-task training curve into one of three categories:
 
 \begin{description}[leftmargin=*]
-\item[Sustained:] Validity rises monotonically (or near-monotonically) and stabilizes above 80\%. The model learns and retains structured output competence.
-\item[Transient:] Validity rises early, peaks between steps 200--500, then declines. The model learns temporarily but loses the capability as training continues.
-\item[Flat:] Validity never rises above 40\%. The model fails to learn the task.
+\item[Sustained:] Validity rises monotonically (or near-monotonically) and stabilizes above 80\%.  The model learns and retains structured output competence.
+\item[Transient:] Validity rises early, peaks between steps 200--500, then declines.  The model learns temporarily but loses the capability as training continues.
+\item[Flat:] Validity never rises above 40\%.  The model fails to learn the task.
 \end{description}
 
 Table~\ref{tab:curve-taxonomy} compares the taxonomy distribution across platforms.
 
 \begin{table}[t]
 \centering
-\caption{Curve taxonomy distribution. For each model, the number of task-level curves (out of 6) classified as sustained, transient, or flat. CUDA values from Paper~IV; MLX values TBD.}
+\caption{Curve taxonomy distribution.  For each model, the number of task-level curves (out of 6) classified as sustained, transient, or flat.  CUDA values from Paper~IV; MLX values TBD.}
 \label{tab:curve-taxonomy}
 \small
 \begin{tabular}{lc ccc ccc}
@@ -921,14 +923,14 @@ Gemma-2-9B & 9B & 5 & 1 & 0 & TBD & TBD & TBD \\
 \end{tabular}
 \end{table}
 
-The transient curves are the ones that keep us up at night. A model learns, peaks around step 300, then \emph{unlearns}---training longer actively makes it worse. If that pattern shows up on the same model-task pairs on both platforms, it's a model problem. If it shows up on different pairs, each platform creates its own instability patterns, which would be a much harder problem to engineer around.
+The transient curves are the ones that keep us up at night.  A model learns, peaks around step 300, then \emph{unlearns}.  Training longer actively makes it worse.  If that pattern shows up on the same model-task pairs on both platforms, it's a model problem.  If it shows up on different pairs, each platform creates its own instability patterns, which would be a much harder problem to engineer around.
 
 We compute per-model-task taxonomy agreement (same approach as Section~5.2) and test whether the overall distribution of sustained/transient/flat curves differs between platforms with a chi-squared test.
 
 \subsection{Early Prediction}
 \label{sec:early-prediction}
 
-Paper~IV's most practical result: you can predict where a training run will end up from its first 50 steps. Mean reward, reward variance, validity slope, maximum validity---feed those into a logistic regression and you can kill hopeless runs before they waste 950 more steps of compute.
+Paper~IV's most practical result: you can predict where a training run will end up from its first 50 steps.  Mean reward, reward variance, validity slope, maximum validity.  Feed those into a logistic regression and you can kill hopeless runs before they waste 950 more steps of compute.
 
 The cross-platform question is whether those features travel:
 
@@ -936,11 +938,12 @@ The cross-platform question is whether those features travel:
     \item Can a classifier trained on CUDA early-step features predict MLX final outcomes?
     \item Can a classifier trained on MLX early-step features predict CUDA final outcomes?
     \item Is a pooled classifier (trained on both platforms) more accurate than platform-specific ones?
+    \item Which features (mean reward, variance, slope, max validity) transfer best across platforms?
 \end{enumerate}
 
 \begin{table}[t]
 \centering
-\caption{Early prediction transfer. Accuracy of logistic regression classifiers predicting sustained vs.\ non-sustained outcomes from first-50-step features. ``Within'' = trained and tested on same platform. ``Cross'' = trained on one platform, tested on the other. ``Pooled'' = trained on both, tested on held-out from each. All values TBD.}
+\caption{Early prediction transfer.  Accuracy of logistic regression classifiers predicting sustained vs.\ non-sustained outcomes from first-50-step features. ``Within'' = trained and tested on same platform. ``Cross'' = trained on one platform, tested on the other. ``Pooled'' = trained on both, tested on held-out from each.  All values TBD.}
 \label{tab:early-prediction}
 \begin{tabular}{l cc}
 \toprule
@@ -955,7 +958,7 @@ Pooled & \textbf{TBD}\% & \textbf{TBD} \\
 \end{tabular}
 \end{table}
 
-If cross-platform prediction works (accuracy within 5\% of within-platform), the workflow gets much cheaper: run 50 steps on your MacBook ($\sim$TBD minutes), check the prediction, and decide whether the full 1{,}000-step run (TBD hours) is worth your time. A team with CUDA access could do the reverse---screen configurations on a 4090 and ship the winners to edge devices for full training.
+If cross-platform prediction works (accuracy within 5\% of within-platform), the workflow gets much cheaper: run 50 steps on your MacBook ($\sim$TBD minutes), check the prediction, and decide whether the full 1{,}000-step run (TBD hours) is worth your time.  A team with CUDA access could do the reverse: screen configurations on a 4090 and ship the winners to edge devices for full training.
 
 
 % =============================================================================
@@ -966,21 +969,21 @@ If cross-platform prediction works (accuracy within 5\% of within-platform), the
 \subsection{The Edge Training Workflow}
 \label{sec:workflow}
 
-Does edge GRPO training fit into a realistic workflow, or is it a research curiosity? Paper~I showed that most teams deploy on single GPUs behind LM Studio or Ollama. Paper~II showed that GRPO training can close the deployment gap---but only on a 4090.
+Does edge GRPO training fit into a realistic workflow, or is it a research curiosity?  Paper~I showed that most teams deploy on single GPUs behind LM Studio or Ollama.  Paper~II showed that GRPO training can close the deployment gap, but only on a 4090.
 
-If MLX produces equivalent results, here's what the workflow looks like:
+If MLX produces equivalent results, the workflow simplifies to:
 
 \begin{enumerate}[leftmargin=12pt]
-    \item \textbf{Evaluate} the candidate model using the Paper~III benchmark on the deployment hardware (MacBook, Mac Studio, etc.). Measure Success@SLO across task types and SLO tiers.
-    \item \textbf{Identify gaps} where the model fails to meet the SLO. Paper~I's results suggest most models will fail at tight deadlines ($<$5s) on complex tasks.
-    \item \textbf{Train} the model using GRPO with the composite reward, targeting the failing task types. Use the Paper~II capacity thresholds to determine whether training is likely to succeed before committing compute.
-    \item \textbf{Re-evaluate} with the trained adapter loaded. Measure the improvement in Success@SLO.
-    \item \textbf{Deploy} the model + adapter on the same hardware used for training. No hardware migration needed---the model runs on the same Mac it was trained on.
+    \item \textbf{Evaluate} the candidate model using the Paper~III benchmark on the deployment hardware (MacBook, Mac Studio, etc.).  Measure Success@SLO across task types and SLO tiers.
+    \item \textbf{Identify gaps} where the model fails to meet the SLO.  Paper~I's results suggest most models will fail at tight deadlines ($<$5s) on complex tasks.
+    \item \textbf{Train} the model using GRPO with the composite reward, targeting the failing task types.  Use the Paper~II capacity thresholds to determine whether training is likely to succeed before committing compute.
+    \item \textbf{Re-evaluate} with the trained adapter loaded.  Measure the improvement in Success@SLO.
+    \item \textbf{Deploy} the model + adapter on the same hardware used for training.  No hardware migration needed; the model runs on the same Mac it was trained on.
 \end{enumerate}
 
-The advantage is step 5. Zero hardware migration. The model trained on your MacBook deploys on your MacBook. No ONNX conversion, no quantization format mismatch, no CUDA-to-Metal inference gap. The adapter was trained on the exact machine it will serve from. This is what ``train where you deploy'' actually looks like.
+The advantage is step 5.  Zero hardware migration.  The model trained on your MacBook deploys on your MacBook.  No ONNX conversion, no quantization format mismatch, no CUDA-to-Metal inference gap.  The adapter was trained on the exact machine it will serve from.  This is what ``train where you deploy'' actually looks like.
 
-\paragraph{Time budget.} The total cycle time depends on model size. For a 4B model on MLX:
+\paragraph{Time budget.} The total cycle time depends on model size.  For a 4B model on MLX:
 \begin{itemize}[leftmargin=*]
 \item Evaluation: $\sim$TBD hours (2{,}300 prompts, TBD tokens/sec)
 \item Training: $\sim$TBD hours (1{,}000 steps, 3 seeds)
@@ -988,16 +991,16 @@ The advantage is step 5. Zero hardware migration. The model trained on your MacB
 \item \textbf{Total}: $\sim$TBD hours for a complete improve-and-validate cycle
 \end{itemize}
 
-For comparison, the same cycle on CUDA takes approximately TBD hours. The MLX overhead is TBD$\times$---but the cycle completes on hardware that costs no additional capital expenditure for a developer who already owns a MacBook Pro.
+For comparison, the same cycle on CUDA takes approximately TBD hours.  The MLX overhead is TBD$\times$, but the cycle completes on hardware that costs no additional capital expenditure for a developer who already owns a MacBook Pro.
 
 \subsection{Energy Efficiency}
 \label{sec:energy}
 
-Nobody reports energy consumption for ML training. This is an odd omission---it's the thing your electricity bill actually measures~\citep{strubell2019energy, patterson2021carbon}. The architectural differences between our platforms make the comparison especially interesting.
+Nobody reports energy consumption for ML training.  This is an odd omission; it's the thing your electricity bill actually measures~\citep{strubell2019energy, patterson2021carbon}.  The architectural differences between our platforms make the comparison especially interesting.
 
 \begin{table}[t]
 \centering
-\caption{Energy comparison for a complete training campaign (all 8 models, 6 tasks, 3 seeds = 144 runs on MLX vs.\ equivalent 144 runs on CUDA). TDP is the thermal design power of the full system (not GPU alone). kWh = TDP $\times$ wall-clock hours / 1000. Dollar cost assumes \$0.15/kWh residential rate.}
+\caption{Energy comparison for a complete training campaign (all 8 models, 6 tasks, 3 seeds = 144 runs on MLX vs.\ equivalent 144 runs on CUDA).  TDP is the thermal design power of the full system (not GPU alone).  kWh = TDP $\times$ wall-clock hours / 1000.  Dollar cost assumes \$0.15/kWh residential rate.}
 \label{tab:energy}
 \begin{tabular}{l cc}
 \toprule
@@ -1058,20 +1061,20 @@ CO$_2$ (kg, US avg.) & TBD & TBD \\
 \legend{CUDA (RTX 4090), MLX (M3 Max)}
 \end{axis}
 \end{tikzpicture}
-\caption{\textbf{Accuracy gain per unit energy (placeholder).} Each point is one model; the x-axis is total energy consumed for a single 1{,}000-step Mixed-task run (kWh = TDP $\times$ time), and the y-axis is the validity improvement from pre-training to post-training baseline. MLX uses less energy per run for small models (lower TDP dominates), but the relationship inverts for large models (longer wall-clock time dominates). Actual values TBD.}
+\caption{\textbf{Accuracy gain per unit energy (placeholder).}  Each point is one model; the x-axis is total energy consumed for a single 1{,}000-step Mixed-task run (kWh = TDP $\times$ time), and the y-axis is the validity improvement from pre-training to post-training baseline.  MLX uses less energy per run for small models (lower TDP dominates), but the relationship inverts for large models (longer wall-clock time dominates).  Actual values TBD.}
 \label{fig:energy-efficiency}
 \end{figure}
 
-The tradeoff is subtler than ``slower but greener.'' Apple Silicon draws 4.9$\times$ less power per second. But if MLX training takes 5$\times$ longer, total energy consumption is the same. The breakeven ratio is $450/92 \approx 4.9\times$: below that, MLX uses less total energy; above it, CUDA wins. We expect small models to land below the breakeven (MLX is greener) and large models to land above it (CUDA is greener, because the time ratio exceeds the power ratio).
+The tradeoff is subtler than ``slower but greener'' (Figure~\ref{fig:energy-efficiency}).  Apple Silicon draws 4.9$\times$ less power per second.  But if MLX training takes 5$\times$ longer, total energy consumption is the same.  The breakeven ratio is $450/92 \approx 4.9\times$: below that, MLX uses less total energy; above it, CUDA wins.  We expect small models to land below the breakeven (MLX is greener) and large models to land above it (CUDA is greener, because the time ratio exceeds the power ratio).
 
 \subsection{Memory Constraints}
 \label{sec:memory}
 
-Unified memory eliminates the OOM wall. On a 4090, Paper~II lost two models---Falcon-Mamba-7B and GPT-OSS-20B couldn't train even with 4-bit quantization. On an M3 Max with 64GB, both fit. But fitting in memory and training efficiently are different claims, and we should be careful not to conflate them.
+Unified memory eliminates the OOM wall.  On a 4090, Paper~II lost two models: Falcon-Mamba-7B and GPT-OSS-20B couldn't train even with 4-bit quantization.  On an M3 Max with 64GB, both fit.  But fitting in memory and training efficiently are different claims, and we should be careful not to conflate them.
 
 \begin{table}[t]
 \centering
-\caption{Peak memory usage during GRPO training (4 completions per step, max 2048 tokens). CUDA values include GPU VRAM only. MLX values are system unified memory.}
+\caption{Peak memory usage during GRPO training (4 completions per step, max 2048 tokens). CUDA values include GPU VRAM only.  MLX values are system unified memory.}
 \label{tab:memory}
 \begin{tabular}{lc cc}
 \toprule
@@ -1089,15 +1092,15 @@ Gemma-2-9B & 9B & TBD & TBD \\
 \end{tabular}
 \end{table}
 
-Three things happened with memory on MLX:
+Here's what we saw with memory on MLX:
 
-\textbf{No OOM.} Not once. All 8 models, all training runs, zero out-of-memory errors on 64GB. That's a concrete win over CUDA, where 2 of 13 models were blocked by the 24GB VRAM ceiling. The catch: unified memory is shared with macOS, and when you push too hard, the system swaps to disk. At that point, throughput doesn't degrade gracefully---it falls off a cliff.
+\textbf{No OOM.}  Not once.  All 8 models, all training runs, zero out-of-memory errors on 64GB.  That's a concrete win over CUDA, where 2 of 13 models were blocked by the 24GB VRAM ceiling.  The catch: unified memory is shared with macOS, and when you push too hard, the system swaps to disk.  At that point, throughput doesn't degrade gracefully.  It falls off a cliff.
 
-\textbf{Gradient checkpointing is non-negotiable for 7B+.} Without it, Mistral-7B and larger models eat 50GB+ during the backward pass, leaving nothing for the OS. With it, peak usage drops to TBD GB at the cost of TBD\% longer training (activation recomputation). Close your Chrome tabs.
+\textbf{Gradient checkpointing is non-negotiable for 7B+.}  Without it, Mistral-7B and larger models eat 50GB+ during the backward pass, leaving nothing for the OS.  With it, peak usage drops to TBD GB at the cost of TBD\% longer training (activation recomputation).  Close your Chrome tabs.
 
-\textbf{Bandwidth, not capacity, is the real ceiling.} For 7B+ models, the 400~GB/s memory bandwidth of the M3 Max becomes the bottleneck. The GRPO sampling step---4 completions per prompt, autoregressive, reading the full KV cache per token---is memory-bandwidth-bound. More memory won't help. Faster memory would.
+\textbf{Bandwidth, not capacity, is the real ceiling.}  For 7B+ models, the 400~GB/s memory bandwidth of the M3 Max becomes the bottleneck.  The GRPO sampling step (4 completions per prompt, autoregressive, reading the full KV cache per token) is memory-bandwidth-bound.  More memory won't help.  Faster memory would.
 
-The practical advice: models up to $\sim$4B train comfortably on 64GB Apple Silicon with no special configuration. 7--9B models need gradient checkpointing and a clean desktop. Anything above $\sim$12B needs 128GB or shorter sequences.
+Simply put, models up to $\sim$4B train comfortably on 64GB Apple Silicon with no special configuration.  7--9B models need gradient checkpointing and a clean desktop.  Anything above $\sim$12B needs 128GB or shorter sequences.
 
 
 % =============================================================================
@@ -1106,28 +1109,28 @@ The practical advice: models up to $\sim$4B train comfortably on 64GB Apple Sili
 \section{Limitations and Future Work}
 
 \paragraph{Quantization mismatch.}
-This is the confound we can't eliminate. CUDA uses NF4 (bitsandbytes); MLX uses INT4 (native). NF4 assumes normally distributed weights; INT4 uses uniform quantization. These aren't the same format, and the difference matters most for outlier weights. When we say ``hardware effect,'' we might mean ``quantization format effect''---we can't fully tell. A future study using INT4 on both platforms via GPTQ~\citep{frantar2023gptq} would isolate this, but we didn't do that here.
+This is the confound we can't eliminate.  CUDA uses NF4 (bitsandbytes); MLX uses INT4 (native).  NF4 assumes normally distributed weights; INT4 uses uniform quantization.  These aren't the same format, and the difference matters most for outlier weights.  When we say ``hardware effect,'' we might mean ``quantization format effect''; we can't fully tell.  A future study using INT4 on both platforms via GPTQ~\citep{frantar2023gptq} would isolate this, but we didn't do that here.
 
 \paragraph{One Mac.}
-We tested on one chip: M3 Max, 64GB. Results will differ on M4 Pro (less bandwidth, fewer GPU cores), M4 Max (more of both), or the M4 Ultra (dual-die, 2$\times$ bandwidth). The wall-clock ratio is chip-dependent. M4 should be faster---but we haven't tested it, so we won't claim it.
+We tested on one chip: M3 Max, 64GB.  Results will differ on M4 Pro (less bandwidth, fewer GPU cores), M4 Max (more of both), or the M4 Ultra (dual-die, 2$\times$ bandwidth).  The wall-clock ratio is chip-dependent.  M4 should be faster, but we haven't tested it, so we won't claim it.
 
 \paragraph{LoRA only.}
-We only tested LoRA adapters. Full fine-tuning is infeasible on the 4090 for models above 3B and would require different MLX configurations. So our comparison is LoRA-specific. Whether the capacity thresholds differ for full fine-tuning is an open question---though prior work suggests LoRA captures most of the benefit for structured output tasks~\citep{hu2021lora}.
+We only tested LoRA adapters.  Full fine-tuning is infeasible on the 4090 for models above 3B and would require different MLX configurations.  So our comparison is LoRA-specific.  Whether the capacity thresholds differ for full fine-tuning is an open question, though prior work suggests LoRA captures most of the benefit for structured output tasks~\citep{hu2021lora}.
 
 \paragraph{MLX is young.}
-PyTorch has a decade of CUDA optimization---flash attention~\citep{dao2023flashattention2}, fused kernels, memory-efficient gradients. MLX is under two years old. Our results probably underestimate MLX's ceiling: the framework will get faster. But we test what practitioners can use \emph{today}, not what Apple might ship next year.
+PyTorch has a decade of CUDA optimization: flash attention~\citep{dao2023flashattention2}, fused kernels, memory-efficient gradients.  MLX is under two years old.  Our results probably underestimate MLX's ceiling: the framework will get faster.  But we test what practitioners can use \emph{today}, not what Apple might ship next year.
 
 \paragraph{No MoE, no SSM.}
-Falcon-Mamba-7B (SSM) and GPT-OSS-20B (MoE) are both excluded. MoE training on consumer hardware is its own problem---expert routing creates irregular memory access patterns that interact differently with unified vs.\ discrete memory. Paper~V covers MoE separately.
+Falcon-Mamba-7B (SSM) and GPT-OSS-20B (MoE) are both excluded.  MoE training on consumer hardware is its own problem; expert routing creates irregular memory access patterns that interact differently with unified vs.\ discrete memory.  Paper~V covers MoE separately.
 
 \paragraph{Reward function equivalence.}
-The formula is the same; the outputs feeding into it are not quite identical. MLX and PyTorch produce slightly different completions for the same prompt due to floating-point precision differences in the forward pass. We evaluate validity (binary---it parses or it doesn't) rather than soft reward values, which helps. But we can't rule out subtle divergence in the reward signal accumulating over 1{,}000 steps.
+The formula is the same; the outputs feeding into it are not quite identical.  MLX and PyTorch produce slightly different completions for the same prompt due to floating-point precision differences in the forward pass.  We evaluate validity (binary: it parses or it doesn't) rather than soft reward values, which helps.  But we can't rule out subtle divergence in the reward signal accumulating over 1{,}000 steps.
 
 \paragraph{Future work: cross-platform screening.}
-If the early prediction analysis (Section~\ref{sec:early-prediction}) holds up, there's a practical workflow hiding in the data: run 50 steps on whatever hardware you have, predict whether the full run is worth it, then commit (or don't). A meta-model trained on both platforms' early features could make hyperparameter search much cheaper.
+If the early prediction analysis (Section~\ref{sec:early-prediction}) holds up, there's a practical workflow hiding in the data: run 50 steps on whatever hardware you have, predict whether the full run is worth it, then commit (or don't).  A meta-model trained on both platforms' early features could make hyperparameter search much cheaper.
 
 \paragraph{Future work: M-series scaling.}
-M3 Pro, M3 Max, M4 Pro, M4 Max, M4 Ultra---a systematic sweep would show how the wall-clock ratio scales with chip capabilities. If it tracks memory bandwidth linearly, practitioners can estimate training times for any Apple Silicon configuration from our M3 Max numbers.
+M3 Pro, M3 Max, M4 Pro, M4 Max, M4 Ultra: a systematic sweep would show how the wall-clock ratio scales with chip capabilities.  If it tracks memory bandwidth linearly, practitioners can estimate training times for any Apple Silicon configuration from our M3 Max numbers.
 
 
 % =============================================================================
@@ -1137,19 +1140,19 @@ M3 Pro, M3 Max, M4 Pro, M4 Max, M4 Ultra---a systematic sweep would show how the
 
 Can a developer close the deployment gap on hardware they already own?
 
-Papers~I through~IV established the problem, the fix, and the dynamics. The deployment gap is real---12 of 13 models hit 0\% Success@SLO at production deadlines. GRPO training with an SLO-aware reward can close it, but only for models with enough capacity. The training dynamics are systematic and predictable from the first 50 steps. All good. All on a 4090.
+Papers~I through~IV established the problem, the fix, and the dynamics.  The deployment gap is real: 12 of 13 models hit 0\% Success@SLO at production deadlines.  GRPO training with an SLO-aware reward can close it, but only for models with enough capacity.  The training dynamics are systematic and predictable from the first 50 steps.  All good.  All on a 4090.
 
-We trained 8 models on Apple Silicon using MLX. Same protocol. Same reward function. Different GPU. The results show TBD.
+We trained 8 models on Apple Silicon using MLX.  Same protocol.  Same reward function.  Different GPU.  The results show TBD.
 
-\textbf{Same model?} The capacity thresholds on MLX are TBD. Models that sustain learning on CUDA TBD sustain on MLX. The ranking by Mixed-task validity: Spearman $\rho = \text{TBD}$ between platforms. Absolute validity levels differ by an average of TBD percentage points.
+\textbf{Same model?}  The capacity thresholds on MLX are TBD.  Models that sustain learning on CUDA TBD sustain on MLX.  The ranking by Mixed-task validity: Spearman $\rho = \text{TBD}$ between platforms.  Absolute validity levels differ by an average of TBD percentage points.
 
-\textbf{Same dynamics?} The Paper~IV patterns are TBD on MLX. Forgetting matrix correlation: $r = \text{TBD}$. Curve taxonomy agreement: TBD\%. Cross-platform early prediction accuracy: TBD\%. These results suggest the training dynamics are TBD model-intrinsic, not hardware-specific.
+\textbf{Same dynamics?}  The Paper~IV patterns are TBD on MLX.  Forgetting matrix correlation: $r = \text{TBD}$.  Curve taxonomy agreement: TBD\%.  Cross-platform early prediction accuracy: TBD\%.  These results suggest the training dynamics are TBD model-intrinsic, not hardware-specific.
 
-\textbf{Worth the time?} Edge GRPO takes TBD$\times$ longer for small models and TBD$\times$ longer for large models. Total energy: TBD on MLX vs.\ CUDA. A complete evaluate-train-validate cycle for a 4B model on a MacBook: roughly TBD hours. TBD enough for a weekend.
+\textbf{Worth the time?}  Edge GRPO takes TBD$\times$ longer for small models and TBD$\times$ longer for large models.  Total energy: TBD on MLX vs.\ CUDA.  A complete evaluate-train-validate cycle for a 4B model on a MacBook: roughly TBD hours.  TBD enough for a weekend.
 
-Consider what this means in practice. Paper~I found the gap. Paper~II showed how to close it---on a \$1{,}600 GPU in a dedicated workstation. If MLX training produces equivalent outcomes, the gap becomes closable on any Mac with 64GB of unified memory. Not in a datacenter. Not with cloud compute. On the same laptop you used to write the code.
+The implication is concrete.  Paper~I found the gap.  Paper~II showed how to close it.  On a \$1{,}600 GPU in a dedicated workstation.  If MLX training produces equivalent outcomes, the gap becomes closable on any Mac with 64GB of unified memory.  Not in a datacenter.  Not with cloud compute.  On the same laptop you used to write the code.
 
-The capacity threshold is a property of the model, not the GPU. If that holds, the deployment gap reduces to a \emph{time gap}: the same result, just slower. For a solo developer or a small team, ``slower'' is a price worth paying for ``possible at all.''
+The capacity threshold is a property of the model, not the GPU.  If that holds, the deployment gap reduces to a \emph{time gap}: the same result, just slower.  For a solo developer or a small team, ``slower'' is a price worth paying for ``possible at all.''
 
 
 % =============================================================================
@@ -1171,7 +1174,7 @@ Table~\ref{tab:full-matrix} reports the complete 8-model $\times$ 6-task validit
 
 \begin{table}[h]
 \centering
-\caption{Complete cross-platform validity matrix. Last-50 validity (\%) at 1{,}000 steps, mean across 3 seeds. C = CUDA (Paper~II), M = MLX (this paper). All MLX values TBD.}
+\caption{Complete cross-platform validity matrix.  Last-50 validity (\%) at 1{,}000 steps, mean across 3 seeds.  C = CUDA (Paper~II), M = MLX (this paper).  All MLX values TBD.}
 \label{tab:full-matrix}
 \footnotesize
 \begin{tabular}{lc cc cc cc cc cc cc}
@@ -1196,7 +1199,7 @@ Gemma-2-9B & 9B & 100 & \tiny{TBD} & 100 & \tiny{TBD} & 100 & \tiny{TBD} & 100 &
 \section{MLX Training Configuration Details}
 \label{app:mlx-config}
 
-\paragraph{Software versions.} MLX v0.TBD, mlx-lm v0.TBD, Python 3.12. All models loaded from HuggingFace \texttt{mlx-community} repositories in pre-quantized INT4 format.
+\paragraph{Software versions.}  MLX v0.TBD, mlx-lm v0.TBD, Python 3.12.  All models loaded from HuggingFace \texttt{mlx-community} repositories in pre-quantized INT4 format.
 
 \paragraph{LoRA configuration.} The following layers receive LoRA adapters in each architecture:
 
@@ -1212,7 +1215,7 @@ lora_dropout = 0.05
 # Gemma-2: q_proj, v_proj
 \end{lstlisting}
 
-\paragraph{GRPO implementation.} Same algorithm, different framework:
+\paragraph{GRPO implementation.}  Same algorithm, different framework:
 
 \begin{enumerate}[leftmargin=12pt]
     \item Sample a prompt from the task dataset.
@@ -1224,17 +1227,17 @@ lora_dropout = 0.05
     \item Apply LoRA weight updates via AdamW (lr = 1e-4, weight decay = 0.01).
 \end{enumerate}
 
-The only implementation difference that matters is step 2: MLX generates via lazy evaluation and Metal GPU kernels; PyTorch uses eager evaluation and CUDA kernels. Reward computation (steps 3--4) and gradient computation (steps 5--7) are numerically equivalent up to floating-point precision between the two frameworks.
+The only implementation difference that matters is step 2: MLX generates via lazy evaluation and Metal GPU kernels; PyTorch uses eager evaluation and CUDA kernels.  Reward computation (steps 3--4) and gradient computation (steps 5--7) are numerically equivalent up to floating-point precision between the two frameworks.
 
 
 \section{Per-Seed Variance Analysis}
 \label{app:variance}
 
-Training with RL objectives exhibits higher variance across seeds than supervised fine-tuning. We report per-seed results for each model-task pair on both platforms to enable future meta-analyses.
+Training with RL objectives exhibits higher variance across seeds than supervised fine-tuning.  We report per-seed results for each model-task pair on both platforms to enable future meta-analyses.
 
 \begin{table}[h]
 \centering
-\caption{Per-seed Last-50 validity (\%) for Qwen3-4B on each task. CUDA values from Paper~II; MLX values TBD. $\sigma$ = standard deviation across seeds.}
+\caption{Per-seed Last-50 validity (\%) for Qwen3-4B on each task.  CUDA values from Paper~II; MLX values TBD. $\sigma$ = standard deviation across seeds.}
 \label{tab:per-seed-qwen}
 \small
 \begin{tabular}{l ccc c ccc c}
@@ -1253,7 +1256,7 @@ Mixed & 92 & 88 & 90 & 2.0 & TBD & TBD & TBD & TBD \\
 \end{tabular}
 \end{table}
 
-The variance comparison tests whether MLX makes RL training noisier. Consistently higher standard deviation on MLX would mean the platform adds its own stochasticity---different RNG, numerical precision, or kernel scheduling. Comparable variance means the algorithm and model determine stability, not the hardware.
+The variance comparison tests whether MLX makes RL training noisier.  Consistently higher standard deviation on MLX would mean the platform adds its own stochasticity (different RNG, numerical precision, or kernel scheduling).  Comparable variance means the algorithm and model determine stability, not the hardware.
 
 
 \section{Detailed Energy Calculations}
@@ -1269,7 +1272,7 @@ E_{\text{total}} = \text{TDP}_{\text{system}} \times t_{\text{wall-clock}} \time
 
 \begin{table}[h]
 \centering
-\caption{Detailed energy breakdown per model (Mixed task, single seed). TDP is system-level (GPU + CPU + memory). Utilization is estimated from GPU activity logs. All MLX values TBD.}
+\caption{Detailed energy breakdown per model (Mixed task, single seed).  TDP is system-level (GPU + CPU + memory).  Utilization is estimated from GPU activity logs.  All MLX values TBD.}
 \label{tab:energy-detail}
 \small
 \begin{tabular}{lc rrr rrr}
@@ -1286,6 +1289,6 @@ Gemma-2-9B & 9B & 1.8 & TBD & TBD & TBD & TBD & TBD \\
 \end{tabular}
 \end{table}
 
-The CUDA system draws 450W from the wall (350W GPU + $\sim$100W CPU/memory). The MLX system draws 92W (60W M3 Max + peripherals) through a 140W USB-C adapter. We use these real-world power figures---not theoretical TDP maximums---for the cost and CO$_2$ calculations in Table~\ref{tab:energy}. One system requires a dedicated circuit; the other runs from a laptop charger.
+The CUDA system draws 450W from the wall (350W GPU + $\sim$100W CPU/memory).  The MLX system draws 92W (60W M3 Max + peripherals) through a 140W USB-C adapter.  We use these real-world power figures, not theoretical TDP maximums, for the cost and CO$_2$ calculations in Table~\ref{tab:energy}.  One system requires a dedicated circuit; the other runs from a laptop charger.
 
 \end{document}

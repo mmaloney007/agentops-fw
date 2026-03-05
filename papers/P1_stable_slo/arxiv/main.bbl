@@ -14,7 +14,7 @@ Amey Agrawal et~al.
 {Akamai Technologies}.
 \newblock The state of online retail performance: Spring 2017.
 \newblock
-  \url{https://www.akamai.com/us/en/about/news/press/2017-press/akamai-releases-spring-2017-state-of-online-retail-performance-report.jsp},
+  \url{https://www.akamai.com/newsroom/press-release/akamai-releases-spring-2017-state-of-online-retail-performance-report},
   2017.
 \newblock Report showing that 2-second delays increase bounce rates by 103\%.
 
@@ -24,8 +24,8 @@ Peter Belcak, Greg Heinrich, Shizhe Diao, Yonggan Fu, Xin Dong, Saurav
   Muralidharan, Yingyan~Celine Lin, and Pavlo Molchanov.
 \newblock Small language models are the future of agentic ai, 2025.
 
-\bibitem[Chen et~al.(2024)]{chen2024humans}
-Yujia Chen et~al.
+\bibitem[Chen et~al.(2024)Chen, Chen, Liu, Jiang, and Wang]{chen2024humans}
+Guiming~Hardy Chen, Shunian Chen, Ziche Liu, Feng Jiang, and Benyou Wang.
 \newblock Humans or {LLMs} as the judge? a study on judgement biases, 2024.
 
 \bibitem[Dao et~al.(2023)]{dao2023flashattention2}
@@ -94,10 +94,10 @@ Percy Liang, Rishi Bommasani, Tony Lee, Dimitris Tsipras, Dilara Soylu,
 \newblock Holistic evaluation of language models.
 \newblock \emph{Transactions on Machine Learning Research}, 2023.
 
-\bibitem[Min et~al.(2023)Min, Krishna, Lyu, Wang, Yih, Choi, and
-  Hajishirzi]{atomicFacts2023}
-Sewon Min, Kalpesh Krishna, Xinxi Lyu, Hanlin Wang, Wen-tau Yih, Yejin Choi,
-  and Hannaneh Hajishirzi.
+\bibitem[Min et~al.(2023)Min, Krishna, Lyu, Lewis, Yih, Koh, Iyyer,
+  Zettlemoyer, and Hajishirzi]{atomicFacts2023}
+Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis, Wen-tau Yih, Pang~Wei Koh,
+  Mohit Iyyer, Luke Zettlemoyer, and Hannaneh Hajishirzi.
 \newblock Factscore: Fine-grained atomic evaluation of factual precision in
   long form text generation, 2023.
 
@@ -125,7 +125,7 @@ Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio, William~W. Cohen, Ruslan
   Natural Language Processing (EMNLP)}, 2018.
 
 \bibitem[Zheng et~al.(2023)]{zheng2023sglang}
-Zhiqiang Zheng et~al.
+Lianmin Zheng et~al.
 \newblock Sglang: Efficient execution of structured language model programs,
   2023.
 

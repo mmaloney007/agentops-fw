@@ -1,5 +1,5 @@
-% Neural Engine Training for SLO-Aware Agents (Paper IX) -- Bibliography
-% Only entries cited in main.tex
+% Heterogeneous On-Device Training (Paper IX) -- Bibliography
+% Clean version: only entries cited in main.tex
 
 % === Self-citations (series papers) ===
 
@@ -43,30 +43,6 @@
   note         = {Paper~V of this series}
 }
 
-@article{maloney2025edge,
-  title        = {The Edge Training Gap: Can Consumer Hardware Close the Deployment Gap?},
-  author       = {Maloney, V. Michael},
-  journal      = {arXiv preprint},
-  year         = {2026},
-  note         = {Paper~VI of this series}
-}
-
-@article{maloney2025production,
-  title        = {Closing the Gap: {SLO}-Aware Agent Evaluation in Production},
-  author       = {Maloney, V. Michael},
-  journal      = {arXiv preprint},
-  year         = {2026},
-  note         = {Paper~VII of this series}
-}
-
-@article{maloney2025standards,
-  title        = {Toward a Standard for Production-Ready Agent Evaluation},
-  author       = {Maloney, V. Michael},
-  journal      = {arXiv preprint},
-  year         = {2026},
-  note         = {Paper~VIII of this series}
-}
-
 % === GRPO and RL ===
 
 @article{grpo,
@@ -90,29 +66,6 @@
   primaryClass = {cs.LG}
 }
 
-@article{williams1992reinforce,
-  title        = {Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning},
-  author       = {Williams, Ronald J.},
-  journal      = {Machine Learning},
-  volume       = {8},
-  number       = {3-4},
-  pages        = {229--256},
-  year         = {1992},
-  publisher    = {Springer}
-}
-
-% === Adaptation methods ===
-
-@article{hu2021lora,
-  title        = {{LoRA}: Low-Rank Adaptation of Large Language Models},
-  author       = {Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},
-  journal      = {arXiv preprint arXiv:2106.09685},
-  year         = {2021},
-  eprint       = {2106.09685},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
 % === ANE / Apple Silicon ===
 
 @misc{anemll2024,
@@ -123,34 +76,18 @@
   note         = {Open-source CoreML conversion for Neural Engine LLM inference}
 }
 
-@misc{maderix2025,
-  title        = {{ANE}: Training on Apple Neural Engine},
-  author       = {maderix},
-  year         = {2025},
-  howpublished = {\url{https://github.com/maderix/ANE}},
-  note         = {Reverse-engineered backpropagation on ANE; 11.2\% peak utilization}
-}
-
 @misc{apple2022m2max,
-  title        = {Apple {M2} Max Chip Technical Specifications},
+  title        = {Apple Unveils {M2 Pro} and {M2 Max}: Next-Generation Chips for Next-Level Workflows},
   author       = {{Apple Inc.}},
   year         = {2023},
-  howpublished = {\url{https://support.apple.com/en-us/111902}},
-  note         = {38-core GPU, 16-core Neural Engine, 15.8 TOPS}
-}
-
-@misc{apple2023coreml,
-  title        = {{Core ML} Framework Documentation},
-  author       = {{Apple Inc.}},
-  year         = {2023},
-  howpublished = {\url{https://developer.apple.com/documentation/coreml}},
-  note         = {Machine learning model deployment on Apple platforms}
+  howpublished = {\url{https://www.apple.com/newsroom/2023/01/apple-unveils-m2-pro-and-m2-max-next-generation-chips-for-next-level-workflows/}},
+  note         = {16-core Neural Engine, 15.8 TOPS}
 }
 
 @misc{apple2023coremltools,
   title        = {\texttt{coremltools}: Convert Models to {Core ML}},
   author       = {{Apple Inc.}},
-  year         = {2023},
+  year         = {2017},
   howpublished = {\url{https://github.com/apple/coremltools}},
   note         = {Python package for CoreML model conversion and quantization}
 }
@@ -159,152 +96,20 @@
 
 @misc{hannun2023mlx,
   title        = {{MLX}: An Array Framework for Apple Silicon},
-  author       = {Hannun, Awni and others},
+  author       = {Hannun, Awni and Digani, Jagrit and Katharopoulos, Angelos and Collobert, Ronan},
   year         = {2023},
   howpublished = {\url{https://github.com/ml-explore/mlx}},
   note         = {Apple's machine learning framework exploiting unified memory}
 }
 
-@misc{mlxlm2024,
-  title        = {\texttt{mlx-lm}: Language Models with {MLX}},
-  author       = {{MLX Contributors}},
-  year         = {2024},
-  howpublished = {\url{https://github.com/ml-explore/mlx-examples/tree/main/llms}},
-  note         = {LoRA fine-tuning and inference for LLMs on Apple Silicon}
-}
+% === Benchmarks / Datasets ===
 
-% === Heterogeneous computing ===
-
-@inproceedings{singh2013heterogeneous,
-  title        = {A Survey of Techniques for Architecting and Managing Asymmetric Multicore Processors},
-  author       = {Singh, Karan and Bhadauria, Major and McKee, Sally A.},
-  booktitle    = {ACM Computing Surveys},
-  volume       = {46},
-  number       = {4},
-  pages        = {1--39},
-  year         = {2013},
-  publisher    = {ACM}
-}
-
-@misc{aminabadi2022deepspeed,
-  title        = {{DeepSpeed Inference}: Enabling Efficient Inference of Transformer Models at Unprecedented Scale},
-  author       = {Aminabadi, Reza Yazdani and Rajbhandari, Samyam and Zhang, Minjia and Awan, Ammar Ahmad and Li, Cheng and Li, Du and Zheng, Elton and Rasley, Jeff and Smith, Shaden and Ruwase, Olatunji and He, Yuxiong},
-  year         = {2022},
-  eprint       = {2207.00032},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
-@misc{sheng2023flexgen,
-  title        = {{FlexGen}: High-Throughput Generative Inference of Large Language Models with a Single {GPU}},
-  author       = {Sheng, Ying and Zheng, Lianmin and Yuan, Binhang and Li, Zhuohan and Ryabinin, Max and Chen, Beidi and Liang, Percy and R{\'e}, Christopher and Stoica, Ion and Zhang, Ce},
-  year         = {2023},
-  eprint       = {2303.06865},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-% === Serving and inference systems ===
-
-@misc{kwon2023vllm,
-  title        = {Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
-  author       = {Kwon, Woosuk and others},
-  year         = {2023},
-  eprint       = {2309.06180},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-@misc{zheng2023sglang,
-  title        = {{SGLang}: Efficient Execution of Structured Language Model Programs},
-  author       = {Zheng, Zhiqiang and others},
-  year         = {2023},
-  eprint       = {2312.07104},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-% === Quantization ===
-
-@misc{dettmers2022gptq,
-  title        = {{GPTQ}: Accurate Post-Training Quantization for Generative Pre-trained Transformers},
-  author       = {Frantar, Elias and Ashkboos, Saleh and Hoefler, Torsten and Alistarh, Dan},
-  year         = {2022},
-  eprint       = {2210.17323},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-@misc{lin2024awq,
-  title        = {{AWQ}: Activation-aware Weight Quantization for {LLM} Compression and Acceleration},
-  author       = {Lin, Ji and Tang, Jiaming and Tang, Haotian and Yang, Shang and Chen, Wei-Ming and Wang, Wei-Chen and Xiao, Guangxuan and Dang, Xingyu and Gan, Chuang and Han, Song},
-  year         = {2024},
-  eprint       = {2306.00978},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
-% === Structured output ===
-
-@misc{geng2025jsonschemabench,
-  title        = {{JSONSchemaBench}: A Rigorous Benchmark of Structured Outputs for Language Models},
-  author       = {Geng, Saibo and Cooper, Hudson and Moskal, Micha{\l} and Jenkins, Samuel and Berman, Julian and Ranchin, Nathan and West, Robert and Horvitz, Eric and Nori, Harsha},
-  year         = {2025},
-  eprint       = {2501.10868},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.CL}
-}
-
-% === Tail latency ===
-
-@article{dean2013tail,
-  title        = {The Tail at Scale},
-  author       = {Dean, Jeffrey and Barroso, Luiz Andr{\'e}},
-  journal      = {Communications of the ACM},
-  volume       = {56},
-  number       = {2},
-  pages        = {74--80},
-  year         = {2013},
-  doi          = {10.1145/2408776.2408794}
-}
-
-% === DeltaNet / Qwen3.5 Architecture ===
-
-@misc{yang2024gated,
-  title        = {Gated Delta Networks: Improving Mamba2 with Delta Rule},
-  author       = {Yang, Songlin and Kautz, Jan and Hatamizadeh, Ali},
-  year         = {2024},
-  eprint       = {2412.06464},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG},
-  note         = {Architecture used in Qwen3.5 models}
-}
-
-@misc{qwen2025qwen3,
-  title        = {Qwen3 Technical Report},
-  author       = {{Qwen Team}},
-  year         = {2025},
-  howpublished = {\url{https://qwenlm.github.io/blog/qwen3/}},
-  note         = {Qwen3 / Qwen3.5 model family}
-}
-
-% === Energy efficiency in ML ===
-
-@misc{patterson2021carbon,
-  title        = {Carbon Emissions and Large Neural Network Training},
-  author       = {Patterson, David and Gonzalez, Joseph and Le, Quoc and Liang, Chen and Munguia, Lluis-Miquel and Rothchild, Daniel and So, David and Texier, Maud and Dean, Jeff},
-  year         = {2021},
-  eprint       = {2104.10350},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.LG}
-}
-
-@article{strubell2019energy,
-  title        = {Energy and Policy Considerations for Deep Learning in {NLP}},
-  author       = {Strubell, Emma and Ganesh, Ananya and McCallum, Andrew},
-  journal      = {arXiv preprint arXiv:1906.02243},
+@inproceedings{larson2019clinc150,
+  title        = {An Evaluation Dataset for Intent Classification and Out-of-Scope Prediction},
+  author       = {Larson, Stefan and Mahendran, Anish and Peper, Joseph J. and Clarke, Christopher and Lee, Andrew and Hill, Parker and Kummerfeld, Jonathan K. and Leach, Kevin and Laurenzano, Michael A. and Tang, Lingjia and Mars, Jason},
+  booktitle    = {Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
   year         = {2019},
-  eprint       = {1906.02243},
+  eprint       = {1909.02027},
   archivePrefix= {arXiv},
   primaryClass = {cs.CL}
 }

@@ -69,10 +69,10 @@ John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov.
 \newblock Proximal policy optimization algorithms.
 \newblock \emph{arXiv preprint arXiv:1707.06347}, 2017.
 
-\bibitem[Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Zhang, Li, Wu, and
-  Guo]{grpo}
-Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Mingchuan Zhang,
-  Y.K. Li, Y.~Wu, and Daya Guo.
+\bibitem[Shao et~al.(2024)Shao, Wang, Zhu, Xu, Song, Bi, Zhang, Zhang, Li, Wu,
+  and Guo]{grpo}
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei
+  Zhang, Mingchuan Zhang, Y.K. Li, Y.~Wu, and Daya Guo.
 \newblock {DeepSeekMath}: Pushing the limits of mathematical reasoning in open
   language models.
 \newblock \emph{arXiv preprint arXiv:2402.03300}, 2024.
