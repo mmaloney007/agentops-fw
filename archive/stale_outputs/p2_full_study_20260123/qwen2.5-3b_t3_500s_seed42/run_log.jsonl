@@ -1,0 +1,5 @@
+{"ts": 1769223592.6110668, "level": "INFO", "msg": "checkpoint_saved", "step": 99, "path": "out/p2_full_study_20260123/qwen2.5-3b_t3_500s_seed42/checkpoints/step_000099"}
+{"ts": 1769224407.591773, "level": "INFO", "msg": "checkpoint_saved", "step": 199, "path": "out/p2_full_study_20260123/qwen2.5-3b_t3_500s_seed42/checkpoints/step_000199"}
+{"ts": 1769226122.738858, "level": "INFO", "msg": "checkpoint_saved", "step": 299, "path": "out/p2_full_study_20260123/qwen2.5-3b_t3_500s_seed42/checkpoints/step_000299"}
+{"ts": 1769227635.97071, "level": "INFO", "msg": "checkpoint_saved", "step": 399, "path": "out/p2_full_study_20260123/qwen2.5-3b_t3_500s_seed42/checkpoints/step_000399"}
+{"ts": 1769229118.084642, "level": "INFO", "msg": "checkpoint_saved", "step": 499, "path": "out/p2_full_study_20260123/qwen2.5-3b_t3_500s_seed42/checkpoints/step_000499"}

@@ -1,5 +1,5 @@
 % Heterogeneous On-Device Training (Paper IX) -- Bibliography
-% Clean version: only entries cited in main.tex
+% 14 entries: 5 self-citations, 2 RL, 3 Apple/ANE, 1 MLX, 1 dataset, 2 models
 
 % === Self-citations (series papers) ===
 
@@ -100,6 +100,58 @@
   year         = {2023},
   howpublished = {\url{https://github.com/ml-explore/mlx}},
   note         = {Apple's machine learning framework exploiting unified memory}
+}
+
+% === Models ===
+
+@article{qwen2025qwen25,
+  title        = {Qwen2.5 Technical Report},
+  author       = {{Qwen Team}},
+  journal      = {arXiv preprint arXiv:2412.15115},
+  year         = {2024},
+  eprint       = {2412.15115},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+
+@misc{allal2024smollm2,
+  title        = {{SmolLM2}: When Smol Goes Big -- Data-Centric Training of a Small Language Model},
+  author       = {Allal, Loubna Ben and Lozhkov, Anton and Penedo, Guilherme and Wolf, Thomas and von Werra, Leandro},
+  year         = {2024},
+  howpublished = {\url{https://huggingface.co/blog/smollm2}},
+  note         = {360M, 1.7B, and 3B parameter language models}
+}
+
+% === On-device / Federated ===
+
+@inproceedings{mcmahan2017fedavg,
+  title        = {Communication-Efficient Learning of Deep Networks from Decentralized Data},
+  author       = {McMahan, Brendan and Moore, Eider and Ramage, Daniel and Hampson, Seth and Arcas, Blaise Ag{\"u}era y},
+  booktitle    = {Proceedings of the 20th International Conference on Artificial Intelligence and Statistics (AISTATS)},
+  year         = {2017},
+  eprint       = {1602.05629},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+@article{xu2024ondevice,
+  title        = {On-Device Language Model Fine-Tuning},
+  author       = {Xu, Yujin and Xie, Yuguang and Shu, Zhiqiang},
+  journal      = {arXiv preprint arXiv:2404.02421},
+  year         = {2024},
+  eprint       = {2404.02421},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG}
+}
+
+% === RLHF / Alignment ===
+
+@article{rafailov2024dpo,
+  title        = {Direct Preference Optimization: Your Language Model is Secretly a Reward Model},
+  author       = {Rafailov, Rafael and Sharma, Archit and Mitchell, Eric and Ermon, Stefano and Manning, Christopher D. and Finn, Chelsea},
+  journal      = {Advances in Neural Information Processing Systems},
+  volume       = {36},
+  year         = {2024}
 }
 
 % === Benchmarks / Datasets ===

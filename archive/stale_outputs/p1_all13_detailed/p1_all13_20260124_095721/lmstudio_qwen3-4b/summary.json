@@ -1,0 +1,44 @@
+{
+  "json_valid": 0.997,
+  "t3_tool_match": 1.0,
+  "t3_args_match": 0.618,
+  "t3_success": 0.618,
+  "avg_latency_ms": 16187.64,
+  "avg_ttft_ms": 16187.64,
+  "count": 2000,
+  "model": "qwen3-4b",
+  "provider": "lmstudio",
+  "decode_mode": "structured",
+  "tasks": [
+    "clinc_en.jsonl",
+    "hotpot_dev.jsonl",
+    "t3_tools.jsonl"
+  ],
+  "task_fingerprints": {
+    "clinc_en.jsonl": {
+      "tasks_path": "tasks/clinc_en.jsonl",
+      "sha256": "6f9eabba7394da97ef2fc45a0b6fe79a8788a96aa030ba420a45599d95ce868a",
+      "num_records": 500,
+      "schema_sha256": {
+        "tasks/schemas/clinc_nlu_schema.json": "1364305eaccb6ee066dbd4890ceda3702804faa615fb58bbbb2bdf50feaeaf1f"
+      }
+    },
+    "hotpot_dev.jsonl": {
+      "tasks_path": "tasks/hotpot_dev.jsonl",
+      "sha256": "ad793723af82291e4c13b758861f4272c097b8f7fe372a02db06bde49c1161d5",
+      "num_records": 1000,
+      "schema_sha256": {
+        "tasks/schemas/hotpot_explainer_schema.json": "1fa6568454bf06cf2a32a94983aad7d7fa470a51216d5430932f196b6fb904fc"
+      }
+    },
+    "t3_tools.jsonl": {
+      "tasks_path": "tasks/t3_tools.jsonl",
+      "sha256": "902c247c925f08637b1b814ffd63fc9fd5402dea589a5ab816cd49cc78af0743",
+      "num_records": 500,
+      "schema_sha256": {
+        "tasks/schemas/t3_tool_call_schema.json": "e7474d6d41d81851ac8a5cab2e0f5e4b934fb12aecc1632e8bc509dd9a55c2c1"
+      }
+    }
+  },
+  "stability_runs": 1
+}

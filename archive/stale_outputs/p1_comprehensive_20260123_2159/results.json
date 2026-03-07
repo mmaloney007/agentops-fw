@@ -1,0 +1,293 @@
+{
+  "started": "2026-01-23T21:59:44.885130",
+  "slo_deadline_ms": 2000,
+  "models": {
+    "llama-3.2-1b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "llama-3.2-1b-instruct",
+      "size": "1B",
+      "vendor": "Meta"
+    },
+    "llama-3.2-3b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "meta-llama_-_llama-3.2-3b-instruct",
+      "size": "3B",
+      "vendor": "Meta"
+    },
+    "qwen2.5-3b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "qwen2.5-3b-instruct",
+      "size": "3B",
+      "vendor": "Alibaba"
+    },
+    "phi-3-mini": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "phi-3-mini-4k-instruct",
+      "size": "3.8B",
+      "vendor": "Microsoft"
+    },
+    "qwen3-4b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "qwen3-4b",
+      "size": "4B",
+      "vendor": "Alibaba"
+    },
+    "yi-1.5-6b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "01-ai_-_yi-1.5-6b-chat",
+      "size": "6B",
+      "vendor": "01.AI"
+    },
+    "mistral-7b-v0.3": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "mistralai_-_mistral-7b-instruct-v0.3",
+      "size": "7B",
+      "vendor": "Mistral"
+    },
+    "falcon-mamba-7b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "falcon-mamba-7b-instruct",
+      "size": "7B",
+      "vendor": "TII"
+    },
+    "gpt-oss-20b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "openai/gpt-oss-20b",
+      "size": "20B",
+      "vendor": "OpenAI"
+    },
+    "ministral-8b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "mistralai.ministral-8b-instruct-2410",
+      "size": "8B",
+      "vendor": "Mistral"
+    },
+    "llama-3.1-8b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "meta-llama-llama-3.1-8b-instruct",
+      "size": "8B",
+      "vendor": "Meta"
+    },
+    "gemma-2-9b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "google/gemma-2-9b",
+      "size": "9B",
+      "vendor": "Google"
+    },
+    "gemma-3-12b": {
+      "tasks": {
+        "T1": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T2": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T3": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T4": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        },
+        "T5": {
+          "error": "Traceback (most recent call last):\n  File \"/Users/maloney/Documents/GitHub/agentops-fw/scripts/eval_t_suite.py\", line 24, in <module>\n    from agent_stable_slo.rollout.engine import provider_generate\nModuleNotFoundError: No module named 'agent_stable_slo'\n"
+        }
+      },
+      "id": "google/gemma-3-12b",
+      "size": "12B",
+      "vendor": "Google"
+    }
+  },
+  "last_updated": "2026-01-23T22:00:53.073990"
+}

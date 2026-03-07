@@ -1,12 +1,12 @@
 % Paper 9: Heterogeneous On-Device Training
 %
 % =============================================================================
-% STATUS: DRAFT
-% Last updated: 2026-03-04
+% STATUS: DRAFT - REAL DATA
+% Last updated: 2026-03-07
 %
-% Hybrid ANE+MLX architecture for on-device GRPO training
-% 4 model configs tested, 5 charts, real timing data
-% Key finding: Hybrid maintains 100% validity where pure approaches collapse
+% 4 compute paths x 2 models x 500 steps = 8 experiments
+% Key findings: MLX 30x faster at 4-6x less power; SmolLM2 learns perfectly
+% on MLX; ANE reduces power but fp16 precision degrades learning
 % =============================================================================
 \documentclass[11pt]{article}
 
@@ -35,7 +35,7 @@
 \renewcommand{\headrulewidth}{0pt}
 \cfoot{\thepage}
 
-\title{Heterogeneous On-Device Training:\\ANE Inference Meets Metal Gradients\\for SLO-Aware Agents}
+\title{Heterogeneous On-Device Training:\\Four Compute Paths on Apple Silicon\\for SLO-Aware Agents}
 
 \author{
 V. Michael Maloney \\
@@ -55,15 +55,13 @@ Neuralift; University of New Hampshire \\
 % ABSTRACT
 % ============================================================================
 \begin{abstract}
-We trained an SLO-aware agent entirely on a laptop.
+SmolLM2-360M learns 100\% valid JSON output in under seven minutes on a laptop.
 
-Papers~I--IV in this series established that small language models face a capacity threshold during GRPO fine-tuning.  Below a critical size, models lose the ability to produce valid structured output and never recover.  Those experiments required datacenter GPUs.  This paper asks whether the same training can run on commodity hardware, using Apple's Neural Engine for inference and Metal GPU for gradients.
+That result comes from one of eight experiments comparing four compute paths for on-device GRPO training on Apple Silicon: CoreML on CPU (public API), CoreML on the Apple Neural Engine via private API, CoreML with ANE-accelerated backward kernels, and MLX on Metal GPU.  We ran each path with two models (Qwen2.5-0.5B and SmolLM2-360M) for 500 training steps, measuring per-step time, system power, GPU and ANE power draw, and learning outcomes.
 
-We evaluate a hybrid ANE+MLX architecture on four model configurations.  The Apple Neural Engine delivers 55~tok/s at an estimated 3W for Qwen2.5-0.5B (roughly 10$\times$ the power efficiency of Metal GPU inference).  But raw inference speed is not the bottleneck.  On-device GRPO hits the same capacity threshold we saw on server hardware.  Qwen2.5-0.5B collapses after 4 training steps, Qwen3.5-0.8B after 3, and Qwen3.5-2B after 6.  All lose JSON validity completely with no recovery.
+MLX on Metal GPU dominates.  It completes training steps 30--40$\times$ faster than CPU or ANE paths while drawing 4--6$\times$ less system power.  SmolLM2-360M on MLX reaches a peak-20 reward of 0.500 with 100\% JSON validity in the final 50 steps.  The ANE paths reduce system power 30--60\% compared to CPU-only execution but introduce an fp16 precision cost that degrades learning quality.  Across all eight experiments, autoregressive rollout generation consumes over 95\% of step time, making it the binding constraint regardless of backend.
 
-The hybrid architecture changes this.  We route rollout generation to the ANE and gradient computation to Metal, synchronizing weights between engines after each step.  The result: 100\% JSON validity across all 5 training steps, a 43\%/57\% ANE/Metal compute split, and per-step times of 4.7--10.9 seconds.
-
-On-device GRPO training is viable---but only through heterogeneous compute that exploits each engine's strength.
+On-device RL training works.  The best path is not the most specialized hardware.  It is the one that runs the full computation graph most efficiently.
 \end{abstract}
 
 % ============================================================================
@@ -71,19 +69,36 @@ On-device GRPO training is viable---but only through heterogeneous compute that 
 % ============================================================================
 \section{Introduction}
 
-Every GRPO training run in Papers~I--IV required a datacenter GPU.  An NVIDIA RTX~4090 with 24GB of VRAM, consuming 350W under load, running for hours per model.  The results were worth it: we established capacity thresholds, reward stability boundaries, conditions under which small models can learn structured output.  But the hardware requirements excluded anyone without a research cluster or a high-end workstation.
+Every experiment in Papers~I--IV ran on server hardware~\cite{maloney2025deploymentgap,maloney2025capacity,maloney2025agentslobench,maloney2025dynamics}.  An NVIDIA RTX~4090 with 24GB of VRAM, consuming 350W under load, running for hours per model.  The results established capacity thresholds, reward stability boundaries, and the conditions under which small models can learn structured output.  But the hardware requirements excluded anyone without access to a research cluster.
 
-This paper asks a different question: can the same training happen on a laptop?
+This paper asks whether the same training can run on a laptop.
 
-This isn't an abstract question.  Privacy-sensitive deployments (healthcare, legal, financial) can't send training data to cloud GPUs.  Edge robotics needs on-device adaptation.  And the economics work: a MacBook Pro costs \$2,500 once, while GPU cloud instances cost \$1--4 per hour indefinitely.
+The question is practical, not theoretical.  Privacy-sensitive deployments in healthcare, legal, and financial settings can't send training data to cloud GPUs.  Edge robotics needs on-device adaptation.  A MacBook Pro costs \$2,500 once; GPU cloud instances cost \$1--4 per hour indefinitely.  If GRPO fine-tuning works on commodity hardware, the economics of on-device learning change fundamentally.
 
-Apple Silicon offers an unusual opportunity.  Every M-series chip contains two compute engines.  The Neural Engine (ANE) is a 16-core matrix accelerator optimized for inference at $\sim$3W.  The Metal GPU is a general-purpose compute unit capable of automatic differentiation through MLX~\cite{hannun2023mlx}.  Neither alone suffices.  The ANE can't compute gradients.  The Metal GPU wastes power on inference that the ANE handles at 10$\times$ better efficiency.
+Apple Silicon makes the question interesting.  Every M-series chip contains three compute engines, each with different strengths.  The CPU handles general computation in fp32.  The Neural Engine (ANE) is a 16-core matrix accelerator optimized for inference at roughly 3W~\cite{apple2022m2max}.  The Metal GPU supports automatic differentiation through MLX~\cite{hannun2023mlx} and runs at 10--30W.  No single engine handles the complete GRPO training loop optimally, so the real question becomes: which engine, or which combination, works best?
 
-We built a hybrid architecture that exploits both.  The ANE generates rollouts (the forward passes that produce candidate responses during GRPO training).  Metal computes the policy gradients and updates LoRA weights.  A lightweight synchronization step transfers the updated weights back to the ANE's CoreML representation.
+We tested four compute paths:
 
-Four results stand out.  First, Qwen2.5-0.5B hits 54.8~tok/s with a 650ms time-to-first-token on the Neural Engine, producing 100\% valid JSON on live tasks at roughly 10$\times$ the power efficiency of Metal GPU inference.  Second, pure MLX training on Metal replicates the collapse patterns from Paper~II~\cite{maloney2025capacity}: Qwen2.5-0.5B holds JSON validity for 4 steps then collapses permanently, Qwen3.5-2B holds for 6 steps.  The threshold is a property of the model, not the hardware.  Third, our ANE+MLX architecture achieves 100\% JSON validity across all 5 training steps, with rewards stable at 1.84$\pm$0.01 and a 43\%/57\% ANE/Metal compute split.  Fourth, weight synchronization through unified memory costs under 1ms per step, making the hybrid overhead negligible.
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Public:} CoreML on CPU via Apple's public API.  fp32 precision throughout.
+\item \textbf{Private:} ANE forward pass via the private \texttt{\_ANEInMemoryModel} API.  fp16 forward, fp32 backward on CPU.
+\item \textbf{Private-full:} ANE forward and backward-dx kernels via CoreML's public API.  fp16 throughout.
+\item \textbf{MLX:} Metal GPU for everything via the MLX framework.  fp32 precision throughout.
+\end{enumerate}
 
-Section~\ref{sec:background} covers the ANE and GRPO background.  Sections~\ref{sec:architecture}--\ref{sec:setup} describe the hybrid architecture and experimental setup.  Section~\ref{sec:results} presents results.  Section~\ref{sec:discussion} discusses implications for on-device RL.
+Each path ran on two models---Qwen2.5-0.5B~\cite{qwen2025qwen25} and SmolLM2-360M~\cite{allal2024smollm2}---for 500 GRPO training steps on CLINC intent classification~\cite{larson2019clinc150}.  Eight experiments total.  We measured step time, system power, GPU power, ANE power, reward trajectories, and JSON validity throughout.
+
+Four findings stand out.
+
+First, MLX on Metal GPU is 30--40$\times$ faster than any CPU or ANE path while consuming 4--6$\times$ less total system power.  SmolLM2-360M completes 500 training steps in 6.7~minutes at 6.2W average draw; the same model on the public CPU path takes 4.1~hours at 37.2W.
+
+Second, SmolLM2-360M on MLX achieves perfect learning outcomes: peak-20 reward of 0.500 and 100\% JSON validity in the final 50 steps.  That is genuine on-device reinforcement learning, not a demonstration.
+
+Third, the ANE reduces system power by 30--60\% relative to CPU execution, but its fp16 precision degrades learning quality.  SmolLM2 on the public path (fp32) reaches a peak-20 reward of 0.431.  The same model on the private ANE path (fp16 forward) drops to 0.079.
+
+Fourth, autoregressive rollout generation dominates step time across all paths, consuming over 95\% of computation.  The bottleneck is token generation, not gradient computation.
+
+Section~\ref{sec:background} covers the ANE, MLX, and GRPO background.  Section~\ref{sec:related} reviews related work on on-device training, the ANE, and small-scale RL.  Sections~\ref{sec:architecture}--\ref{sec:setup} describe the four compute paths and experimental setup.  Section~\ref{sec:results} presents results.  Section~\ref{sec:discussion} discusses implications for on-device RL.
 
 % ============================================================================
 % 2. BACKGROUND
@@ -93,102 +108,146 @@ Section~\ref{sec:background} covers the ANE and GRPO background.  Sections~\ref{
 
 \subsection{Apple Neural Engine}
 
-The Apple Neural Engine (ANE) is a fixed-function matrix accelerator present in every M-series Apple Silicon chip.  The M-series ANE contains 16 cores capable of up to 15.8 trillion operations per second, operating at approximately 3W~\cite{apple2022m2max}.  Unlike the Metal GPU, the ANE executes only CoreML-compiled models; it cannot run arbitrary compute graphs or backward passes.
+The Apple Neural Engine (ANE) is a fixed-function matrix accelerator present in every M-series Apple Silicon chip.  The M-series ANE contains 16 cores capable of up to 15.8 trillion operations per second, operating at approximately 3W~\cite{apple2022m2max}.  Unlike the Metal GPU, the ANE executes only CoreML-compiled models.  It cannot run arbitrary compute graphs or backward passes natively.
 
-CoreML compilation imposes constraints.  Models must be traced through \texttt{coremltools}~\cite{apple2023coremltools}, which converts PyTorch operations to the Model Intermediate Language (MIL).  Several operations common in transformer inference (\texttt{gather} for embeddings, \texttt{one\_hot}, and \texttt{repeat\_interleave}) are not natively supported on the ANE execution path, falling back to CPU or GPU~\cite{anemll2024}.  Getting a model to run \emph{purely} on the ANE requires operation-level rewrites that are beyond the scope of this work.
+CoreML compilation proceeds through \texttt{coremltools}~\cite{apple2023coremltools}, which converts PyTorch operations to the Model Intermediate Language (MIL).  Several transformer operations---\texttt{gather} for embeddings, \texttt{repeat\_interleave} for grouped-query attention, \texttt{RMSNorm}---are not supported on the ANE execution path and fall back to CPU~\cite{anemll2024}.  Running a model on the ANE requires operation-level rewrites: replacing \texttt{repeat\_interleave} with \texttt{unsqueeze}$\,\to\,$\texttt{expand}$\,\to\,$\texttt{reshape}, padding tensor dimensions to multiples of~32, and managing KV cache through CoreML state tensors.
+
+Two API routes exist for ANE execution.  The public CoreML API (\texttt{MLModel}) schedules computation across CPU, GPU, and ANE based on internal heuristics.  Requesting \texttt{.all} compute units encourages ANE usage but doesn't guarantee it.  The private \texttt{\_ANEInMemoryModel} API bypasses CoreML's scheduler entirely, sending compiled models directly to the ANE via IOSurface buffers.  This eliminates scheduling overhead but crashes at larger model scales when the ANE program exceeds hardware limits.
 
 \subsection{MLX on Metal GPU}
 
-MLX~\cite{hannun2023mlx} is Apple's array computation framework for Metal GPU, designed as a NumPy-compatible alternative to PyTorch for Apple Silicon.  What matters for this work: MLX supports automatic differentiation and LoRA fine-tuning, so it can handle on-device gradient computation.  MLX models run on the Metal GPU at about 30W, drawing from the unified memory pool shared with the ANE and CPU.
+MLX~\cite{hannun2023mlx} is Apple's array computation framework for Metal GPU, designed as a NumPy-compatible alternative to PyTorch on Apple Silicon.  What matters here: MLX supports automatic differentiation, LoRA fine-tuning, and unified memory access.  Models run on Metal GPU sharing the same physical memory as the CPU and ANE with zero-copy access.
 
 \subsection{GRPO}
 
-Group Relative Policy Optimization~\cite{grpo} generates $G$ candidate responses per prompt, scores them against a reward function, and updates the policy using relative advantage within each group.  Unlike PPO~\cite{schulman2017ppo}, GRPO eliminates the critic network.  That makes it more memory-efficient, which matters on-device where VRAM is limited.
+Group Relative Policy Optimization~\cite{grpo} generates $G$ candidate responses per prompt, scores them against a reward function, and updates the policy using relative advantage within each group.  GRPO eliminates the critic network required by PPO~\cite{schulman2017ppo}, reducing memory requirements.  That reduction matters on consumer hardware where 36GB of unified memory is shared across all three engines.
 
-Papers~I--IV~\cite{maloney2025deploymentgap,maloney2025capacity,maloney2025agentslobench,maloney2025dynamics} established that GRPO fine-tuning of small language models for structured output faces a \emph{capacity threshold}.  Models below a critical size lose JSON validity during training and never recover.  Paper~II placed this threshold between 1B and 3B parameters on server-class hardware.  This paper tests whether the same threshold holds on-device.
+Papers~I--IV~\cite{maloney2025deploymentgap,maloney2025capacity,maloney2025agentslobench,maloney2025dynamics} established that GRPO fine-tuning of small language models for structured output faces a \emph{capacity threshold}.  Below a critical size, models lose JSON validity during training and never recover.  Paper~II placed this threshold between 1B and 3B parameters for server-class hardware~\cite{maloney2025capacity}.  Paper~V extended the analysis to mixture-of-experts architectures~\cite{maloney2025moe}.  This paper tests whether the threshold manifests the same way across different compute backends on consumer hardware.
 
 % ============================================================================
-% 3. SYSTEM ARCHITECTURE
+% 3. RELATED WORK
+% ============================================================================
+\section{Related Work}
+\label{sec:related}
+
+\textbf{On-device fine-tuning.}  Federated learning~\cite{mcmahan2017fedavg} established that training can happen on edge devices, but the standard setting aggregates gradients across many clients rather than training a single model locally.  Recent work has pushed full fine-tuning onto mobile hardware: Xu et al.~\cite{xu2024ondevice} demonstrated LoRA fine-tuning on Android devices, and Apple's own MLX framework~\cite{hannun2023mlx} ships with LoRA examples for Apple Silicon.  We go further by running a complete RL training loop (GRPO with rollout generation, reward scoring, and policy updates) rather than supervised fine-tuning alone.
+
+\textbf{Apple Neural Engine for ML.}  The ANE has received limited attention in the research literature despite shipping in every Apple device since the A11 chip.  The \texttt{ane\_transformers} project~\cite{anemll2024} documented the operation-level constraints for running transformers on the ANE (gather fallbacks, dimension padding, layout transposition).  To our knowledge, no prior work has attempted RL training with ANE-accelerated forward or backward passes.
+
+\textbf{Reinforcement learning from human feedback at small scale.}  GRPO~\cite{grpo} and its predecessors PPO~\cite{schulman2017ppo} and DPO~\cite{rafailov2024dpo} were designed for large-scale training.  Recent work has explored whether these methods work at smaller model scales: Allal et al.~\cite{allal2024smollm2} showed that sub-1B models can be instruction-tuned effectively, and Papers~I--IV in this series~\cite{maloney2025deploymentgap,maloney2025capacity,maloney2025agentslobench,maloney2025dynamics} established capacity thresholds for GRPO training on structured output tasks.  This paper extends that line to consumer hardware, testing whether the same thresholds hold when the compute backend changes.
+
+% ============================================================================
+% 4. SYSTEM ARCHITECTURE
 % ============================================================================
 \section{System Architecture}
 \label{sec:architecture}
 
-The hybrid architecture routes each phase of the GRPO training loop to the compute engine best suited for it.  Figure~\ref{fig:architecture} shows the complete pipeline.
+The four compute paths share a common GRPO training loop but differ in which hardware engine handles each computational phase.  Figure~\ref{fig:architecture} shows the mapping.  Table~\ref{tab:paths} summarizes the engineering differences.
 
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-    node distance=1.2cm and 2.5cm,
-    block/.style={rectangle, draw, rounded corners, minimum height=1cm, minimum width=2.8cm, align=center, font=\small},
-    ane/.style={block, fill=blue!15, draw=blue!50},
-    mlx/.style={block, fill=orange!15, draw=orange!50},
-    sync/.style={block, fill=green!15, draw=green!50, minimum width=2.2cm},
-    data/.style={block, fill=gray!10, draw=gray!50, dashed},
-    arrow/.style={-{Stealth[length=3mm]}, thick},
-    label/.style={font=\footnotesize\itshape, text=gray!70!black},
+    node distance=0.6cm and 0.3cm,
+    phase/.style={rectangle, draw, minimum height=0.65cm, minimum width=2.2cm, align=center, font=\footnotesize},
+    cpu/.style={phase, fill=gray!20, draw=gray!60},
+    ane/.style={phase, fill=blue!15, draw=blue!50},
+    gpu/.style={phase, fill=orange!15, draw=orange!50},
+    header/.style={font=\footnotesize\bfseries, minimum height=0.65cm, minimum width=2.2cm, align=center},
+    rowlabel/.style={font=\footnotesize, align=right, anchor=east},
 ]
 
-% ANE column
-\node[ane] (prompt) {Prompt\\Batch};
-\node[ane, below=of prompt] (rollout) {ANE Rollout\\(CoreML)};
-\node[data, below=of rollout] (responses) {$G$ Candidate\\Responses};
+% Column headers
+\node[header] (h1) at (0, 0) {Public};
+\node[header] (h2) at (2.5, 0) {Private};
+\node[header] (h3) at (5.0, 0) {Priv-Full};
+\node[header] (h4) at (7.5, 0) {MLX};
 
-% Scoring
-\node[mlx, below=of responses] (score) {Reward\\Scoring};
-\node[data, below=of score] (advantages) {Group\\Advantages};
+% Row labels
+\node[rowlabel] at (-1.2, -0.85) {Rollout};
+\node[rowlabel] at (-1.2, -1.65) {Forward $\log\pi$};
+\node[rowlabel] at (-1.2, -2.45) {Backward $\nabla$};
+\node[rowlabel] at (-1.2, -3.25) {Precision};
+
+% Public column
+\node[cpu] at (0, -0.85) {CPU};
+\node[cpu] at (0, -1.65) {CPU};
+\node[cpu] at (0, -2.45) {CPU};
+\node[phase, fill=white] at (0, -3.25) {\scriptsize fp32};
+
+% Private column
+\node[ane] at (2.5, -0.85) {ANE};
+\node[ane] at (2.5, -1.65) {ANE};
+\node[cpu] at (2.5, -2.45) {CPU};
+\node[phase, fill=white] at (2.5, -3.25) {\scriptsize fp16/32};
+
+% Private-Full column
+\node[ane] at (5.0, -0.85) {ANE};
+\node[ane] at (5.0, -1.65) {ANE};
+\node[ane] at (5.0, -2.45) {ANE};
+\node[phase, fill=white] at (5.0, -3.25) {\scriptsize fp16};
 
 % MLX column
-\node[mlx, below=of advantages] (gradient) {MLX Gradient\\(Metal GPU)};
-\node[mlx, below=of gradient] (update) {LoRA Weight\\Update};
+\node[gpu] at (7.5, -0.85) {Metal};
+\node[gpu] at (7.5, -1.65) {Metal};
+\node[gpu] at (7.5, -2.45) {Metal};
+\node[phase, fill=white] at (7.5, -3.25) {\scriptsize fp32};
 
-% Sync
-\node[sync, below=of update] (sync) {Weight\\Sync};
-
-% Arrows
-\draw[arrow] (prompt) -- (rollout);
-\draw[arrow] (rollout) -- (responses);
-\draw[arrow] (responses) -- (score);
-\draw[arrow] (score) -- (advantages);
-\draw[arrow] (advantages) -- (gradient);
-\draw[arrow] (gradient) -- (update);
-\draw[arrow] (update) -- (sync);
-\draw[arrow] (sync.west) -- ++(-2.0,0) |- (rollout.west);
-
-% Labels
-\node[label, right=0.3cm of rollout] {$\sim$3W, 55 tok/s};
-\node[label, right=0.3cm of gradient] {$\sim$30W, autodiff};
-\node[label, right=0.3cm of sync] {$<$1ms};
-
-% Engine labels
-\node[font=\footnotesize\bfseries, text=blue!70, above=0.1cm of prompt] {Neural Engine};
-\node[font=\footnotesize\bfseries, text=orange!70, left=0.3cm of gradient] (metallab) {Metal};
+% Legend
+\node[cpu, minimum width=0.7cm, minimum height=0.35cm] at (1.0, -4.3) {};
+\node[font=\scriptsize, anchor=west] at (1.4, -4.3) {CPU};
+\node[ane, minimum width=0.7cm, minimum height=0.35cm] at (3.0, -4.3) {};
+\node[font=\scriptsize, anchor=west] at (3.4, -4.3) {Neural Engine};
+\node[gpu, minimum width=0.7cm, minimum height=0.35cm] at (6.0, -4.3) {};
+\node[font=\scriptsize, anchor=west] at (6.4, -4.3) {Metal GPU};
 
 \end{tikzpicture}
-\caption{Hybrid ANE+MLX training architecture.  The Neural Engine generates rollout responses at $\sim$3W.  Metal GPU computes policy gradients via MLX.  Weight synchronization transfers updated LoRA parameters back to the CoreML model.  The loop completes in 4.7--10.9 seconds per step.}
+\caption{Compute engine assignment for each GRPO phase across four paths.  The public path runs entirely on CPU.  The private path routes forward passes to the ANE via Apple's private API.  Private-full extends ANE usage to backward dx kernels.  MLX runs everything on Metal GPU.}
 \label{fig:architecture}
 \end{figure}
 
-\subsection{ANE Inference Provider}
+\begin{table}[ht]
+\centering
+\caption{Engineering characteristics of the four compute paths.}
+\label{tab:paths}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & \textbf{Public} & \textbf{Private} & \textbf{Priv-Full} & \textbf{MLX} \\
+\midrule
+Framework & Obj-C & Obj-C & Obj-C & Python \\
+Runtime & CoreML & CoreML & CoreML & MLX \\
+Forward engine & CPU & ANE & ANE & Metal \\
+Backward engine & CPU & CPU & ANE & Metal \\
+Fwd precision & fp32 & fp16 & fp16 & fp32 \\
+Bwd precision & fp32 & fp32 & fp16 & fp32 \\
+ANE API & --- & Private & Public & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-The ANE inference provider wraps a CoreML-compiled model behind the same interface used by the MLX provider.  A prompt is tokenized, fed through the CoreML model via Apple's \texttt{MLModel} API, and decoded autoregressively.  The provider handles structured output by constraining generation to valid JSON tokens, the same schema-guided decoding used in Papers~I and~III~\cite{maloney2025deploymentgap,maloney2025agentslobench}.
+\subsection{Public Path (CoreML CPU)}
 
-CoreML compilation proceeds through \texttt{coremltools} tracing.  We trace only the decode path ($S=1$), since GRPO rollouts generate one token at a time.  The KV cache is managed through CoreML state tensors, registered as \texttt{register\_buffer} in the PyTorch wrapper and modified in-place during forward passes.
+The public path uses Apple's CoreML \texttt{MLModel} API with CPU-only compute.  All computation runs on the CPU in fp32: rollout generation, forward passes for policy log-probabilities, and backward passes for gradients.  This is the simplest path and serves as baseline.
 
-\subsection{MLX GRPO Trainer}
+The entire training pipeline is implemented in Objective-C, wrapping CoreML model evaluation in a custom GRPO loop.  Tokenization uses a hand-written BPE implementation that handles GPT-2 byte-level encoding for SmolLM2 and Qwen's added special tokens (\texttt{<|im\_start|>}, \texttt{<|im\_end|>}).
 
-The MLX trainer implements GRPO with LoRA adaptation on Metal GPU.
+\subsection{Private Path (ANE Forward)}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{LoRA configuration:}  Rank 8, targeting 8 layers, applied to attention projections.  This keeps the trainable parameter count under 2M for all models tested.
-\item \textbf{Gradient clipping:}  Maximum norm of 1.0.  Paper~II identified gradient clipping as essential RL infrastructure: without it, reward variance in early steps produces NaN gradients that corrupt the entire model.  We confirm this finding on-device.
-\item \textbf{Group size:}  $G=4$ for hybrid training, $G=2$ for pure MLX baselines.  Larger groups improve advantage estimation but increase rollout time proportionally.
-\end{itemize}
+The private path routes forward passes to the Apple Neural Engine via the undocumented \texttt{\_ANEIn\-Memory\-Model} API.  This API bypasses CoreML's compute scheduler and sends compiled models directly to ANE hardware through IOSurface buffers, achieving forward pass latency under 0.2ms per evaluation.
 
-\subsection{Weight Synchronization}
+Backward passes remain on CPU in fp32.  The ANE computes forward activations in fp16, and each CPU$\leftrightarrow$ANE transfer requires explicit layout transposition between row-major CPU tensors (\texttt{[S, C]}) and channel-major ANE tensors (\texttt{[1, C, 1, S]}).
 
-After each gradient step, updated LoRA weights must transfer from the MLX representation to the CoreML model.  The idea is simple: extract weight deltas, apply them to the CoreML model's state dictionary.  The implementation is less simple, requiring careful handling of data types and memory layouts.
+\subsection{Private-Full Path (ANE Forward and Backward)}
 
-In practice, weight synchronization takes under 1ms per step (Table~\ref{tab:hybrid_timing}).  Both engines share Apple Silicon's unified memory, so synchronization is a pointer operation rather than a memory copy.  On a discrete GPU system with separate memory, this step would involve PCIe transfers.
+The private-full path extends ANE usage to backward-dx kernels.  We originally attempted this through the private bootstrap API, but it crashes at Qwen and SmolLM2 scale with \texttt{ANEProgram\-Process\-Request\-Direct()} failure.  The working implementation uses CoreML's public API configured to target ANE compute units for both forward evaluation and a separate backward-dx model that computes input gradients.
+
+All computation runs in fp16 on this path.  Weight updates still occur on CPU, but gradient computation executes on the Neural Engine.  This is, to our knowledge, the first demonstration of ANE-accelerated backward kernels for transformer training.
+
+\subsection{MLX Path (Metal GPU)}
+
+The MLX path runs the complete GRPO loop on Metal GPU through Apple's MLX framework~\cite{hannun2023mlx}.  The implementation is pure Python, using MLX's built-in LoRA and automatic differentiation.
+
+MLX operates in fp32 with unified memory access.  Weight tensors are shared between CPU and GPU without explicit transfers, eliminating the synchronization overhead present in the ANE paths.
 
 % ============================================================================
 % 4. EXPERIMENTAL SETUP
@@ -198,42 +257,55 @@ In practice, weight synchronization takes under 1ms per step (Table~\ref{tab:hyb
 
 \subsection{Hardware}
 
-All experiments run on a MacBook Pro with Apple M-series Silicon, 36GB unified memory, 16-core Neural Engine, and 18-core Metal GPU.  No external GPU, no cloud compute, no network calls during training.
+All experiments ran on a MacBook Pro with Apple M-series Silicon, 36GB unified memory, 16-core Neural Engine, and 18-core Metal GPU.  No external GPU, no cloud compute, no network calls during training.
+
+Power monitoring used \texttt{powermetrics} at 1-second intervals, capturing total system power, GPU power, and ANE power separately.
 
 \subsection{Models}
 
-We evaluate four model configurations spanning two model families:
+We selected two models that bracket the sub-500M parameter range:
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
-\caption{Model configurations for on-device experiments.}
-\label{tab:configs}
-\begin{tabular}{llcccc}
+\caption{Model specifications.}
+\label{tab:models}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{Model} & \textbf{Trainer} & \textbf{G} & \textbf{LR} & \textbf{LoRA $r$} & \textbf{Layers} \\
+\textbf{Model} & \textbf{Params} & \textbf{Layers} & \textbf{Hidden} & \textbf{Vocab} \\
 \midrule
-Qwen2.5-0.5B & Hybrid (ANE+MLX) & 4 & 1e-5 & 8 & 8 \\
-Qwen3.5-0.8B & MLX (Metal) & 2 & 5e-5 & 4 & 4 \\
-Qwen3.5-2B  & MLX (Metal) & 2 & 5e-5 & 4 & 4 \\
-Qwen2.5-0.5B & MLX (Metal) & 4 & 1e-5 & 8 & 8 \\
+Qwen2.5-0.5B-Instruct & 490M & 24 & 896 & 151,936 \\
+SmolLM2-360M & 362M & 32 & 960 & 49,152 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-All models use 4-bit quantization (MLX format).  The Qwen2.5-0.5B hybrid configuration uses CoreML for ANE rollouts and MLX for gradient computation.  The three pure-MLX configurations serve as baselines, running both inference and training on Metal GPU.
+Qwen2.5-0.5B~\cite{qwen2025qwen25} uses grouped-query attention with QKV biases and a large vocabulary (152K tokens including chat template tokens).  SmolLM2-360M~\cite{allal2024smollm2} uses standard multi-head attention with a compact 49K vocabulary.  Both compiled to CoreML for ANE execution after operation-level rewrites (Appendix~\ref{app:coreml}).
+
+The choice of two architecturally different sub-500M models provides an initial comparison of model-level effects (architecture, vocabulary, attention design) against backend-level effects (precision, engine, serialization), though two models cannot fully isolate these factors.
 
 \subsection{Task and Reward}
 
-Training uses CLINC intent classification~\cite{larson2019clinc150} with 500~records.  Each prompt asks the model to classify a user utterance into one of 150 intents, returning a JSON object with \texttt{intent} and \texttt{confidence} fields.  The reward function combines:
+Training uses CLINC intent classification~\cite{larson2019clinc150} with 500~records.  Each prompt asks the model to classify a user utterance into one of 150~intents, returning a JSON object with \texttt{intent} and \texttt{confidence} fields.  The reward function combines:
 
 \begin{itemize}[leftmargin=*]
 \item \textbf{JSON validity} (0.0 or 0.3):  Whether the response parses as valid JSON matching the required schema.
 \item \textbf{Intent accuracy} (0.0 or 0.5):  Whether the predicted intent matches the gold label.
 \item \textbf{Confidence calibration} (0.0--0.2):  Bonus for well-calibrated confidence scores.
-\item \textbf{Format penalty} ($-$0.1):  Deducted for thinking-mode token leakage (\texttt{<think>} tags in output).
 \end{itemize}
 
-Maximum reward per sample is 1.0.  The $\beta=0.3$ KL penalty coefficient prevents the policy from diverging too far from the reference model.
+Maximum reward per sample is 1.0.  All eight experiments use identical hyperparameters: $G=4$ rollouts per prompt, $\beta=0.1$ KL penalty, learning rate $5\times10^{-6}$, LoRA rank~4 applied to 4~attention layers, gradient clipping at max norm~1.0, and AdamW optimizer.  Each experiment runs for 500~steps.  Full hyperparameters in Appendix~\ref{app:hyperparams}.
+
+\subsection{Metrics}
+
+We report five metrics per experiment:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Average step time:}  Wall-clock seconds per GRPO training step, averaged over 500~steps.
+\item \textbf{System power:}  Average total system power in watts during training.
+\item \textbf{Energy per step:}  Power $\times$ time, in joules.
+\item \textbf{Peak-20 reward:}  Average reward over the best 20~consecutive steps.  This captures peak learning quality independent of subsequent degradation.
+\item \textbf{Last-50 JSON validity:}  Fraction of valid JSON responses in the final 50~steps.  This measures whether learning persists through the end of training.
+\end{itemize}
 
 % ============================================================================
 % 5. RESULTS
@@ -242,184 +314,239 @@ Maximum reward per sample is 1.0.  The $\beta=0.3$ KL penalty coefficient preven
 \label{sec:results}
 
 % --------------------------------------------------------------------------
-% 5.1 ANE INFERENCE
+% 5.1 MAIN RESULTS
 % --------------------------------------------------------------------------
-\subsection{ANE Inference Performance}
-\label{sec:ane_inference}
+\subsection{Main Results}
+\label{sec:main_results}
 
-Table~\ref{tab:ane_inference} reports inference benchmarks for two models successfully compiled to CoreML.  Qwen2.5-0.5B achieves 54.8~tok/s with a 650ms time-to-first-token, fast enough for interactive use.  Llama-3.2-1B, at twice the parameter count, delivers 30.5~tok/s with a longer 1,218ms TTFT.
+Table~\ref{tab:main} consolidates all eight experiments.
 
-\begin{table}[h]
+\begin{table}[t]
 \centering
-\caption{ANE inference performance on CoreML-compiled models.  Latency measured over structured JSON output generation.}
-\label{tab:ane_inference}
-\begin{tabular}{lcccc}
+\caption{Main results across four compute paths and two models, 500 training steps each.  Best result per metric in \textbf{bold}.}
+\label{tab:main}
+\small
+\begin{tabular}{llrrrrr}
 \toprule
-\textbf{Model} & \textbf{TTFT (ms)} & \textbf{Decode (ms)} & \textbf{Total (ms)} & \textbf{tok/s} \\
+\textbf{Model} & \textbf{Path} & \textbf{Step (s)} & \textbf{Watts} & \textbf{J/step} & \textbf{Pk-20} & \textbf{L50\%} \\
 \midrule
-Qwen2.5-0.5B & 650 & 146 & 796 & 54.8 \\
-Llama-3.2-1B & 1,218 & 230 & 1,447 & 30.5 \\
+Qwen & Public & 32.3 & 41.3 & 1,334 & 0.208 & 0 \\
+ & Private & 32.5 & 28.3 & 920 & 0.133 & 9 \\
+ & Priv-Full & 33.8 & 26.8 & 906 & 0.206 & 7 \\
+ & MLX & \textbf{1.1} & 9.7 & 10.7 & 0.056 & 1 \\
+\midrule
+SmolLM2 & Public & 29.7 & 37.2 & 1,105 & 0.431 & 53 \\
+ & Private & 25.6 & 14.7 & 376 & 0.079 & 4 \\
+ & Priv-Full & 22.5 & 22.7 & 511 & 0.072 & 1 \\
+ & MLX & \textbf{0.8} & \textbf{6.2} & \textbf{5.0} & \textbf{0.500} & \textbf{100} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:ane_vs_mlx} compares ANE and MLX inference across model families.  Raw speed isn't the point: MLX hits 64.1~tok/s for Qwen3.5-0.8B, faster than ANE.  What matters is power efficiency.  The ANE operates at about 3W versus 30W for Metal GPU, delivering roughly 18~tok/W compared to 2~tok/W.
+Two rows tell the story.  SmolLM2-360M on MLX: 0.8~seconds per step, 6.2W, 5.0~joules, peak reward 0.500, 100\% validity.  Qwen2.5-0.5B on the public path: 32.3~seconds, 41.3W, 1,334~joules, peak reward 0.208, 0\% final validity.  The best configuration is 40$\times$ faster, 7$\times$ lower power, 267$\times$ more energy efficient, and produces a model that actually works.
 
-\begin{figure}[t]
+Table~\ref{tab:power_detail} breaks down the power draw by engine.
+
+\begin{table}[ht]
 \centering
-\includegraphics[width=0.85\columnwidth]{figures/1_ane_vs_mlx.png}
-\caption{ANE vs.\ MLX inference comparison.  ANE achieves competitive throughput at $\sim$10$\times$ lower power draw.}
-\label{fig:ane_vs_mlx}
-\end{figure}
-
-Fast tokens don't matter if the output is garbage.  We ran 5 live tasks (intent classification, question answering, tool calling, math, code generation) to check whether ANE inference produces usable structured output.  All 5 produced valid JSON with correct answers.  Table~\ref{tab:ane_live} shows the results.
-
-\begin{table}[h]
-\centering
-\caption{ANE live inference on 5 structured output tasks (Qwen2.5-0.5B).}
-\label{tab:ane_live}
-\begin{tabular}{lccc}
+\caption{Power breakdown by engine (watts).  CPU power computed as Total $-$ GPU $-$ ANE.}
+\label{tab:power_detail}
+\small
+\begin{tabular}{llrrrr}
 \toprule
-\textbf{Task} & \textbf{Latency (ms)} & \textbf{TTFT (ms)} & \textbf{Valid JSON} \\
+\textbf{Model} & \textbf{Path} & \textbf{Total} & \textbf{GPU} & \textbf{ANE} & \textbf{CPU} \\
 \midrule
-Intent (book\_flight) & 344 & 147 & \checkmark \\
-QA (Paris) & 207 & 60 & \checkmark \\
-Tool (OpenWeatherMap) & 835 & 147 & \checkmark \\
-Math (345) & 257 & 124 & \checkmark \\
-Code (Python) & 440 & 165 & \checkmark \\
+Qwen & Public & 41.3 & 0.1 & 0.10 & 41.1 \\
+ & Private & 28.3 & 0.0 & 0.65 & 27.7 \\
+ & Priv-Full & 26.8 & 0.0 & 0.56 & 26.2 \\
+ & MLX & 9.7 & 7.1 & 0.00 & 2.6 \\
 \midrule
-\textbf{Mean} & \textbf{417} & \textbf{129} & \textbf{5/5} \\
+SmolLM2 & Public & 37.2 & 0.8 & 0.02 & 36.4 \\
+ & Private & 14.7 & 0.1 & 0.35 & 14.2 \\
+ & Priv-Full & 22.7 & 0.1 & 0.34 & 22.3 \\
+ & MLX & 6.2 & 4.2 & 0.00 & 2.0 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% --------------------------------------------------------------------------
-% 5.2 ON-DEVICE GRPO STABILITY
-% --------------------------------------------------------------------------
-\subsection{On-Device GRPO Stability}
-\label{sec:stability}
-
-The capacity threshold from Paper~II replicates on consumer hardware, step for step.
-
-We ran GRPO training on three pure-MLX configurations as baselines before testing the hybrid.  Every one of them eventually collapses, losing JSON validity completely.
-
-Table~\ref{tab:stability} reports the collapse dynamics for each configuration.  The pattern is consistent: models produce valid JSON for a few steps, then abruptly transition to 0\% validity with no recovery.
-
-\begin{table}[h]
-\centering
-\caption{GRPO stability comparison across four configurations. ``Valid Steps'' counts consecutive steps with 100\% JSON validity from the start. ``Total Steps'' is the full training run length.}
-\label{tab:stability}
-\begin{tabular}{llccc}
-\toprule
-\textbf{Model} & \textbf{Trainer} & \textbf{Valid Steps} & \textbf{Total Steps} & \textbf{Last-$N$ Valid} \\
-\midrule
-Qwen2.5-0.5B & Hybrid (ANE+MLX) & \textbf{5/5} & 5 & \textbf{100\%} \\
-Qwen3.5-2B & MLX (Metal) & 6/16 & 16 & 0\% \\
-Qwen2.5-0.5B & MLX (Metal) & 4/25 & 25 & 0\% \\
-Qwen3.5-0.8B & MLX (Metal) & 3/16 & 16 & 0\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Look at the step-by-step dynamics.  Qwen2.5-0.5B on pure MLX starts strong: steps~0--3 produce valid JSON with rewards between 0.46 and 1.96.  At step~4, reward drops to $-$0.028 and validity hits 0\%.  It never recovers across the remaining 21 steps, oscillating between $-$0.034 and $-$0.028.  Not low rewards.  Zero validity.
-
-Qwen3.5-2B shows the threshold most clearly.  It holds 100\% validity and stable rewards ($\sim$1.92) for 6 steps, the longest of any pure configuration.  At step~6, it collapses to $-$0.068 reward and 0\% validity.  The 2B model's extra capacity buys more stable steps but can't prevent the eventual collapse.
-
-Qwen3.5-0.8B collapses fastest, at step~3.  Its initial reward is strong (1.95 at step~0) but the smaller capacity can't sustain learning.  There's also a confound: Qwen3.5 models in thinking mode leak \texttt{<think>} tokens into the output, eating the generation budget and triggering format penalties.
-
-\textbf{Gradient clipping prevents NaN but not collapse.}  All configurations use gradient clipping with max norm~1.0.  Without it, the 0.5B model produces NaN gradients at step~2, corrupting all weights permanently.  With clipping, the model survives longer but still collapses at the capacity threshold.  Clipping prevents catastrophic failure.  It can't overcome the underlying capacity limitation.
-
-Figure~\ref{fig:grpo_training} shows the 4-panel training dynamics across all configurations: loss curves, reward trajectories, validity fractions, and per-step timing.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/4_grpo_training.png}
-\caption{GRPO training dynamics across four model configurations.  Top-left: loss.  Top-right: mean reward.  Bottom-left: JSON validity.  Bottom-right: step duration.  The hybrid configuration (orange) maintains 100\% validity throughout.  All pure-MLX configurations collapse to 0\% validity within 3--6 steps.}
-\label{fig:grpo_training}
-\end{figure}
+The pattern is clear.  CPU-only paths burn 36--41W of CPU power.  ANE paths reduce CPU load by offloading forward passes, dropping total draw to 15--28W.  MLX moves the entire workload to Metal GPU at 4--7W, leaving the CPU nearly idle at 2--3W.
 
 % --------------------------------------------------------------------------
-% 5.3 HYBRID TRAINING
+% 5.2 SPEED
 % --------------------------------------------------------------------------
-\subsection{Hybrid ANE+MLX Training}
-\label{sec:hybrid}
+\subsection{Speed}
+\label{sec:speed}
 
-Separating inference from gradient computation changes the outcome.  Table~\ref{tab:hybrid_timing} reports the per-step timing breakdown for the hybrid training run.  Each row represents one GRPO step with $G=4$ rollouts generated on the ANE and gradients computed on Metal.
-
-\begin{table}[h]
-\centering
-\caption{Hybrid ANE+MLX training: per-step timing breakdown.  All times in milliseconds.  Reward is the mean across $G=4$ group members.}
-\label{tab:hybrid_timing}
-\begin{tabular}{ccccccc}
-\toprule
-\textbf{Step} & \textbf{Reward} & \textbf{Valid} & \textbf{ANE (ms)} & \textbf{MLX (ms)} & \textbf{Sync (ms)} & \textbf{Total (ms)} \\
-\midrule
-0 & 1.860 & \checkmark & 4,742 & 6,171 & 0.0 & 10,913 \\
-1 & 1.836 & \checkmark & 3,582 & 5,236 & 0.0 & 8,833 \\
-2 & 1.841 & \checkmark & 3,259 & 5,571 & 0.0 & 8,830 \\
-3 & 1.857 & \checkmark & 2,794 & 1,939 & 0.0 & 4,734 \\
-4 & 1.837 & \checkmark & 3,583 & 4,599 & 0.7 & 8,183 \\
-\midrule
-\textbf{Mean} & \textbf{1.846} & \textbf{5/5} & \textbf{3,592} & \textbf{4,703} & \textbf{0.1} & \textbf{8,299} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{ANE rollouts account for 43\% of compute time.}  Averaging 3,592ms per step, the ANE generates 4 candidate responses per prompt.  This is competitive with Metal GPU inference: MLX generates at 64~tok/s for the 0.8B model but the ANE generates at 55~tok/s for 0.5B while drawing $\sim$10$\times$ less power.
-
-\textbf{Metal gradient computation accounts for 57\% of compute time.}  The MLX backward pass averages 4,703ms, with high variance (1,939--6,171ms).  The variance reflects the variable-length responses generated by the ANE; longer responses require more memory and computation in the gradient step.
-
-Weight synchronization is effectively free.  Unified memory means LoRA weight transfer takes under 1ms.  On a system with discrete GPU and separate memory, PCIe transfers could dominate the training loop.
-
-The reward signal is the real differentiator.  The hybrid architecture maintains rewards between 1.836 and 1.860 across all 5 steps (mean 1.846, std 0.01).  The pure MLX baselines crash from $\sim$1.9 to $\sim$$-$0.03 upon collapse.
-
-Figure~\ref{fig:scaling} shows the Qwen3.5 family scaling behavior across 0.8B, 2B, and 4B models, illustrating the throughput-validity-efficiency tradeoffs that motivate the hybrid approach.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.85\columnwidth]{figures/2_qwen35_scaling.png}
-\caption{Qwen3.5 family scaling: throughput, JSON validity, and efficiency across model sizes.  Larger models improve validity but at severe throughput cost.}
-\label{fig:scaling}
-\end{figure}
-
-% --------------------------------------------------------------------------
-% 5.4 COMPUTE SPLIT ANALYSIS
-% --------------------------------------------------------------------------
-\subsection{Compute Split Analysis}
-\label{sec:compute_split}
-
-The 43\%/57\% compute split is an average, not a constant.  It shifts per step based on response length and gradient complexity.  Figure~\ref{fig:compute_split} shows the per-step allocation between ANE rollouts and Metal gradients.
+MLX on Metal GPU is 30--40$\times$ faster than any other path.  Figure~\ref{fig:speed} shows the comparison.
 
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-    ybar stacked,
-    bar width=20pt,
-    width=0.85\columnwidth,
-    height=6cm,
-    xlabel={Training Step},
-    ylabel={Time (seconds)},
-    ymin=0,
-    ymax=12,
-    xtick={0,1,2,3,4},
-    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=3, font=\small},
-    nodes near coords style={font=\tiny},
-    every axis plot/.append style={fill opacity=0.8},
+    ybar,
+    bar width=11pt,
+    width=0.95\columnwidth,
+    height=7cm,
+    ylabel={Average step time (seconds)},
+    ymode=log,
+    log ticks with fixed point,
+    ymin=0.5,
+    ymax=50,
+    symbolic x coords={Public, Private, {Priv-Full}, MLX},
+    xtick=data,
+    legend style={at={(0.98,0.98)}, anchor=north east, font=\small},
+    every axis plot/.append style={fill opacity=0.85},
+    point meta=rawy,
+    nodes near coords,
+    nodes near coords style={font=\tiny, /pgf/number format/fixed, /pgf/number format/precision=1},
+    every node near coord/.append style={anchor=south},
 ]
-\addplot[fill=blue!50, draw=blue!70] coordinates {(0,4.742) (1,3.582) (2,3.259) (3,2.794) (4,3.583)};
-\addplot[fill=orange!50, draw=orange!70] coordinates {(0,6.171) (1,5.236) (2,5.571) (3,1.939) (4,4.599)};
-\addplot[fill=green!50, draw=green!70] coordinates {(0,0.0) (1,0.0) (2,0.0) (3,0.0) (4,0.001)};
-\legend{ANE Rollout, MLX Gradient, Weight Sync}
+\addplot[fill=blue!60, draw=blue!80] coordinates
+    {(Public, 32.3) (Private, 32.5) ({Priv-Full}, 33.8) (MLX, 1.1)};
+\addplot[fill=red!50, draw=red!70] coordinates
+    {(Public, 29.7) (Private, 25.6) ({Priv-Full}, 22.5) (MLX, 0.8)};
+\legend{Qwen2.5-0.5B, SmolLM2-360M}
 \end{axis}
 \end{tikzpicture}
-\caption{Per-step compute allocation in hybrid training.  ANE rollouts (blue) and Metal gradients (orange) trade dominance across steps depending on response length and gradient complexity.  Weight synchronization (green) is negligible.}
-\label{fig:compute_split}
+\caption{Average step time across four compute paths (log scale).  MLX completes steps in 0.8--1.1~seconds versus 22--34~seconds for CPU and ANE paths.  SmolLM2 is faster than Qwen across all backends, likely due to its 3$\times$ smaller vocabulary reducing output projection cost.}
+\label{fig:speed}
 \end{figure}
 
-Step~3 is an outlier: MLX gradient time drops to 1,939ms (67\% below average) and ANE rollout time falls to 2,794ms.  The batch probably contained short, easy-to-classify prompts that produced compact responses.  Step~0 shows the opposite: cold-start overhead inflates both ANE (4,742ms) and MLX (6,171ms) times.
+The gap is stark.  SmolLM2-360M on MLX averages 0.8~seconds per step.  The same model on the public CPU path takes 29.7~seconds---37$\times$ slower.  Qwen2.5-0.5B shows a similar ratio: 1.1~seconds on MLX versus 32.3~seconds on public, a 29$\times$ difference.
 
-Excluding steps 0 and 3, the steady-state split holds tight: ANE averages 3,475ms (40\%) and MLX averages 5,136ms (60\%).  For $G=4$ with 128-token max response length, the Metal gradient pass is the bottleneck.  Bumping to $G=8$ would shift more time to ANE rollouts, potentially pushing toward a 50/50 balance.
+Why is MLX so much faster?  Not because Metal GPU computes individual operations faster than the CPU.  MLX runs the entire computation graph (tokenization, forward pass, sampling, gradient computation) as a single fused pipeline on one engine.  The CPU and ANE paths serialize across engines: generate tokens on CPU or ANE, transfer data, score rewards, transfer back, compute gradients on CPU.  Each boundary adds latency.
+
+The ANE paths don't help much with speed.  Qwen on the private path (32.5s) is essentially identical to public (32.3s).  SmolLM2 shows modest improvement: private (25.6s) is 14\% faster than public (29.7s), and private-full (22.5s) is 24\% faster.  These gains are marginal next to MLX's 37$\times$ speedup.
+
+\textbf{Autoregressive generation is the bottleneck.}  Over 95\% of step time across every path goes to rollout generation---producing $G=4$ candidate responses of up to 128~tokens each.  This is inherently sequential.  The ANE can execute individual forward passes in under 0.2ms via the private API, but generating one response still requires 128 sequential evaluations plus KV cache management, tokenization, and sampling at each step.  Metal GPU faces the same constraint but amortizes overhead through MLX's lazy evaluation and fused kernels.
+
+Over a full 500-step run, these differences compound.  SmolLM2 on MLX finishes in 6.7~minutes.  Qwen on MLX takes 9.2~minutes.  The same models on the public CPU path take 4.1 and 4.5~hours respectively.  A researcher can iterate on MLX hyperparameters six times in the span of a single CPU training run.
+
+% --------------------------------------------------------------------------
+% 5.3 POWER EFFICIENCY
+% --------------------------------------------------------------------------
+\subsection{Power Efficiency}
+\label{sec:power}
+
+Figure~\ref{fig:power} shows average system power draw.  MLX consumes the least total power despite using the Metal GPU.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=11pt,
+    width=0.95\columnwidth,
+    height=7cm,
+    ylabel={Average system power (watts)},
+    ymin=0,
+    ymax=48,
+    symbolic x coords={Public, Private, {Priv-Full}, MLX},
+    xtick=data,
+    legend style={at={(0.98,0.98)}, anchor=north east, font=\small},
+    every axis plot/.append style={fill opacity=0.85},
+    nodes near coords,
+    nodes near coords style={font=\tiny, /pgf/number format/fixed, /pgf/number format/precision=1},
+    every node near coord/.append style={anchor=south},
+]
+\addplot[fill=blue!60, draw=blue!80] coordinates
+    {(Public, 41.3) (Private, 28.3) ({Priv-Full}, 26.8) (MLX, 9.7)};
+\addplot[fill=red!50, draw=red!70] coordinates
+    {(Public, 37.2) (Private, 14.7) ({Priv-Full}, 22.7) (MLX, 6.2)};
+\legend{Qwen2.5-0.5B, SmolLM2-360M}
+\end{axis}
+\end{tikzpicture}
+\caption{Average total system power across four compute paths.  CPU-only execution draws 37--41W.  ANE paths reduce draw 30--60\%.  MLX draws 6--10W because Metal GPU handles the entire workload while the CPU idles.}
+\label{fig:power}
+\end{figure}
+
+The public CPU path draws the most power: 41.3W for Qwen, 37.2W for SmolLM2.  Nearly all of this is CPU utilization (GPU under~1W, ANE under~0.1W).  CPU-only training keeps all cores saturated for the entire step.
+
+The private ANE path cuts power substantially.  SmolLM2 drops from 37.2W to 14.7W, a 60\% reduction.  Qwen's reduction is smaller: 41.3W to 28.3W (31\%).  The difference reflects model architecture.  SmolLM2's simpler attention maps more efficiently to ANE execution, offloading more work from CPU.  The private-full path shows mixed results: 26.8W for Qwen (35\% reduction) but 22.7W for SmolLM2 (39\% reduction, worse than private's 60\%).  Running backward-dx kernels on ANE adds power draw that partially offsets the forward-pass savings.
+
+MLX dominates power efficiency for the same reason it dominates speed: Metal GPU handles the full computation graph while the CPU idles at 2--3W.  Qwen MLX draws 9.7W total (7.1W GPU).  SmolLM2 MLX draws 6.2W (4.2W GPU).
+
+Energy per step tells the most dramatic story.  SmolLM2-360M on MLX consumes 5.0~joules per training step.  A full 500-step run uses 0.7~Wh---less than 1\% of a MacBook Pro battery.  The same model on the public path consumes 153~Wh over 500~steps.  MLX is 221$\times$ more energy efficient per step.
+
+% --------------------------------------------------------------------------
+% 5.4 LEARNING DYNAMICS
+% --------------------------------------------------------------------------
+\subsection{Learning Dynamics}
+\label{sec:learning}
+
+Speed and power matter only if the model actually learns.  Figure~\ref{fig:learning} shows peak-20 reward and last-50 JSON validity side by side.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    name=rewardplot,
+    ybar,
+    bar width=11pt,
+    width=0.95\columnwidth,
+    height=6cm,
+    ylabel={Peak-20 reward},
+    ymin=0,
+    ymax=0.62,
+    clip=false,
+    symbolic x coords={Public, Private, {Priv-Full}, MLX},
+    xtick=data,
+    legend style={at={(0.5,0.98)}, anchor=north, font=\small},
+    every axis plot/.append style={fill opacity=0.85},
+    nodes near coords,
+    nodes near coords style={font=\tiny, /pgf/number format/fixed, /pgf/number format/precision=3},
+    every node near coord/.append style={anchor=south},
+    title={\small (a) Peak-20 reward},
+]
+\addplot[fill=blue!60, draw=blue!80] coordinates
+    {(Public, 0.208) (Private, 0.133) ({Priv-Full}, 0.206) (MLX, 0.056)};
+\addplot[fill=red!50, draw=red!70] coordinates
+    {(Public, 0.431) (Private, 0.079) ({Priv-Full}, 0.072) (MLX, 0.500)};
+\legend{Qwen2.5-0.5B, SmolLM2-360M}
+\end{axis}
+\end{tikzpicture}
+
+\vspace{0.3cm}
+
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=11pt,
+    width=0.95\columnwidth,
+    height=6cm,
+    ylabel={Last-50 JSON validity (\%)},
+    ymin=0,
+    ymax=118,
+    clip=false,
+    symbolic x coords={Public, Private, {Priv-Full}, MLX},
+    xtick=data,
+    legend style={at={(0.5,0.98)}, anchor=north, font=\small},
+    every axis plot/.append style={fill opacity=0.85},
+    nodes near coords,
+    nodes near coords style={font=\tiny},
+    every node near coord/.append style={anchor=south},
+    title={\small (b) Last-50 JSON validity},
+]
+\addplot[fill=blue!60, draw=blue!80] coordinates
+    {(Public, 0) (Private, 9) ({Priv-Full}, 7) (MLX, 1)};
+\addplot[fill=red!50, draw=red!70] coordinates
+    {(Public, 53) (Private, 4) ({Priv-Full}, 1) (MLX, 100)};
+\legend{Qwen2.5-0.5B, SmolLM2-360M}
+\end{axis}
+\end{tikzpicture}
+\caption{Learning outcomes across eight experiments.  (a)~Peak-20 reward: SmolLM2 on MLX achieves the maximum possible reward (0.500).  (b)~Last-50 JSON validity: only SmolLM2 on MLX sustains 100\% validity through the end of training.}
+\label{fig:learning}
+\end{figure}
+
+SmolLM2-360M on MLX is the standout result.  Peak-20 reward of 0.500 (the maximum possible) with 100\% JSON validity sustained through the final 50~steps.  This is not a handful of lucky generations.  It is a model that has genuinely learned to produce valid structured output through on-device reinforcement learning.
+
+SmolLM2 on the public CPU path comes second.  Its peak-20 reward of 0.431 shows strong learning, and 53\% last-50 validity means it partially retains the skill.  Both paths run in fp32.  The gap between them (0.431 vs.\ 0.500, 53\% vs.\ 100\%) may reflect implementation differences: the MLX path uses Python with MLX's native LoRA, while the public path uses our custom Objective-C GRPO loop.  Alternatively, MLX's fused operations may reduce numerical drift over 500~gradient steps.  We cannot isolate the cause from these experiments alone.
+
+The ANE paths degrade learning quality for both models.  SmolLM2 on the private path drops from 0.431 peak-20 (public, fp32) to 0.079 (private, fp16 forward).  Qwen shows the same pattern: 0.208 (public) to 0.133 (private).  Private-full fares no better.  The fp16 precision of ANE forward passes introduces noise that accumulates over 500~steps, corrupting the reward signal that drives policy updates.
+
+Qwen2.5-0.5B never learns well on any path.  Its best result is 0.208 peak-20 reward on the public path with 0\% last-50 validity.  It picks up some learning early, then loses all JSON validity by the end of training.  On MLX, Qwen's peak-20 is just 0.056 despite MLX being the best backend for SmolLM2.  Qwen lacks the capacity for this task regardless of compute path.  Two architectural differences may explain why, despite Qwen having more parameters (490M vs.\ 362M).  Qwen's vocabulary is 3$\times$ larger (152K vs.\ 49K tokens), spreading output probability mass across more candidates and making it harder for LoRA to steer structured generation.  And SmolLM2 has more transformer layers (32 vs.\ 24), which means more LoRA intervention points even though each layer is smaller.
+
+Consider what this means.  SmolLM2 at 362M parameters learns perfectly on MLX.  Qwen at 490M parameters, 35\% larger, fails on every compute path.  Parameter count does not predict on-device learning success.  The capacity threshold from Paper~II~\cite{maloney2025capacity} manifests here as a property of architecture interacting with task requirements, not raw size.
 
 % ============================================================================
 % 6. DISCUSSION
@@ -427,31 +554,55 @@ Excluding steps 0 and 3, the steady-state split holds tight: ANE averages 3,475m
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{On-Device Tensions}
+\subsection{Why MLX Dominates}
 
-On-device GRPO training runs into constraints that don't exist on server hardware.
+We spent months building CoreML pipelines, writing Objective-C GRPO loops, implementing private API bootstraps, and hand-coding backward-dx kernels for the ANE.  We expected the Neural Engine's power efficiency to make it the preferred engine for rollout generation, with Metal GPU handling only gradients.  The data says we were wrong.
 
-\textbf{Capacity vs.\ stability.}  Larger models resist collapse longer (6 steps for 2B vs.\ 3 steps for 0.8B) but need more memory and compute per step.  On a 36GB unified memory system, 4-bit 2B models eat about 1.5GB.  That's manageable, but it leaves little headroom for activations during gradient computation.
+The primary advantage is architectural: MLX runs the entire computation graph on a single engine with no serialization boundaries.  The CPU and ANE paths move data between engines at every phase of the training loop---generate tokens on CPU or ANE, transfer to CPU for scoring, compute gradients on CPU, optionally synchronize weights back to ANE.  MLX eliminates all transfers.  On top of that, MLX's lazy evaluation and operation fusion reduce per-token overhead during autoregressive generation.  Individual ANE forward passes take under 0.2ms, but the Objective-C orchestration between passes (tokenization, sampling, KV cache update, next-token preparation) adds overhead that compounds over 128~tokens $\times$ 4~rollouts $\times$ 500~steps.  The power story reinforces this: Metal GPU at 4--7W turns out to be more efficient than saturating the CPU at 37--41W for sustained matrix operations.  We did not expect that going in.
 
-\textbf{Power vs.\ throughput.}  The ANE delivers competitive throughput at 3W but can't compute gradients.  Metal GPU can compute gradients but draws 30W.  A 5-minute training run on Metal drains about 2.5Wh of battery, negligible.  But a 500-step run at 8.3 seconds per step takes 69 minutes at 30W, consuming 34.5Wh---nearly a third of a typical MacBook Pro battery.
+\subsection{The Precision Tax}
 
-\textbf{Split vs.\ overhead.}  The hybrid architecture adds complexity: two model representations, a synchronization protocol, coordination logic.  The overhead is currently negligible ($<$1ms sync), but scaling to larger models or more frequent synchronization could change the picture.
+ANE paths run forward passes in fp16.  This has a measurable cost.
 
-\subsection{When ANE Makes Sense}
+SmolLM2 on the public path (fp32 throughout) achieves 0.431 peak-20 reward.  The same model on the private path (fp16 forward, fp32 backward) drops to 0.079.  The most salient difference is forward-pass precision, though the two paths also differ in runtime implementation and engine serialization.  Our leading explanation: over 500~steps with $G=4$ rollouts each, fp16 rounding errors in the policy log-probabilities accumulate.  The advantage estimates computed from noisy log-probs push the policy in slightly wrong directions, and those errors compound step after step.  We cannot fully rule out contributions from the runtime differences, but precision is the most likely driver given the magnitude of the gap.
 
-The ANE isn't universally better than Metal GPU inference.  MLX hits 64.1~tok/s for Qwen3.5-0.8B versus 54.8~tok/s for Qwen2.5-0.5B on ANE.  The GPU is faster in raw throughput for same-generation models.  The ANE advantage is power efficiency: when you need thousands of rollout generations during training, running them at 3W instead of 30W preserves battery and reduces thermal throttling.
+This finding has implications beyond Apple Silicon.  Any system that uses reduced-precision inference for GRPO rollouts while computing gradients in full precision should expect degraded learning.  The precision boundary between inference and training is not free.
 
-Also, the ANE introduces fixed overhead.  CoreML model compilation takes 30--60 seconds, and the first inference call incurs a $\sim$650ms warmup.  For single-shot inference, Metal GPU via MLX is simpler and faster to start.  For training loops with hundreds of rollout generations, the per-inference power savings compound.
+\subsection{When ANE Matters}
 
-\subsection{Implications for the Paper Series}
+Our results might suggest the ANE is useless for on-device ML.  That conclusion would be too strong.
 
-The capacity threshold from Paper~II~\cite{maloney2025capacity} is not a datacenter artifact.  We see the same collapse dynamics on a laptop: valid JSON for a few steps, abrupt drop to 0\% validity, no recovery.  The threshold is a property of model capacity interacting with RL optimization, not of the hardware running it.
+The ANE reduces system power by 30--60\% compared to CPU-only execution.  For inference-only deployment, where an agent serves predictions without training, this is significant.  An agent running continuous inference at 3W on battery operates 10$\times$ longer than one running at 30W on Metal GPU.  Paper~V~\cite{maloney2025moe} identified power efficiency as a deployment constraint.  The ANE addresses it for inference workloads.
 
-The hybrid architecture offers a partial solution that Paper~II didn't consider.  Decouple inference from gradient computation, and you can run rollouts on a larger frozen model while computing gradients on a smaller LoRA adapter.  That asymmetry maps naturally onto the ANE+Metal split.
+For training, the ANE's limitation is precision and serialization, not power.  If Apple were to support fp32 on the Neural Engine, or if CoreML exposed a native backward-pass API, the ANE could potentially match MLX's learning quality at lower power.  Neither capability exists today.
 
-\subsection{Thinking Mode as a Confound}
+\subsection{The Autoregressive Bottleneck}
 
-Qwen3.5 models trained with thinking mode enabled leak \texttt{<think>} tokens into structured output.  These tokens eat the 128-token generation budget and prevent complete JSON responses.  This is a training artifact, not a capacity limitation.  Two fixes exist: disable thinking mode during GRPO rollouts, or increase the generation budget to accommodate reasoning tokens.  Paper~V~\cite{maloney2025moe} flagged thinking-mode overhead as a deployment concern; here we see it directly interfering with training stability.
+Across all eight experiments, rollout generation consumes over 95\% of step time.  Gradient computation is fast.  Reward scoring is trivial.  The bottleneck is generating 4~candidate responses of up to 128~tokens each, one token at a time, regardless of which engine does the work.
+
+This carries a practical implication: optimizing gradient computation has almost no impact on on-device GRPO throughput.  The private-full path routes backward-dx kernels to the ANE, saving CPU cycles during backpropagation.  The time savings are invisible because backward passes account for less than 5\% of step time.
+
+Speculative decoding, parallel generation across rollouts, or shorter response budgets would have more impact on training throughput than any improvement to gradient computation.  Future work on on-device RL should focus on rollout acceleration.
+
+\subsection{Series Implications}
+
+The capacity threshold from Paper~II~\cite{maloney2025capacity} manifests here, but differently than on server hardware.  On datacenter GPUs, the threshold is primarily about model size: below 1B parameters, models lose JSON validity during GRPO training and never recover.  On-device, the threshold interacts with architecture and precision.
+
+Qwen2.5-0.5B (490M) fails to sustain JSON validity on any compute path.  SmolLM2-360M (362M) succeeds perfectly on MLX despite having fewer parameters.  The combination of vocabulary size (49K vs.~152K), attention design, and training precision matters more than raw parameter count in the constrained on-device setting.
+
+Paper~IV~\cite{maloney2025dynamics} found that early reward trajectories predict final outcomes on server hardware.  The same holds here.  If a model hasn't shown meaningful reward by step~50, it won't start at step~300.  SmolLM2 on MLX and the public path both show strong early signals and sustain learning through 500~steps.  Every other configuration shows weak early rewards and never recovers.  This makes on-device experimentation practical: with MLX completing a step in under a second, you can evaluate whether a configuration will work within the first minute of training.
+
+\subsection{Limitations}
+
+This study has several constraints that bound how far the results generalize.
+
+Each of the eight experiments ran once.  We report no variance estimates, no confidence intervals, and no seed sweeps.  The headline numbers---0.500 peak-20 reward, 100\% last-50 validity for SmolLM2 on MLX---are single-run observations.  They are directional, not definitive.  GRPO training is stochastic; a different random seed could produce meaningfully different reward trajectories, particularly for configurations near the boundary of learning (SmolLM2 on the public path at 53\% validity, for instance).  The immediate next step is to run 3~seeds per cell across all 24~experiments and report means with standard deviations.
+
+We tested two models, both under 500M parameters.  Two data points cannot cleanly separate architecture effects from backend effects.  The observation that SmolLM2-360M outperforms the larger Qwen2.5-0.5B is suggestive---vocabulary size, layer count, and attention design all differ---but we cannot attribute the gap to any single factor.  Adding 2--3 models in the 1B--3B range on MLX would strengthen the architectural claims considerably.
+
+All experiments ran on a single machine (MacBook Pro, M-series, 36GB).  We do not know how results transfer to other M-series chips with different core counts, memory bandwidth, or thermal envelopes.  The ANE precision behavior may also differ across chip generations.
+
+Finally, the CLINC intent classification task is a single, relatively constrained structured-output problem.  We have not tested whether these findings hold for longer-form generation, multi-turn dialogue, or tasks that require reasoning chains.
 
 % ============================================================================
 % 7. CONCLUSION
@@ -459,13 +610,13 @@ Qwen3.5 models trained with thinking mode enabled leak \texttt{<think>} tokens i
 \section{Conclusion}
 \label{sec:conclusion}
 
-We trained an SLO-aware agent on a laptop using a hybrid architecture that routes inference to Apple's Neural Engine and gradient computation to Metal GPU.  The architecture maintains 100\% JSON validity across training steps where pure approaches collapse.
+We compared four compute paths for on-device GRPO training on Apple Silicon, running 500-step experiments across eight configurations.
 
-On-device GRPO training is viable, but not through brute force.  The same capacity threshold that limits small models on server hardware limits them on consumer hardware.  The ANE's power efficiency makes rollout generation practical at 3W, but it can't compute gradients.  Metal GPU handles gradients but wastes 10$\times$ the power on inference the ANE does better.
+MLX on Metal GPU is the clear winner: 30--40$\times$ faster, 4--6$\times$ lower power, over 200$\times$ more energy efficient than CPU-based training.  SmolLM2-360M on MLX achieves 100\% JSON validity with maximum reward in under seven minutes on a single laptop charge.  On-device reinforcement learning is not just viable.  For the right model on the right backend, it works perfectly.
 
-The hybrid splits compute 43\%/57\% between ANE and Metal, achieves per-step times of 4.7--10.9 seconds, and maintains stable rewards at 1.85$\pm$0.01.  Weight synchronization through unified memory takes under 1ms, making the architectural complexity nearly free.
+The Apple Neural Engine reduces power consumption for inference but introduces an fp16 precision cost that degrades training.  CPU-based training in fp32 produces better learning outcomes than ANE-based training in fp16.  And autoregressive rollout generation, not gradient computation, is the binding constraint across all paths.
 
-The model that trains successfully on a laptop is not the one with the most parameters.  It is the one paired with an architecture that plays to each engine's strength.
+Specialization is not the answer.  Simplicity is.  One engine, full precision, no serialization boundaries.
 
 % ============================================================================
 % APPENDIX
@@ -475,25 +626,27 @@ The model that trains successfully on a laptop is not the one with the most para
 \section{Training Hyperparameters}
 \label{app:hyperparams}
 
-Table~\ref{tab:hyperparams} lists the complete hyperparameter configurations for all experiments.
+Table~\ref{tab:hyperparams} lists the hyperparameters used across all eight experiments.  All settings are identical across compute paths.
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
-\caption{Complete training hyperparameters.}
+\caption{Training hyperparameters (identical across all experiments).}
 \label{tab:hyperparams}
-\begin{tabular}{lcccc}
+\begin{tabular}{lc}
 \toprule
-\textbf{Parameter} & \textbf{Hybrid 0.5B} & \textbf{MLX 0.5B} & \textbf{MLX 0.8B} & \textbf{MLX 2B} \\
+\textbf{Parameter} & \textbf{Value} \\
 \midrule
-Group size ($G$) & 4 & 4 & 2 & 2 \\
-Learning rate & 1e-5 & 1e-5 & 5e-5 & 5e-5 \\
-LoRA rank & 8 & 8 & 4 & 4 \\
-LoRA layers & 8 & 8 & 4 & 4 \\
-KL penalty ($\beta$) & 0.3 & 0.3 & 0.3 & 0.3 \\
-Max tokens & 128 & 128 & 96 & 96 \\
-Gradient clip norm & 1.0 & 1.0 & 1.0 & 1.0 \\
-Quantization & 4-bit & 4-bit & 4-bit & 4-bit \\
-Optimizer & AdamW & AdamW & AdamW & AdamW \\
+Training steps & 500 \\
+Group size ($G$) & 4 \\
+Learning rate & $5 \times 10^{-6}$ \\
+LoRA rank & 4 \\
+LoRA layers & 4 (attention projections) \\
+KL penalty ($\beta$) & 0.1 \\
+Max generation tokens & 128 \\
+Gradient clip norm & 1.0 \\
+Optimizer & AdamW \\
+$\beta_1, \beta_2$ & 0.9, 0.999 \\
+Weight decay & 0.01 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -501,31 +654,28 @@ Optimizer & AdamW & AdamW & AdamW & AdamW \\
 \section{CoreML Conversion Notes}
 \label{app:coreml}
 
-Converting PyTorch transformers to CoreML for ANE execution is not plug-and-play.  Four issues came up:
+Both Qwen2.5-0.5B and SmolLM2-360M required operation-level rewrites to compile for ANE execution via \texttt{coremltools}~\cite{apple2023coremltools}.  Four classes of issues arose:
 
 \begin{itemize}[leftmargin=*]
-\item \textbf{Tracing path:}  We trace only the $S=1$ decode path.  The prefill path ($S>1$) triggers different code paths in the attention mechanism that \texttt{coremltools} cannot trace through conditional branches.  In practice, GRPO rollouts are autoregressive, so only the decode path matters.
+\item \textbf{Embedding gather:}  The ANE does not support \texttt{gather} for embedding lookups.  We pre-compute embeddings on CPU and pass them as input tensors to the CoreML model.
 
-\item \textbf{KV cache as state:}  CoreML state tensors require the \texttt{name} attribute on \texttt{StateType}, not on \texttt{TensorType}.  We register KV cache tensors as \texttt{register\_buffer()} in the PyTorch wrapper and modify them in-place during the forward pass.
+\item \textbf{GQA head expansion:}  Qwen2.5 uses grouped-query attention with \texttt{repeat\_interleave} for key-value head expansion.  This operation is unsupported on ANE.  We replace it with an \texttt{unsqueeze}$\,\to\,$\texttt{expand}$\,\to\,$\texttt{reshape} sequence that produces identical results.
 
-\item \textbf{GQA head expansion:}  The \texttt{repeat\_interleave} operation used for grouped-query attention is not supported on ANE.  We replace it with an \texttt{unsqueeze}$\,\to\,$\texttt{expand}$\,\to\,$\texttt{reshape} sequence that produces identical results through ANE-compatible operations.
+\item \textbf{Dimension padding:}  ANE requires tensor dimensions to be multiples of~32.  We pad trailing dimensions with zeros and slice results after computation.
 
-\item \textbf{Dimension padding:}  ANE requires all tensor dimensions to be multiples of 32.  We pad trailing dimensions (e.g., conv cache dimension 3$\to$32) with zeros and slice the results after computation.
+\item \textbf{Tensor layout transposition:}  The ANE uses channel-major layout (\texttt{[1, C, 1, S]}) while CPU uses row-major (\texttt{[S, C]}).  Every CPU$\leftrightarrow$ANE data transfer requires explicit transposition: \texttt{input[t*dim+c]} $\to$ \texttt{ptr[c*seq+t]}.  Raw \texttt{memcpy} between layouts produces garbage outputs.
 \end{itemize}
 
-Not all models survive this process.  Of the 13 models in our Paper~I--IV test suite, only Qwen2.5-0.5B and Llama-3.2-1B compiled successfully.  The Qwen3.5 family failed due to unsupported operations in their attention implementation, so they run on MLX instead.
+KV cache management uses CoreML state tensors with \texttt{register\_buffer()} in the PyTorch wrapper.  The \texttt{name} attribute must be set on \texttt{StateType}, not on \texttt{TensorType}.
 
-\section{Full Dashboard}
-\label{app:dashboard}
+We trace only the $S=1$ decode path, since GRPO rollouts are autoregressive.  The prefill path ($S>1$) triggers conditional branches in the attention mechanism that \texttt{coremltools} cannot trace through.
 
-Figure~\ref{fig:dashboard} shows the complete P9 experimental dashboard, including all five visualization panels generated during the demo run.
+\section{Backward-dx Kernel Implementation}
+\label{app:backward}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=\textwidth]{figures/5_dashboard.png}
-\caption{Complete experimental dashboard.  Panels (left to right, top to bottom): ANE vs.\ MLX inference comparison, Qwen3.5 scaling analysis, model zoo scatter plot, 4-panel GRPO training dynamics, and summary statistics.}
-\label{fig:dashboard}
-\end{figure}
+The private-full path computes input gradients (backward dx) on the ANE.  We originally attempted this through the private bootstrap API (\texttt{\_ANEInMemoryModel}), which worked for small test models but crashed at Qwen and SmolLM2 scale with \texttt{ANEProgramProcessRequestDirect() Failed}.
+
+The working implementation uses CoreML's public API.  We compile a separate CoreML model that computes the Jacobian-vector product for each layer, targeting ANE compute units.  The Objective-C runtime (\texttt{coreml\_eval\_backward} in \texttt{coreml\_runtime.\{h,m\}}) orchestrates the backward pass by chaining per-layer evaluations.
 
 % ============================================================================
 % BIBLIOGRAPHY

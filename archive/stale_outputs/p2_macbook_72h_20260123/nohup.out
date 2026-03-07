@@ -1,0 +1,75 @@
+[2026-01-23 21:20:05] ==============================================
+[2026-01-23 21:20:05] 72-HOUR TRAINING RUN STARTED
+[2026-01-23 21:20:05] ==============================================
+[2026-01-23 21:20:05] Output: out/p2_macbook_72h_20260123
+[2026-01-23 21:20:05] Models: 5
+[2026-01-23 21:20:05] 
+[2026-01-23 21:20:05] ==============================================
+[2026-01-23 21:20:05] MODEL 1/5: falcon-mamba-7b
+[2026-01-23 21:20:05] HuggingFace: tiiuae/falcon-mamba-7b-instruct
+[2026-01-23 21:20:05] Output: out/p2_macbook_72h_20260123/falcon-mamba-7b_seed42_500steps
+[2026-01-23 21:20:05] Started: Fri Jan 23 21:20:05 EST 2026
+[2026-01-23 21:20:05] ==============================================
+usage: grpo_trl.py [-h] [--base-model BASE_MODEL] [--tasks TASKS] [--out OUT]
+                   [--steps STEPS] [--start START]
+                   [--max-new-tokens MAX_NEW_TOKENS] [--samples SAMPLES]
+grpo_trl.py: error: unrecognized arguments: --model tiiuae/falcon-mamba-7b-instruct --output-dir out/p2_macbook_72h_20260123/falcon-mamba-7b_seed42_500steps --seed 42 --dtype float16 --use-lora --lora-r 16 --lora-alpha 32 --batch-size 2 --gradient-accumulation-steps 2
+[2026-01-23 21:20:06] ✅ falcon-mamba-7b COMPLETED SUCCESSFULLY
+[2026-01-23 21:20:06] Finished: Fri Jan 23 21:20:06 EST 2026
+[2026-01-23 21:20:06] 
+[2026-01-23 21:20:07] ==============================================
+[2026-01-23 21:20:07] MODEL 2/5: llama-3.1-8b
+[2026-01-23 21:20:07] HuggingFace: meta-llama/Llama-3.1-8B-Instruct
+[2026-01-23 21:20:07] Output: out/p2_macbook_72h_20260123/llama-3.1-8b_seed42_500steps
+[2026-01-23 21:20:07] Started: Fri Jan 23 21:20:07 EST 2026
+[2026-01-23 21:20:07] ==============================================
+usage: grpo_trl.py [-h] [--base-model BASE_MODEL] [--tasks TASKS] [--out OUT]
+                   [--steps STEPS] [--start START]
+                   [--max-new-tokens MAX_NEW_TOKENS] [--samples SAMPLES]
+grpo_trl.py: error: unrecognized arguments: --model meta-llama/Llama-3.1-8B-Instruct --output-dir out/p2_macbook_72h_20260123/llama-3.1-8b_seed42_500steps --seed 42 --dtype float16 --use-lora --lora-r 16 --lora-alpha 32 --batch-size 2 --gradient-accumulation-steps 2
+[2026-01-23 21:20:08] ✅ llama-3.1-8b COMPLETED SUCCESSFULLY
+[2026-01-23 21:20:08] Finished: Fri Jan 23 21:20:08 EST 2026
+[2026-01-23 21:20:08] 
+[2026-01-23 21:20:09] ==============================================
+[2026-01-23 21:20:09] MODEL 3/5: gemma-2-9b
+[2026-01-23 21:20:09] HuggingFace: google/gemma-2-9b-it
+[2026-01-23 21:20:09] Output: out/p2_macbook_72h_20260123/gemma-2-9b_seed42_500steps
+[2026-01-23 21:20:09] Started: Fri Jan 23 21:20:09 EST 2026
+[2026-01-23 21:20:09] ==============================================
+usage: grpo_trl.py [-h] [--base-model BASE_MODEL] [--tasks TASKS] [--out OUT]
+                   [--steps STEPS] [--start START]
+                   [--max-new-tokens MAX_NEW_TOKENS] [--samples SAMPLES]
+grpo_trl.py: error: unrecognized arguments: --model google/gemma-2-9b-it --output-dir out/p2_macbook_72h_20260123/gemma-2-9b_seed42_500steps --seed 42 --dtype float16 --use-lora --lora-r 16 --lora-alpha 32 --batch-size 2 --gradient-accumulation-steps 2
+[2026-01-23 21:20:10] ✅ gemma-2-9b COMPLETED SUCCESSFULLY
+[2026-01-23 21:20:10] Finished: Fri Jan 23 21:20:10 EST 2026
+[2026-01-23 21:20:10] 
+[2026-01-23 21:20:11] ==============================================
+[2026-01-23 21:20:11] MODEL 4/5: gemma-3-12b
+[2026-01-23 21:20:11] HuggingFace: google/gemma-3-12b-it
+[2026-01-23 21:20:11] Output: out/p2_macbook_72h_20260123/gemma-3-12b_seed42_500steps
+[2026-01-23 21:20:11] Started: Fri Jan 23 21:20:11 EST 2026
+[2026-01-23 21:20:11] ==============================================
+usage: grpo_trl.py [-h] [--base-model BASE_MODEL] [--tasks TASKS] [--out OUT]
+                   [--steps STEPS] [--start START]
+                   [--max-new-tokens MAX_NEW_TOKENS] [--samples SAMPLES]
+grpo_trl.py: error: unrecognized arguments: --model google/gemma-3-12b-it --output-dir out/p2_macbook_72h_20260123/gemma-3-12b_seed42_500steps --seed 42 --dtype float16 --use-lora --lora-r 16 --lora-alpha 32 --batch-size 2 --gradient-accumulation-steps 2
+[2026-01-23 21:20:12] ✅ gemma-3-12b COMPLETED SUCCESSFULLY
+[2026-01-23 21:20:12] Finished: Fri Jan 23 21:20:12 EST 2026
+[2026-01-23 21:20:12] 
+[2026-01-23 21:20:14] ==============================================
+[2026-01-23 21:20:14] MODEL 5/5: qwen2.5-3b
+[2026-01-23 21:20:14] HuggingFace: Qwen/Qwen2.5-3B-Instruct
+[2026-01-23 21:20:14] Output: out/p2_macbook_72h_20260123/qwen2.5-3b_seed42_500steps
+[2026-01-23 21:20:14] Started: Fri Jan 23 21:20:14 EST 2026
+[2026-01-23 21:20:14] ==============================================
+usage: grpo_trl.py [-h] [--base-model BASE_MODEL] [--tasks TASKS] [--out OUT]
+                   [--steps STEPS] [--start START]
+                   [--max-new-tokens MAX_NEW_TOKENS] [--samples SAMPLES]
+grpo_trl.py: error: unrecognized arguments: --model Qwen/Qwen2.5-3B-Instruct --output-dir out/p2_macbook_72h_20260123/qwen2.5-3b_seed42_500steps --seed 42 --dtype float16 --use-lora --lora-r 16 --lora-alpha 32 --batch-size 2 --gradient-accumulation-steps 2
+[2026-01-23 21:20:15] ✅ qwen2.5-3b COMPLETED SUCCESSFULLY
+[2026-01-23 21:20:15] Finished: Fri Jan 23 21:20:15 EST 2026
+[2026-01-23 21:20:15] 
+[2026-01-23 21:20:16] ==============================================
+[2026-01-23 21:20:16] ALL TRAINING COMPLETE
+[2026-01-23 21:20:16] Finished: Fri Jan 23 21:20:16 EST 2026
+[2026-01-23 21:20:16] ==============================================

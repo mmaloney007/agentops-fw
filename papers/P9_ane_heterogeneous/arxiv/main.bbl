@@ -1,9 +1,18 @@
-\begin{thebibliography}{12}
+\begin{thebibliography}{17}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Allal et~al.(2024)Allal, Lozhkov, Penedo, Wolf, and von
+  Werra]{allal2024smollm2}
+Loubna~Ben Allal, Anton Lozhkov, Guilherme Penedo, Thomas Wolf, and Leandro von
+  Werra.
+\newblock {SmolLM2}: When smol goes big -- data-centric training of a small
+  language model.
+\newblock \url{https://huggingface.co/blog/smollm2}, 2024.
+\newblock 360M, 1.7B, and 3B parameter language models.
 
 \bibitem[{Anemll Contributors}(2024)]{anemll2024}
 {Anemll Contributors}.
@@ -78,6 +87,28 @@ V.~Michael Maloney.
 \newblock \emph{arXiv preprint}, 2025{\natexlab{e}}.
 \newblock Paper~V of this series.
 
+\bibitem[McMahan et~al.(2017)McMahan, Moore, Ramage, Hampson, and
+  Arcas]{mcmahan2017fedavg}
+Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise
+  Ag{\"u}era~y Arcas.
+\newblock Communication-efficient learning of deep networks from decentralized
+  data.
+\newblock In \emph{Proceedings of the 20th International Conference on
+  Artificial Intelligence and Statistics (AISTATS)}, 2017.
+
+\bibitem[{Qwen Team}(2024)]{qwen2025qwen25}
+{Qwen Team}.
+\newblock Qwen2.5 technical report.
+\newblock \emph{arXiv preprint arXiv:2412.15115}, 2024.
+
+\bibitem[Rafailov et~al.(2024)Rafailov, Sharma, Mitchell, Ermon, Manning, and
+  Finn]{rafailov2024dpo}
+Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher~D.
+  Manning, and Chelsea Finn.
+\newblock Direct preference optimization: Your language model is secretly a
+  reward model.
+\newblock \emph{Advances in Neural Information Processing Systems}, 36, 2024.
+
 \bibitem[Schulman et~al.(2017)Schulman, Wolski, Dhariwal, Radford, and
   Klimov]{schulman2017ppo}
 John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov.
@@ -92,5 +123,10 @@ Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei
   language models.
 \newblock \emph{arXiv preprint arXiv:2402.03300}, 2024.
 \newblock Introduces GRPO (Group Relative Policy Optimization).
+
+\bibitem[Xu et~al.(2024)Xu, Xie, and Shu]{xu2024ondevice}
+Yujin Xu, Yuguang Xie, and Zhiqiang Shu.
+\newblock On-device language model fine-tuning.
+\newblock \emph{arXiv preprint arXiv:2404.02421}, 2024.
 
 \end{thebibliography}

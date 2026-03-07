@@ -1,0 +1,107 @@
+{
+  "config": {
+    "base_model": "Qwen/Qwen2.5-3B-Instruct",
+    "tasks": "tasks/t3_tools.jsonl",
+    "out": "out/p2_full_study_20260123/qwen2.5-3b_t3_500s_seed42",
+    "steps": 500,
+    "max_prompt_len": 1024,
+    "max_new_tokens": 128,
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "lr": 1e-05,
+    "weight_decay": 0.01,
+    "gradient_accumulation": 1,
+    "max_grad_norm": 1.0,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "lora_targets": "",
+    "load_in_4bit": null,
+    "use_native_quantization": false,
+    "gradient_checkpointing": false,
+    "use_cache": true,
+    "attn_implementation": null,
+    "torch_dtype": "float16",
+    "eval_interval": 50,
+    "deterministic": false,
+    "force_json_fallback": false,
+    "lam_latency": 0.0,
+    "mu_cost": 0.0,
+    "gamma_stability": 0.0,
+    "enable_faithfulness_judge": false,
+    "judge_base_url": "http://localhost:1234/v1",
+    "judge_model": "gpt-4",
+    "judge_temperature": 0.0,
+    "kappa_faithfulness": 0.0,
+    "seed": 42,
+    "repro": false,
+    "cache_dataset": false,
+    "cache_dir": "out/cache",
+    "checkpoint_every": 100,
+    "resume_from": null,
+    "no_silent_defaults": false,
+    "expected_dataset_hash": null,
+    "allow_dataset_drift": false,
+    "config_preset": null,
+    "val_tasks": null,
+    "val_interval": 0,
+    "val_samples": 1,
+    "stability_samples": 1,
+    "max_prompt_chars": 0,
+    "truncate_prompts": false,
+    "blocklist": null,
+    "reject_blocklisted": false,
+    "ddp_backend": null,
+    "config_version": "0.2.0"
+  },
+  "config_version": "0.2.0",
+  "hardware": {
+    "kind": "apple_mps",
+    "device": "mps",
+    "backend": "metal",
+    "name": "apple_mps",
+    "total_mem_gb": 64.0,
+    "capability": null,
+    "supports_bf16": true,
+    "notes": "use 4/8-bit + Metal; keep batch small",
+    "recommended": {
+      "device": "mps",
+      "backend": "metal",
+      "torch_dtype": "float16",
+      "load_in_4bit": true
+    }
+  },
+  "dataset": {
+    "source": {
+      "tasks_path": "tasks/t3_tools.jsonl",
+      "sha256": "902c247c925f08637b1b814ffd63fc9fd5402dea589a5ab816cd49cc78af0743",
+      "num_records": 500,
+      "schema_sha256": {
+        "tasks/schemas/t3_tool_call_schema.json": "e7474d6d41d81851ac8a5cab2e0f5e4b934fb12aecc1632e8bc509dd9a55c2c1"
+      }
+    },
+    "cached": null
+  },
+  "dist": {
+    "rank": 0,
+    "world": 1
+  },
+  "env": {
+    "python": "3.12.11",
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "git_rev": "ad56efd9586f280e4370bf941501083d9021248a",
+    "git_status": "## main...origin/main\n M papers/P1_stable_slo/arxiv/main.bbl\n M papers/P1_stable_slo/arxiv/main.pdf\n M papers/P1_stable_slo/arxiv/main.tex\n M papers/P2_reward_stability/arxiv/main.pdf\n M papers/P2_reward_stability/arxiv/main.tex\n M plan.md\n?? RESULTS_MAP.md\n?? scripts/FULL_STUDY_ESTIMATES.md\n?? scripts/create_multitask_dataset.py\n?? scripts/expand_t2_tasks.py\n?? scripts/p2_comparison_study.md\n?? scripts/run_72h_background.sh\n?? scripts/run_72h_macbook.sh\n?? scripts/run_full_p2_study.sh\n?? scripts/run_p2_multitask.sh\n?? scripts/smoke_test_mps.py\n?? scripts/smoke_test_p2_training.py\n?? tasks/t1t5_balanced.jsonl\n?? tasks/t1t5_natural.jsonl\n?? tasks/t2_expanded.jsonl",
+    "time_utc": "2026-01-24T02:43:26Z",
+    "torch": "2.9.1",
+    "jax": null,
+    "cuda": {
+      "cuda_available": false
+    },
+    "hf_cache": {
+      "HF_HOME": null,
+      "TRANSFORMERS_CACHE": null,
+      "HF_DATASETS_CACHE": null
+    }
+  },
+  "created_at": 1769222606.5791218
+}

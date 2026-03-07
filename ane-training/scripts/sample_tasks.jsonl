@@ -1,0 +1,5 @@
+{"instruction":"Extract the person's name and age from: John Smith is 42 years old.","schema":{"required":["name","age"],"properties":{"name":{"type":"string"},"age":{"type":"integer"}}}}
+{"instruction":"Extract the product name and price from: The iPhone 15 Pro costs $999.","schema":{"required":["product","price"],"properties":{"product":{"type":"string"},"price":{"type":"number"}}}}
+{"instruction":"Extract the city and country from: Paris is the capital of France.","schema":{"required":["city","country"],"properties":{"city":{"type":"string"},"country":{"type":"string"}}}}
+{"instruction":"Extract the date and event from: The moon landing occurred on July 20, 1969.","schema":{"required":["date","event"],"properties":{"date":{"type":"string"},"event":{"type":"string"}}}}
+{"instruction":"Extract the animal and habitat from: Polar bears live in the Arctic.","schema":{"required":["animal","habitat"],"properties":{"animal":{"type":"string"},"habitat":{"type":"string"}}}}
